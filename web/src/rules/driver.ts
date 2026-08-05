@@ -1,0 +1,169 @@
+/**
+ * Headless day driver.  Mirrors rules.py `play_day` / `play_game`.
+ *
+ * The React app does NOT use this: boardgame.io drives the same phase functions
+ * turn by turn.  This exists so the test suite can play thousands of complete
+ * games without a framework, which is how the invariants and termination
+ * properties are checked.
+ */
+
+import { hasLegalPlacement, loadableItems, machineAccepts } from './placement';
+import {
+  advanceIfDone,
+  assertInvariants,
+  beginTurn,
+  canPlaySpecial,
+  displace,
+  drawSpecialPair,
+  eventNeedsChoice,
+  gangTargets,
+  keepSpecial,
+  loadItem,
+  loadsOutstanding,
+  mustStillLoad,
+  phaseEndOfDay,
+  phaseEvent,
+  phaseReckon,
+  playSpecial,
+  setPower,
+  skipCard,
+  skipExtra,
+  DICE,
+  rollDie,
+} from './phases';
+import type { SpecialTarget } from './phases';
+import type { Rng } from './rng';
+import { actingOrder } from './setup';
+import type { GameState, ItemId, PlayerId, SpecialName } from './types';
+
+export interface Policy {
+  chooseLoad(st: GameState, pid: PlayerId): { item: ItemId; machine: number } | null;
+  chooseSpecial?(st: GameState, pid: PlayerId): { name: SpecialName; target: SpecialTarget } | null;
+  chooseKeep?(st: GameState, pid: PlayerId, pair: SpecialName[]): SpecialName;
+  chooseDisplace?(st: GameState, pid: PlayerId): { from: number; item: ItemId; to: number } | null;
+  chooseKey?(st: GameState, pid: PlayerId): { machine: number; on: boolean } | null;
+  chooseGang?(st: GameState, pid: PlayerId, cands: number[]): number;
+  chooseJimothy?(st: GameState, pid: PlayerId, cands: number[]): number;
+}
+
+export function playDay(st: GameState, policy: Policy, rng: Rng): void {
+  st.day += 1;
+
+  // ---- PHASE 1: roll ------------------------------------------------------
+  for (const pid of actingOrder(st)) {
+    beginTurn(st, pid);
+    rollDie(st, rng);
+    let guard = 0;
+    while (st.turn!.stage !== 'done') {
+      if (guard++ > 200) throw new Error('turn did not terminate');
+      const t = st.turn!;
+      if (t.stage === 'card') {
+        const play = policy.chooseSpecial?.(st, pid) ?? null;
+        if (play && canPlaySpecial(st, pid, play.name)) playSpecial(st, pid, play.name, play.target, rng);
+        else skipCard(st, rng);
+      } else if (t.stage === 'load') {
+        if (!mustStillLoad(st)) {
+          advanceIfDone(st, rng);
+          continue;
+        }
+        const choice = policy.chooseLoad(st, pid) ?? anyLegalLoad(st, pid);
+        if (!choice) {
+          // mandatory loading is "as many as you can" [A-W15]
+          st.turn!.loadsRequired = st.turn!.loadsDone;
+          advanceIfDone(st, rng);
+          continue;
+        }
+        loadItem(st, pid, choice.item, choice.machine, rng);
+      } else if (t.stage === 'extra') {
+        const extra = DICE[t.face!].extra;
+        if (extra === 'displace') {
+          const mv = policy.chooseDisplace?.(st, pid) ?? null;
+          if (mv) displace(st, mv.from, mv.item, mv.to, rng);
+          else skipExtra(st, rng);
+        } else if (extra === 'special') {
+          const pair = t.pendingDraw ?? drawSpecialPair(st);
+          if (pair.length === 0) skipExtra(st, rng);
+          else keepSpecial(st, policy.chooseKeep?.(st, pid, pair) ?? pair[0], rng);
+        } else {
+          skipExtra(st, rng);
+        }
+      }
+    }
+  }
+
+  // ---- PHASE 2: event -----------------------------------------------------
+  if (st.revealedEvent !== null) {
+    const drawer = st.eventDrawer ?? 0;
+    const ev = st.revealedEvent;
+    const choice: { machine?: number; jimothyTo?: number } = {};
+    if (eventNeedsChoice(st)) {
+      const cands = gangTargets(st);
+      if (ev === 'Gang') {
+        choice.machine = policy.chooseGang?.(st, drawer, cands) ?? cands[0];
+        const elsewhere = cands.filter((c) => c !== choice.machine);
+        if (elsewhere.length > 0) {
+          choice.jimothyTo = policy.chooseJimothy?.(st, drawer, elsewhere) ?? elsewhere[0];
+        }
+      } else {
+        choice.machine = policy.chooseJimothy?.(st, drawer, cands) ?? cands[0];
+      }
+    }
+    phaseEvent(st, choice, rng);
+  }
+
+  // ---- PHASE 3: key -------------------------------------------------------
+  const act = policy.chooseKey?.(st, st.key) ?? null;
+  if (act) setPower(st, act.machine, act.on);
+
+  // ---- PHASE 4 and 5 ------------------------------------------------------
+  phaseReckon(st, rng);
+  phaseEndOfDay(st);
+  st.turn = null;
+  assertInvariants(st);
+}
+
+export function anyLegalLoad(st: GameState, pid: PlayerId): { item: ItemId; machine: number } | null {
+  if (!hasLegalPlacement(st, pid)) return null;
+  for (const item of loadableItems(st, pid)) {
+    for (let mi = 0; mi < st.machines.length; mi++) {
+      if (machineAccepts(st, mi, item)) return { item, machine: mi };
+    }
+  }
+  return null;
+}
+
+export function playGame(st: GameState, policy: Policy, rng: Rng): GameState {
+  while (!st.over && st.day < st.cfg.dayCap) playDay(st, policy, rng);
+  return st;
+}
+
+/** Deliberately simple reference bot: load the first legal thing, always. */
+export const GreedyPolicy: Policy = {
+  chooseLoad: (st, pid) => anyLegalLoad(st, pid),
+  chooseKey: (st) => {
+    const off = st.machines.find((m) => !m.dead && !m.on);
+    if (off) return { machine: off.id, on: true };
+    return null;
+  },
+  chooseSpecial: (st, pid) => {
+    const ready = st.players[pid].ready.filter((n) => canPlaySpecial(st, pid, n));
+    if (ready.length === 0) return null;
+    const name = ready[0];
+    const live = st.machines.filter((m) => !m.dead);
+    if (live.length === 0) return null;
+    if (name === 'Coin') return { name, target: { machine: live[0].id, on: true } };
+    if (name === 'Snacc') {
+      const dest = live.find((m) => m.id !== st.jimothyAt);
+      return dest ? { name, target: dest.id } : null;
+    }
+    return { name, target: live[0].id };
+  },
+  chooseKeep: (_st, _pid, pair) => pair[0],
+};
+
+/** Suppresses loading entirely; used to hold a rigged board still. */
+export const InertPolicy: Policy = {
+  chooseLoad: () => null,
+};
+
+export { loadsOutstanding };

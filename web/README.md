@@ -1,0 +1,255 @@
+# Laundromat — web (Milestone 1)
+
+Playable **local hot-seat** implementation of Laundromat, brief **v8**.
+Vite + React + TypeScript + boardgame.io. No networking yet; the architecture is
+built so that remote multiplayer is a transport swap, not a rewrite.
+
+---
+
+## Running it
+
+```bash
+cd web
+npm install
+npm run dev        # http://localhost:5173
+```
+
+Other scripts:
+
+```bash
+npm test           # vitest, the whole suite
+npm run build      # typecheck + production build to dist/
+npm run preview    # serve the built bundle
+```
+
+Everyone plays on one screen. Between turns a "pass the device" interstitial hides
+the hand of the player who just acted — hands are the only private information in
+the game. That interstitial can be switched off from the header.
+
+### Regenerating the parity fixtures
+
+The parity suite compares this implementation against the Python oracle in
+`../sim/rules.py`. The fixtures are generated, not hand-written:
+
+```bash
+cd web
+python3 tools/gen_fixtures.py
+```
+
+This writes `tests/parity/fixtures/reckoning.json` and `constants.json`. It imports
+`sim/rules.py` read-only and writes nothing outside `web/`. **Until it has been run,
+two tests in `tests/parity/` fail by design** — that is the suite telling you the
+fixtures are missing, and it should not be "fixed" by deleting the test.
+
+---
+
+## How the code is laid out
+
+The single most important structural decision: **the ruleset is a plain TypeScript
+library that does not import boardgame.io.** boardgame.io is a thin adapter over it.
+That is what makes the parity suite possible (it tests functions, not a framework)
+and what keeps remote multiplayer cheap later.
+
+```
+src/
+  rules/            pure TS. Zero framework dependencies. Mirrors sim/rules.py.
+    types.ts        vocabulary, state shape, config interface
+    config.ts       THE config object: circuit break arm, deck composition, ablations
+    reckoning.ts    machineVerdicts() — pure, memoised, order-independent
+    placement.ts    machineAccepts() — the sole placement predicate
+    setup.ts        newGame()
+    phases.ts       the five phases, the turn machine, invariant checks
+    driver.ts       headless day/game driver (tests and bots only; the app does not use it)
+    selectors.ts    read-only views for the UI, including the "TONIGHT" narration
+    rng.ts          Rng interface + seeded implementation (never Math.random)
+  game/
+    Laundromat.ts   boardgame.io Game: phases, turn order, moves, playerView
+  ui/
+    Board.tsx       layout, turn bar, zones, event/key panels, reckoning modal
+    MachineCard.tsx one machine: contents, power, capacity, markers, tonight's verdict
+tests/
+  ported/           sim/test_rules.py rewritten in TS, same test names
+  parity/           generated-from-oracle fixture replay
+  game/             full games through the driver AND through the real bgio client
+  ui/               jsdom render + interaction smoke tests
+tools/
+  gen_fixtures.py   fixture generator (run with python3)
+```
+
+Dependency direction is strictly `ui -> game -> rules`. Nothing in `rules/` imports
+upward.
+
+---
+
+## State shape
+
+`G` is the rules `GameState` plus three presentation fields.
+
+```ts
+// Item identity is `${owner}-${type}-${shade}` — exactly Python's (owner, typ, shade).
+interface ItemCard { id; owner; type; shade; damp: boolean }
+
+interface Machine {
+  id: number;
+  items: ItemId[];          // order is display-only; verdicts are order-independent
+  on: boolean;              // OFF skips reckoning and keeps contents
+  dead: boolean;            // Gang. permanent
+  jimothy: boolean;
+  cards: { name; owner }[]; // attached specials, read by the reckoning
+  netProtected: ItemId[];   // Wash net, PER ITEM, set at load time (invariant I-11)
+}
+
+interface PlayerState {
+  hand: ItemId[];           // private
+  damp: ItemId[];           // PUBLIC zone, loadable exactly like the hand
+  clean: ItemId[];
+  mustWash: ItemId[];       // the 10 of 14 drawn at setup
+  fresh: SpecialName[];     // drawn today, face-up, UNPLAYABLE
+  ready: SpecialName[];     // playable
+  finishedDay: number | null;
+  keyHolds: number;
+}
+
+interface GameState {
+  cfg; items: Record<ItemId, ItemCard>; machines; players;
+  specialDeck; eventDeck;            // index 0 is the BOTTOM; draws pop() the end
+  key; day;
+  revealedEvent; eventDrawer;        // events are revealed the moment they are drawn
+  jimothyAt; jimothySince; jimothyArrived;
+  gangUsed;
+  cbBlackout;                        // circuit break arm V1
+  cbRestoreDay;                      // circuit break arm V3
+  over; winners;
+  turn: TurnScratch | null;          // per-turn: face, stage, loads outstanding, netTurn
+  log: LogEntry[];
+}
+```
+
+`GameState` plus `turnsTaken`, `lastReckoning`, `lastReckoningDay` is `LaundromatG`.
+
+**Open information is enforced by the state shape.** The only private data is
+`players[x].hand` and `players[x].ready` (the physical game's hidden hand). Loaded
+items, fresh cards, damp socks, machine contents, power, markers and decks-in-play
+are all public. `playerView` strips only those two arrays, and only when a `playerID`
+is present — which today never happens, since hot-seat runs one client.
+
+### Phase mapping
+
+```
+phase "roll"   one turn per player, in seat order (or keyholder-first, see config)
+               turn stages: roll -> card -> load -> extra
+phase "event"  the drawn event resolves; Gang and Jimothy need a choice from the drawer
+phase "key"    the keyholder turns one machine on, one off, or passes
+               its onEnd runs PHASE 4 (reckoning) and PHASE 5 (end of day)
+```
+
+A note for whoever touches `Laundromat.ts` next: **do not end the roll phase with a
+phase-level `endIf`.** boardgame.io evaluates `endIf` on phase *entry*, before
+`onBegin`, so any counter-based test fires before the counter is reset and the game
+loops forever between phases. The roll phase ends by returning `undefined` from
+`turn.order.next` after a full lap. This cost an hour; it is now commented in place.
+
+---
+
+## Which rules are configurable
+
+Everything the designer has not committed to lives in `src/rules/config.ts` and
+nowhere else. The starred ones are selectable from the setup screen.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `circuitBreak` * | `'V3'` | **Under A/B test.** `V1` blackout: only tonight's reckoning is cancelled, power untouched. `V2` all-off: every washer off, keyholder restores one per day — **this is what brief v8 currently says**. `V3` auto-restore: all off, all back on at the end of the following day's reckoning — **this is what `sim/out/experiment-A-circuit-break.txt` recommends**, and the default here. The designer has not committed. |
+| `specialDeck` | flat 3/3/3/3/3/3/2 | **PLACEHOLDER, NOT A DESIGN DECISION.** Copy counts are P0 and unresolved. The only hard constraint is manufacturing: **exactly 20 cards** (`publishing-research.md:187`), asserted at setup. The setup screen says so in as many words, so nobody forms an opinion about card balance from it. |
+| `turnOrder` | `'cardLoadExtra'` | Designer-confirmed: roll → play a card → load → the die's extra effect. `'extraLoadCard'` implements the (now stale) rules-v0.4 §3.1 reading and still passes the integrity tests. |
+| `sanitizerOwnerOnly` * | `false` | `false` = machine-wide, tiers 1–2 suppressed [A-21]. `true` = the owner-only reading rules-v0.4 [OQ-01] argues against. |
+| `publicDampZone` * | `true` | `true` = damp socks sit in a face-up zone [A-28]. `false` = they go back to the hidden hand, Python-style. No reckoning outcome changes either way. |
+| `keyholderFirst` * | `false` | Acting order: fixed seat order [A-W01], or keyholder-first. |
+| `bleachKillsDark` | `false` | Sensitivity reading from rules-v0.2 [OQ-05]: Bleach destroys dark instead of swapping shades. |
+| `socksBlanketExtraWash` | `true` | The v8 socks/blanket rule. Present as an ablation switch. |
+| `crowdThreshold` | `3` | ≥N of a garment type sends them all back [A-22]. |
+| `capacity`, `handSize`, `machines` | 4, 10, P+1 | Board totals. |
+| `dayCap` | 400 | Safety valve for headless sweeps. |
+
+---
+
+## The reckoning
+
+`machineVerdicts()` is a direct port of `rules.py:machine_verdicts`. rules-v0.4 §6.1
+proves the post-ladder filters are a **pure conjunction of monotone downgrades** that
+compute their demotion sets from machine contents and attached cards only — never
+from another item's verdict — so they commute. The code says so literally:
+
+```ts
+const filters = [underwearIsolation, blanketExclusivity, crowding, coloring];
+for (const f of filters) for (const i of f(ctx)) washing[i] = false;
+```
+
+The only load-bearing ordering constraint is that the pre-ladder modifiers (Bleach's
+shade swap, Sanitizer's tier suppression) run before tier selection.
+
+Two consequences worth stating because they are easy to get wrong:
+
+- **The socks/blanket damp transform is NOT inside the pure function.** It mutates a
+  per-card bit, which would poison the memo table. It runs in `phaseReckon` as step
+  S8, exactly as in the Python.
+- **It keys on the machine *containing* a blanket, not on the blanket *washing*
+  [A-24].** Keying on another item's verdict is precisely what would break
+  commutativity. Worked example 18 (dark socks + light blanket) is the case that
+  distinguishes the two readings, and it is in the fixture set.
+
+---
+
+## What the parity suite guarantees, and what it does not
+
+**Guaranteed.** Every verdict `machineVerdicts()` produces is identical to
+`sim/rules.py`'s on:
+
+- all ~60 named worked examples from rules-v0.4 §6.13 Table A and the S/N/W families
+  of `test_rules.py`;
+- an **exhaustive enumeration** of every 1-, 2- and 3-item machine over a 42-key
+  alphabet (3 owners × 7 types × 2 shades) — 12,383 machines, no cards;
+- a **5,000-machine seeded random sweep** with attached cards (Bleach, Coloring,
+  Color catcher, Sanitizer, per-item Wash net protection), 1–4 items, four owners,
+  and both the `bleachKillsDark` and `sanitizerOwnerOnly` sensitivity readings;
+- the component constants: item taxonomy, card lists, event deck, machines-per-player,
+  capacity, hand size, crowd threshold, and the full dice table.
+
+Plus the whole of `test_rules.py` re-expressed as TypeScript in `tests/ported/`,
+keeping the Python test names so a failure maps one-to-one onto the oracle's suite.
+
+**NOT guaranteed, and it cannot be.** There is **no seed-for-seed parity of whole
+games** between this implementation and the Python simulation. Python's
+`random.Random` (Mersenne Twister) and boardgame.io's RNG are different streams, and
+neither can reproduce the other. Feeding the same seed to both produces different
+dice, different deals and different games. The two are **the same rules, not the same
+game generator.**
+
+Do not use this implementation to reproduce a specific simulated game, and do not use
+the simulation to reproduce a specific play session. Where whole-game behaviour needs
+checking, `tests/game/` asserts the same *properties* the Python suite does
+(termination, conservation, invariants I-1..I-13, at most one Gang, winners hold ten
+clean items) over many self-played games, rather than claiming equality.
+
+---
+
+## Status: what works, what is not built
+
+**Works and is verified by tests:**
+
+- The complete v8 ruleset: four-tier ladder, all filters, all seven specials, all four
+  events, Jimothy and hostages, Gang's permanent destruction and his relocation, all
+  three circuit break arms, damp socks, mandatory loading, fresh→ready promotion,
+  key rotation, simultaneous victory.
+- Complete games play to victory through the **real boardgame.io client** at 3, 4, 5
+  and 6 players and under every circuit break arm.
+- The hot-seat UI renders, rolls, loads, plays cards and narrates each machine.
+
+**Not built (out of Milestone 1 scope):** networking, lobby, persistence, bots in the
+UI, undo/replay, animation, mobile layout, spectator mode.
+
+**Known rough edges:**
+
+- The reckoning modal must be dismissed each day; there is no fast-forward.
+- The face-4 displacement flow needs two clicks with no drag affordance.
+- The log is plain text with no filtering.
+- No confirmation before an irreversible choice (Gang's target, the keyholder's toggle).

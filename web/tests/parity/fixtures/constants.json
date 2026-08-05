@@ -1,0 +1,78 @@
+{
+ "attaching": [
+  "Bleach",
+  "Color catcher",
+  "Coloring",
+  "Sanitizer",
+  "Wash net"
+ ],
+ "capacity": 4,
+ "crowdThreshold": 3,
+ "dice": {
+  "1": {
+   "extra": null,
+   "load": 1
+  },
+  "2": {
+   "extra": null,
+   "load": 2
+  },
+  "3": {
+   "extra": null,
+   "load": 3
+  },
+  "4": {
+   "extra": "displace",
+   "load": 1
+  },
+  "5": {
+   "extra": "special",
+   "load": 1
+  },
+  "6": {
+   "extra": "event",
+   "load": 1
+  }
+ },
+ "events": [
+  "Gang",
+  "Circuit break",
+  "Jimothy",
+  "Animal control"
+ ],
+ "fixedEventDeck": {
+  "Animal control": 1,
+  "Circuit break": 1,
+  "Gang": 1,
+  "Jimothy": 1
+ },
+ "handSize": 10,
+ "immediate": [
+  "Coin",
+  "Snacc"
+ ],
+ "machinesByPlayers": {
+  "3": 4,
+  "4": 5,
+  "5": 6,
+  "6": 7
+ },
+ "specials": [
+  "Coloring",
+  "Color catcher",
+  "Bleach",
+  "Wash net",
+  "Snacc",
+  "Sanitizer",
+  "Coin"
+ ],
+ "typeNames": [
+  "shoes",
+  "socks",
+  "pants",
+  "shirts",
+  "hats",
+  "underwear",
+  "blanket"
+ ]
+}

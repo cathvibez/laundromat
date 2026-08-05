@@ -1,0 +1,739 @@
+/**
+ * Day-level transitions.  Port of rules.py phases 1-5.
+ *
+ * Every function here mutates the state in place (boardgame.io wraps these in
+ * Immer, and the parity tests call them on plain objects).  All randomness flows
+ * through the injected Rng.
+ *
+ * Phase order, brief v8 section 4:
+ *   1 roll  ->  2 event resolution  ->  3 key  ->  4 reckoning  ->  5 end of day
+ *
+ * Within one player's turn, designer-confirmed order [A-W03]:
+ *   roll  ->  play at most one ready card  ->  load exactly the number rolled
+ *         ->  the face's extra effect
+ * cfg.turnOrder === 'extraLoadCard' selects the rules-v0.4 section 3.1 reading
+ * instead; that document is stale on this point but the switch is kept.
+ */
+
+import { machineAccepts, hasLegalPlacement, loadableItems } from './placement';
+import type { CardsKey, ReckoningOpts } from './reckoning';
+import { machineVerdicts, tierOf } from './reckoning';
+import type { Rng } from './rng';
+import type {
+
+  GameState,
+  ItemCard,
+  ItemId,
+  Machine,
+  PlayerId,
+  SpecialName,
+  TurnScratch,
+} from './types';
+import { ATTACHING } from './types';
+
+// ---------------------------------------------------------------------------
+// Small helpers
+// ---------------------------------------------------------------------------
+
+export function log(st: GameState, text: string): void {
+  st.log.push({ day: st.day, text });
+  if (st.log.length > 400) st.log.splice(0, st.log.length - 400);
+}
+
+export function opts(st: GameState): ReckoningOpts {
+  return {
+    bleachKillsDark: st.cfg.bleachKillsDark,
+    sanitizerOwnerOnly: st.cfg.sanitizerOwnerOnly,
+    crowdThreshold: st.cfg.crowdThreshold,
+  };
+}
+
+export function cardsKeyOf(m: Machine): CardsKey {
+  const key: CardsKey = {
+    bleached: false,
+    coloringOwners: [],
+    catcherOwners: [],
+    netKeys: [...m.netProtected],
+    sanitizerOwners: [],
+  };
+  for (const c of m.cards) {
+    if (c.name === 'Bleach') key.bleached = true;
+    else if (c.name === 'Coloring') key.coloringOwners.push(c.owner);
+    else if (c.name === 'Color catcher') key.catcherOwners.push(c.owner);
+    else if (c.name === 'Sanitizer') key.sanitizerOwners.push(c.owner);
+  }
+  return key;
+}
+
+export function machineContents(st: GameState, m: Machine): ItemCard[] {
+  return m.items.map((id) => st.items[id]);
+}
+
+/** Which of this machine's items would wash if it reckoned right now. */
+export function whatWouldWash(st: GameState, m: Machine): Record<ItemId, boolean> {
+  const contents = machineContents(st, m);
+  const verdicts = machineVerdicts(contents, cardsKeyOf(m), opts(st));
+  const out: Record<ItemId, boolean> = {};
+  contents.forEach((x, i) => (out[x.id] = verdicts[i]));
+  return out;
+}
+
+export function currentTier(st: GameState, m: Machine) {
+  return tierOf(machineContents(st, m), cardsKeyOf(m), opts(st));
+}
+
+/** Where a returned item goes: the public damp zone if it is damp, else the hand. */
+function returnToOwner(st: GameState, id: ItemId): void {
+  const item = st.items[id];
+  const p = st.players[item.owner];
+  if (item.damp && st.cfg.publicDampZone) {
+    if (!p.damp.includes(id)) p.damp.push(id);
+  } else if (!p.hand.includes(id)) {
+    p.hand.push(id);
+  }
+}
+
+function removeFromZones(st: GameState, pid: PlayerId, id: ItemId): void {
+  const p = st.players[pid];
+  p.hand = p.hand.filter((x) => x !== id);
+  p.damp = p.damp.filter((x) => x !== id);
+}
+
+function recycleCards(st: GameState, m: Machine, rng: Rng): void {
+  if (m.cards.length === 0) return;
+  for (const c of m.cards) st.specialDeck.push(c.name);
+  m.cards = [];
+  st.specialDeck = rng.shuffle(st.specialDeck);
+}
+
+function recycleSpecial(st: GameState, name: SpecialName, rng: Rng): void {
+  st.specialDeck.push(name);
+  st.specialDeck = rng.shuffle(st.specialDeck);
+}
+
+// ---------------------------------------------------------------------------
+// Dice
+// ---------------------------------------------------------------------------
+
+export type Extra = 'displace' | 'special' | 'event' | null;
+
+export const DICE: Readonly<Record<number, { load: number; extra: Extra }>> = {
+  1: { load: 1, extra: null },
+  2: { load: 2, extra: null },
+  3: { load: 3, extra: null },
+  4: { load: 1, extra: 'displace' },
+  5: { load: 1, extra: 'special' },
+  6: { load: 1, extra: 'event' },
+};
+
+export const DICE_TEXT: Readonly<Record<number, string>> = {
+  1: 'Load 1 item.',
+  2: 'Load 2 items.',
+  3: 'Load 3 items.',
+  4: 'Load 1 item, and move any one item between machines - including your own.',
+  5: 'Load 1 item, and draw a special item: two cards, keep one.',
+  6: 'Load 1 item, and draw an event card. It is revealed at once.',
+};
+
+// ---------------------------------------------------------------------------
+// PHASE 1 -- the turn
+// ---------------------------------------------------------------------------
+
+export function beginTurn(st: GameState, pid: PlayerId): void {
+  st.turn = {
+    player: pid,
+    face: null,
+    stage: 'roll',
+    loadsRequired: 0,
+    loadsDone: 0,
+    cardPlayed: false,
+    extraResolved: false,
+    netTurn: null,
+    pendingDraw: null,
+  };
+}
+
+function firstStage(st: GameState): TurnScratch['stage'] {
+  return st.cfg.turnOrder === 'cardLoadExtra' ? 'card' : 'extra';
+}
+
+export function rollDie(st: GameState, rng: Rng): number {
+  const t = st.turn!;
+  const face = rng.die(6);
+  t.face = face;
+  t.loadsRequired = DICE[face].load;
+  t.loadsDone = 0;
+  t.stage = firstStage(st);
+  log(st, `Player ${t.player + 1} rolled ${face}. ${DICE_TEXT[face]}`);
+  advanceIfDone(st, rng);
+  return face;
+}
+
+/** Loading is MANDATORY: exactly the number rolled, fewer only if you cannot. */
+export function loadsOutstanding(st: GameState): number {
+  const t = st.turn;
+  if (!t) return 0;
+  return Math.max(0, t.loadsRequired - t.loadsDone);
+}
+
+/** [A-05] a player loads min(rolled, handSize, legalPlacements).  Zero is allowed. */
+export function mustStillLoad(st: GameState): boolean {
+  const t = st.turn;
+  if (!t || t.stage !== 'load') return false;
+  if (loadsOutstanding(st) === 0) return false;
+  return hasLegalPlacement(st, t.player);
+}
+
+export function canPlaySpecial(st: GameState, pid: PlayerId, name: SpecialName): boolean {
+  const t = st.turn;
+  if (!t || t.player !== pid) return false;
+  if (t.stage !== 'card') return false;
+  if (t.cardPlayed) return false;
+  if (!st.players[pid].ready.includes(name)) return false;
+  if (name === 'Snacc' && st.jimothyAt === null) return false;
+  return true;
+}
+
+export type SpecialTarget = number | { machine: number; on: boolean };
+
+export function playSpecial(
+  st: GameState,
+  pid: PlayerId,
+  name: SpecialName,
+  target: SpecialTarget,
+  rng: Rng,
+): void {
+  const t = st.turn!;
+  const p = st.players[pid];
+  const idx = p.ready.indexOf(name);
+  if (idx === -1) throw new Error(`Player ${pid} has no ready ${name}`);
+  p.ready.splice(idx, 1);
+  t.cardPlayed = true;
+  applySpecial(st, pid, name, target, rng);
+}
+
+export function applySpecial(
+  st: GameState,
+  pid: PlayerId,
+  name: SpecialName,
+  target: SpecialTarget,
+  rng: Rng,
+): void {
+  if (ATTACHING.has(name)) {
+    const mi = target as number;
+    st.machines[mi].cards.push({ name, owner: pid });
+    if (name === 'Wash net' && st.turn) {
+      // [A-W04] the net protects only underwear this player loads into this
+      // machine on this turn.
+      st.turn.netTurn = { player: pid, machine: mi };
+    }
+    log(st, `Player ${pid + 1} played ${name} on M${mi + 1}.`);
+    return;
+  }
+  if (name === 'Snacc') {
+    const mi = target as number;
+    moveJimothy(st, mi, rng);
+    recycleSpecial(st, name, rng);
+    log(st, `Player ${pid + 1} played Snacc: Jimothy is lured to M${mi + 1}.`);
+    return;
+  }
+  if (name === 'Coin') {
+    const { machine, on } = target as { machine: number; on: boolean };
+    const m = st.machines[machine];
+    if (!m.dead && m.on !== on) {
+      m.on = on;
+      log(st, `Player ${pid + 1} played the Coin: M${machine + 1} switched ${on ? 'ON' : 'OFF'}.`);
+    } else {
+      log(st, `Player ${pid + 1} played the Coin with no effect.`);
+    }
+    recycleSpecial(st, name, rng);
+  }
+}
+
+export function loadItem(st: GameState, pid: PlayerId, id: ItemId, mi: number, rng: Rng): void {
+  const t = st.turn!;
+  if (!machineAccepts(st, mi, id)) throw new Error(`M${mi} will not accept ${id}`);
+  if (!loadableItems(st, pid).includes(id)) throw new Error(`${id} is not loadable by ${pid}`);
+  removeFromZones(st, pid, id);
+  const m = st.machines[mi];
+  m.items.push(id);
+  const item = st.items[id];
+  if (item.type === 'underwear' && t.netTurn && t.netTurn.player === pid && t.netTurn.machine === mi) {
+    m.netProtected.push(id);
+  }
+  t.loadsDone += 1;
+  log(st, `Player ${pid + 1} loaded ${describe(item)} into M${mi + 1}.`);
+  advanceIfDone(st, rng);
+}
+
+export function describe(item: ItemCard): string {
+  const shade = item.shade === 'D' ? 'dark' : 'light';
+  return `${shade} ${item.type}${item.damp ? ' (damp)' : ''}`;
+}
+
+/** Face 4.  The move is optional; hostages are frozen; dead machines are out. */
+export function canDisplace(st: GameState, from: number, id: ItemId, to: number): boolean {
+  if (from === to) return false;
+  const src = st.machines[from];
+  if (!src || src.dead || src.jimothy) return false; // [A-18] hostages cannot move
+  if (!src.items.includes(id)) return false;
+  return machineAccepts(st, to, id);
+}
+
+export function displace(st: GameState, from: number, id: ItemId, to: number, rng: Rng): void {
+  if (!canDisplace(st, from, id, to)) throw new Error('illegal move');
+  const src = st.machines[from];
+  src.items = src.items.filter((x) => x !== id);
+  src.netProtected = src.netProtected.filter((x) => x !== id); // I-11
+  st.machines[to].items.push(id);
+  log(st, `${describe(st.items[id])} moved from M${from + 1} to M${to + 1}.`);
+  finishExtra(st, rng);
+}
+
+/** Face 5 first half: [A-W13] draw two, keep one, the other to the BOTTOM. */
+export function drawSpecialPair(st: GameState): SpecialName[] {
+  const t = st.turn!;
+  const deck = st.specialDeck;
+  if (deck.length === 0) {
+    t.pendingDraw = [];
+    return [];
+  }
+  const pair: SpecialName[] = deck.length === 1 ? [deck.pop()!] : [deck.pop()!, deck.pop()!];
+  t.pendingDraw = pair;
+  return pair;
+}
+
+export function keepSpecial(st: GameState, keep: SpecialName, rng: Rng): void {
+  const t = st.turn!;
+  const pair = t.pendingDraw ?? [];
+  st.players[t.player].fresh.push(keep);
+  let returned = false;
+  for (const name of pair) {
+    if (name !== keep && !returned) {
+      st.specialDeck.unshift(name); // to the bottom
+      returned = true;
+    }
+  }
+  t.pendingDraw = null;
+  log(st, `Player ${t.player + 1} kept ${keep}. It is fresh and cannot be played today.`);
+  finishExtra(st, rng);
+}
+
+/** Face 6: only the FIRST 6 of the day draws.  Revealed the moment it is drawn. */
+export function drawEvent(st: GameState, rng: Rng): void {
+  const t = st.turn!;
+  if (st.revealedEvent === null && st.eventDeck.length > 0) {
+    const idx = rng.int(st.eventDeck.length);
+    st.revealedEvent = st.eventDeck.splice(idx, 1)[0];
+    st.eventDrawer = t.player;
+    log(st, `Player ${t.player + 1} drew an event: ${st.revealedEvent}. It resolves after every turn.`);
+  } else {
+    log(st, `Player ${t.player + 1} rolled a 6, but an event is already revealed today.`);
+  }
+  finishExtra(st, rng);
+}
+
+export function skipCard(st: GameState, rng: Rng): void {
+  const t = st.turn!;
+  t.cardPlayed = true;
+  advanceStage(st, rng);
+}
+
+export function skipExtra(st: GameState, rng: Rng): void {
+  finishExtra(st, rng);
+}
+
+function finishExtra(st: GameState, rng: Rng): void {
+  const t = st.turn!;
+  t.extraResolved = true;
+  advanceStage(st, rng);
+}
+
+/** Auto-advance whenever the current stage has nothing left to decide. */
+export function advanceIfDone(st: GameState, rng: Rng): void {
+  const t = st.turn;
+  if (!t) return;
+  if (t.stage === 'card') {
+    const p = st.players[t.player];
+    const playable = p.ready.filter((n) => canPlaySpecial(st, t.player, n));
+    if (t.cardPlayed || playable.length === 0) advanceStage(st, rng);
+    return;
+  }
+  if (t.stage === 'load') {
+    if (!mustStillLoad(st)) advanceStage(st, rng);
+    return;
+  }
+  if (t.stage === 'extra') {
+    const extra = DICE[t.face!].extra;
+    if (t.extraResolved || extra === null) advanceStage(st, rng);
+    else if (extra === 'displace' && !anyLegalDisplacement(st)) finishExtra(st, rng);
+    else if (extra === 'special') {
+      if (st.specialDeck.length === 0) finishExtra(st, rng);
+      else if (t.pendingDraw === null) drawSpecialPair(st);
+    } else if (extra === 'event') drawEvent(st, rng);
+  }
+}
+
+function advanceStage(st: GameState, rng: Rng): void {
+  const t = st.turn!;
+  const order: TurnScratch['stage'][] =
+    st.cfg.turnOrder === 'cardLoadExtra'
+      ? ['roll', 'card', 'load', 'extra', 'done']
+      : ['roll', 'extra', 'load', 'card', 'done'];
+  const i = order.indexOf(t.stage);
+  t.stage = order[Math.min(i + 1, order.length - 1)];
+  if (t.stage !== 'done') advanceIfDone(st, rng);
+}
+
+export function anyLegalDisplacement(st: GameState): boolean {
+  for (const src of st.machines) {
+    if (src.dead || src.jimothy) continue;
+    for (const id of src.items) {
+      for (const dst of st.machines) {
+        if (dst.id === src.id) continue;
+        if (machineAccepts(st, dst.id, id)) return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function turnComplete(st: GameState): boolean {
+  return st.turn?.stage === 'done';
+}
+
+// ---------------------------------------------------------------------------
+// Jimothy
+// ---------------------------------------------------------------------------
+
+export function moveJimothy(st: GameState, mi: number, rng: Rng): void {
+  const old = st.jimothyAt;
+  if (old !== null) {
+    st.machines[old].jimothy = false;
+    releaseHostages(st, old, rng);
+  } else {
+    st.jimothyArrived = st.day;
+  }
+  st.machines[mi].jimothy = true;
+  st.jimothyAt = mi;
+  st.jimothySince = st.day;
+}
+
+export function removeJimothy(st: GameState, reason: 'Animal control', rng: Rng): void {
+  const mi = st.jimothyAt;
+  if (mi === null) return;
+  st.machines[mi].jimothy = false;
+  releaseHostages(st, mi, rng);
+  st.jimothyAt = null;
+  st.jimothySince = null;
+  st.jimothyArrived = null;
+  if (reason === 'Animal control') {
+    st.eventDeck.push('Jimothy');
+    st.eventDeck = rng.shuffle(st.eventDeck);
+  }
+}
+
+/** Release never washes anything: hostages go back to their owners, unwashed. */
+export function releaseHostages(st: GameState, mi: number, rng: Rng): void {
+  const m = st.machines[mi];
+  if (m.items.length > 0) {
+    log(st, `M${mi + 1} releases ${m.items.length} item(s) to their owners, unwashed.`);
+  }
+  for (const id of m.items) returnToOwner(st, id);
+  m.items = [];
+  m.netProtected = [];
+  recycleCards(st, m, rng);
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 2 -- event resolution
+// ---------------------------------------------------------------------------
+
+export interface EventChoice {
+  /** Gang: the machine to destroy.  Jimothy: where he settles. */
+  machine?: number;
+  /** Gang shooting Jimothy's machine: where he relocates to [A-W07]. */
+  jimothyTo?: number;
+}
+
+/** Does this event need a decision from the drawer before it can resolve? */
+export function eventNeedsChoice(st: GameState): boolean {
+  const ev = st.revealedEvent;
+  if (ev === 'Gang') return true;
+  if (ev === 'Jimothy') return st.machines.some((m) => !m.dead);
+  return false;
+}
+
+export function gangTargets(st: GameState): number[] {
+  return st.machines.filter((m) => !m.dead).map((m) => m.id);
+}
+
+export function phaseEvent(st: GameState, choice: EventChoice, rng: Rng): void {
+  const ev = st.revealedEvent;
+  if (ev === null) return;
+  st.revealedEvent = null;
+  st.eventDrawer = null;
+
+  if (ev === 'Gang') resolveGang(st, choice, rng);
+  else if (ev === 'Circuit break') resolveCircuitBreak(st, rng);
+  else if (ev === 'Jimothy') resolveJimothyEvent(st, choice, rng);
+  else resolveAnimalControl(st, rng);
+}
+
+function resolveGang(st: GameState, choice: EventChoice, rng: Rng): void {
+  const cands = gangTargets(st);
+  if (cands.length > 0) {
+    const mi = choice.machine !== undefined && cands.includes(choice.machine) ? choice.machine : cands[0];
+    const m = st.machines[mi];
+    for (const id of m.items) returnToOwner(st, id);
+    m.items = [];
+    m.netProtected = [];
+    recycleCards(st, m, rng);
+    if (m.jimothy) {
+      // [A-W07] the washer dies, hostages are released, and the raccoon RELOCATES.
+      m.jimothy = false;
+      st.jimothyAt = null;
+      const elsewhere = st.machines.filter((x) => !x.dead && x.id !== mi).map((x) => x.id);
+      if (elsewhere.length > 0) {
+        const dest =
+          choice.jimothyTo !== undefined && elsewhere.includes(choice.jimothyTo)
+            ? choice.jimothyTo
+            : elsewhere[0];
+        st.machines[dest].jimothy = true;
+        st.jimothyAt = dest;
+        st.jimothySince = st.day;
+        log(st, `Jimothy relocates to M${dest + 1}.`);
+      } else {
+        st.jimothySince = null;
+        st.jimothyArrived = null;
+      }
+    }
+    m.dead = true;
+    m.on = false;
+    log(st, `GANG: M${mi + 1} is shot and out of the game permanently.`);
+  }
+  st.gangUsed = true;
+  // never returns to the deck
+}
+
+function resolveCircuitBreak(st: GameState, rng: Rng): void {
+  const arm = st.cfg.circuitBreak;
+  if (arm === 'V1') {
+    st.cbBlackout = true;
+    log(st, 'CIRCUIT BREAK (V1 blackout): tonight nothing reckons. Power is untouched.');
+  } else {
+    for (const m of st.machines) {
+      if (!m.dead) m.on = false;
+    }
+    if (arm === 'V3') {
+      st.cbRestoreDay = st.day + 1;
+      log(
+        st,
+        'CIRCUIT BREAK (V3 auto-restore): every washer is off. They all come back on at the end of tomorrow.',
+      );
+    } else {
+      log(st, 'CIRCUIT BREAK (V2): every washer is off. The keyholder restores one per day.');
+    }
+  }
+  st.eventDeck.push('Circuit break');
+  st.eventDeck = rng.shuffle(st.eventDeck);
+}
+
+function resolveJimothyEvent(st: GameState, choice: EventChoice, rng: Rng): void {
+  const cands = st.machines.filter((m) => !m.dead).map((m) => m.id);
+  if (cands.length === 0) return;
+  const mi = choice.machine !== undefined && cands.includes(choice.machine) ? choice.machine : cands[0];
+  moveJimothy(st, mi, rng);
+  log(st, `JIMOTHY settles into M${mi + 1}. It cannot run and cannot be loaded.`);
+  // His card stays on the board; it does NOT return to the deck.
+}
+
+function resolveAnimalControl(st: GameState, rng: Rng): void {
+  if (st.jimothyAt === null) {
+    log(st, 'ANIMAL CONTROL: no raccoon in play. Nothing happens.'); // [A-W10] blank
+  } else {
+    log(st, `ANIMAL CONTROL: Jimothy is taken away from M${st.jimothyAt + 1}.`);
+    removeJimothy(st, 'Animal control', rng);
+  }
+  st.eventDeck.push('Animal control');
+  st.eventDeck = rng.shuffle(st.eventDeck);
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 3 -- key
+// ---------------------------------------------------------------------------
+
+export function canSetPower(st: GameState, mi: number, on: boolean): boolean {
+  const m = st.machines[mi];
+  return !!m && !m.dead && m.on !== on;
+}
+
+export function setPower(st: GameState, mi: number, on: boolean): void {
+  if (!canSetPower(st, mi, on)) return;
+  st.machines[mi].on = on;
+  log(st, `The keyholder switches M${mi + 1} ${on ? 'ON' : 'OFF'}.`);
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 4 -- reckoning
+// ---------------------------------------------------------------------------
+
+export type Outcome = 'washed' | 'damp' | 'sentBack';
+
+export interface MachineResult {
+  machine: number;
+  skipped: null | 'dead' | 'off' | 'raccoon' | 'blackout' | 'empty';
+  tier: number | null;
+  outcomes: { item: ItemId; outcome: Outcome }[];
+}
+
+export function phaseReckon(st: GameState, rng: Rng): MachineResult[] {
+  const results: MachineResult[] = [];
+  const blackout = st.cbBlackout;
+  st.cbBlackout = false;
+
+  for (const m of st.machines) {
+    if (m.dead) {
+      results.push({ machine: m.id, skipped: 'dead', tier: null, outcomes: [] });
+      continue;
+    }
+    if (blackout) {
+      results.push({ machine: m.id, skipped: 'blackout', tier: null, outcomes: [] });
+      continue;
+    }
+    if (m.jimothy) {
+      results.push({ machine: m.id, skipped: 'raccoon', tier: null, outcomes: [] });
+      continue;
+    }
+    if (!m.on) {
+      results.push({ machine: m.id, skipped: 'off', tier: null, outcomes: [] });
+      continue;
+    }
+    if (m.items.length === 0) {
+      recycleCards(st, m, rng);
+      results.push({ machine: m.id, skipped: 'empty', tier: null, outcomes: [] });
+      continue;
+    }
+
+    const contents = machineContents(st, m);
+    const ck = cardsKeyOf(m);
+    const verdicts = machineVerdicts(contents, ck, opts(st));
+    const tier = tierOf(contents, ck, opts(st));
+
+    // S8 [A-24]: keyed on the machine CONTAINING a blanket, not on the blanket
+    // washing.  Keying on another item's verdict would break commutativity.
+    const machineHadBlanket = contents.some((x) => x.type === 'blanket');
+
+    const outcomes: MachineResult['outcomes'] = [];
+    contents.forEach((item, i) => {
+      const p = st.players[item.owner];
+      if (!verdicts[i]) {
+        returnToOwner(st, item.id); // damp socks stay damp
+        outcomes.push({ item: item.id, outcome: 'sentBack' });
+        return;
+      }
+      if (st.cfg.socksBlanketExtraWash && item.type === 'socks' && machineHadBlanket && !item.damp) {
+        item.damp = true;
+        returnToOwner(st, item.id);
+        outcomes.push({ item: item.id, outcome: 'damp' });
+        return;
+      }
+      item.damp = false;
+      if (!p.clean.includes(item.id)) p.clean.push(item.id);
+      outcomes.push({ item: item.id, outcome: 'washed' });
+    });
+
+    m.items = [];
+    m.netProtected = [];
+    recycleCards(st, m, rng);
+    results.push({ machine: m.id, skipped: null, tier, outcomes });
+  }
+
+  const washed = results.reduce(
+    (n, r) => n + r.outcomes.filter((o) => o.outcome === 'washed').length,
+    0,
+  );
+  log(st, `Reckoning: ${washed} item(s) came out clean.`);
+  return results;
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 5 -- end of day
+// ---------------------------------------------------------------------------
+
+export function phaseEndOfDay(st: GameState): void {
+  // Circuit break arm V3: everything comes back on after the following reckoning.
+  if (st.cbRestoreDay === st.day) {
+    for (const m of st.machines) if (!m.dead) m.on = true;
+    st.cbRestoreDay = null;
+    log(st, 'The power is restored: every surviving washer is back on.');
+  }
+
+  // 1. Victory check, AFTER the full reckoning [A-W14], section 8.6.
+  for (const p of st.players) {
+    if (p.finishedDay === null && isFinished(p.clean, p.mustWash)) p.finishedDay = st.day;
+  }
+
+  // 2. Fresh -> ready.
+  for (const p of st.players) {
+    if (p.fresh.length > 0) {
+      p.ready.push(...p.fresh);
+      p.fresh = [];
+    }
+  }
+
+  // 3. The key passes.
+  st.players[st.key].keyHolds += 1;
+  st.key = (st.key + 1) % st.cfg.players;
+
+  const winners = st.players.filter((p) => p.finishedDay !== null).map((p) => p.id);
+  if (winners.length > 0) {
+    st.over = true;
+    st.winners = winners;
+    log(
+      st,
+      winners.length === 1
+        ? `Player ${winners[0] + 1} has washed all ten items and wins.`
+        : `Players ${winners.map((w) => w + 1).join(' and ')} finish together and all win.`,
+    );
+  }
+}
+
+export function isFinished(clean: ItemId[], mustWash: ItemId[]): boolean {
+  if (clean.length < mustWash.length) return false;
+  const set = new Set(clean);
+  return mustWash.every((id) => set.has(id));
+}
+
+// ---------------------------------------------------------------------------
+// Invariants (rules-v0.4 section 6.12).  Asserted in tests and in dev builds.
+// ---------------------------------------------------------------------------
+
+export function assertInvariants(st: GameState): void {
+  for (const m of st.machines) {
+    const contents = machineContents(st, m);
+    const blankets = contents.filter((x) => x.type === 'blanket');
+    if (blankets.length > 1) throw new Error('I-2: two blankets in one machine');
+    if (blankets.length === 1 && contents.some((x) => x.type !== 'blanket' && x.type !== 'socks')) {
+      throw new Error('I-2: blanket shares with a non-sock');
+    }
+    if (contents.length > st.cfg.capacity) throw new Error('I-3: over capacity');
+    if (m.dead && m.items.length > 0) throw new Error('dead machines hold nothing');
+  }
+  for (const item of Object.values(st.items)) {
+    if (item.damp && item.type !== 'socks') throw new Error('I-5: only socks are damp');
+  }
+  for (const p of st.players) {
+    const loaded = st.machines.flatMap((m) => m.items).filter((id) => st.items[id].owner === p.id);
+    const seen = new Set([...p.hand, ...p.damp, ...loaded, ...p.clean]);
+    if (seen.size !== p.mustWash.length || !p.mustWash.every((id) => seen.has(id))) {
+      throw new Error(`I-1/I-9 conservation broken for player ${p.id}`);
+    }
+    const cleanSet = new Set(p.clean);
+    if ([...p.hand, ...p.damp].some((id) => cleanSet.has(id))) {
+      throw new Error('I-1: an item is both clean and in hand');
+    }
+  }
+  const jim = st.machines.filter((m) => m.jimothy);
+  if (jim.length > 1) throw new Error('I-9: more than one Jimothy');
+}

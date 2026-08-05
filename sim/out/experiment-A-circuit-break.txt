@@ -1,0 +1,186 @@
+================================================================================
+EXPERIMENT A -- CIRCUIT BREAK A/B SMOKE TEST
+================================================================================
+Date run      : 2026-08-04
+Rules version : brief v8 (design/game-brief.md), engine sim/rules.py, 87 tests green
+Run by        : direct shell invocation (no agent), single-threaded
+Purpose       : Confirm the three Circuit break arms are wired up and diverge, and
+                size a larger decision run.  This is a SMOKE TEST, not a decision run.
+
+--------------------------------------------------------------------------------
+1. HYPOTHESIS UNDER TEST
+--------------------------------------------------------------------------------
+design/rules-v0.4.md derived analytically that Circuit break as currently written
+(arm V2) is oppressive at 5-6 players:
+
+  - Recovery takes P+1 days, because the keyholder restores one machine per day.
+  - The board refills in ~3.1-3.6 days, i.e. faster than it recovers.
+  - Once Gang is spent and Jimothy is on the board, the event deck is exactly
+    {Circuit break, Animal control}, so every second event is another blackout.
+  - PREDICTION: steady state of only 1.89 of 7 washers running at six players.
+
+The designer's physical playtests had not surfaced this, hypothesised to be because
+the pathology is player-count dependent and mild at 3-4 players.
+
+--------------------------------------------------------------------------------
+2. ARMS
+--------------------------------------------------------------------------------
+V0  "none"          Control -- Circuit break removed from the game entirely.
+                    *** NOT VALID IN THIS RUN.  See section 6. ***
+V1  "blackout"      Only that night's reckoning is cancelled.  Machine power states
+                    are untouched; everything resumes normally the next day.
+                    (This is the original Electricity behaviour.)
+V2  "all off"       Every live washer switches OFF; the keyholder restores one per
+                    day.  This is the rule as written in brief v8.
+V3  "auto-restore"  Every live washer switches OFF, but all machines come back ON at
+                    the end of the FOLLOWING day's reckoning.  Middle option, added
+                    by Claude because it costs nothing to test alongside.
+
+Selected via cfg['circuit_break'] = 'V1' | 'V2' | 'V3'.
+
+--------------------------------------------------------------------------------
+3. DESIGN
+--------------------------------------------------------------------------------
+Games per cell      : 500
+Player counts       : 3, 4, 5, 6
+Machines            : P + 1  (4, 5, 6, 7)
+Capacity            : 4, flat
+Bot policy          : CLUSTERING only (closest model of real table play)
+Seeds               : 0..499, IDENTICAL across arms (common random numbers, so
+                      arms are paired on starting hands and dice)
+Total games         : 500 x 4 arms x 4 player counts = 8,000  (first pass)
+                      500 x 3 arms x 4 player counts = 6,000  (corrected pass)
+Wall clock          : 63.9s for 8,000 games, single-threaded (~125 games/sec)
+
+Metrics captured (per game, then averaged):
+  days                    game length in days
+  machines_live_days / d  machines not destroyed by Gang
+  machines_avail_days / d PRIMARY -- live, ON, no raccoon: what a player can load into
+  on_machines_sum / d     machines switched ON
+  wash_events / (d * P)   throughput per player-day
+  cb_days                 number of Circuit break firings per game
+  cb_lost_machine_days    machine-days removed from play by Circuit break
+
+--------------------------------------------------------------------------------
+4. RESULTS (corrected pass -- 500 games/cell, CLUSTERING)
+--------------------------------------------------------------------------------
+arm          P  M |  days   med |   live  avail     ON | wash/pd |  cbDay cbLost
+------------------------------------------------------------------------------------
+V1           3  4 | 10.02     9 |   3.55   3.19   3.40 |   0.925 |   1.30    0.0
+V2           3  4 | 10.04     9 |   3.55   2.78   2.93 |   0.917 |   1.30    6.4
+V3           3  4 |  9.98    10 |   3.54   2.81   2.99 |   0.914 |   1.28    3.3
+
+V1           4  5 |  9.81    10 |   4.48   4.07   4.34 |   0.886 |   1.59    0.0
+V2           4  5 | 10.33    10 |   4.47   3.28   3.45 |   0.841 |   1.72   11.3
+V3           4  5 | 10.04    10 |   4.48   3.40   3.59 |   0.863 |   1.70    5.9
+
+V1           5  6 |  9.62    10 |   5.43   5.00   5.29 |   0.869 |   2.00    0.0
+V2           5  6 | 10.98    10 |   5.43   3.59   3.76 |   0.789 |   2.32   20.6
+V3           5  6 |  9.98    10 |   5.46   3.88   4.08 |   0.836 |   2.05    9.2
+
+V1           6  7 |  9.58     9 |   6.43   5.98   6.28 |   0.850 |   2.11    0.0
+V2           6  7 | 11.76    11 |   6.40   3.95   4.10 |   0.733 |   2.83   30.6
+V3           6  7 | 10.39    10 |   6.42   4.38   4.58 |   0.791 |   2.45   13.2
+
+Availability as a share of live machines:
+  P=3   V1 90%   V2 78%   V3 79%
+  P=4   V1 91%   V2 73%   V3 76%
+  P=5   V1 92%   V2 66%   V3 71%
+  P=6   V1 93%   V2 62%   V3 68%
+
+V2 penalty relative to V1:
+  days        P=3 +0.02   P=4 +0.52   P=5 +1.36   P=6 +2.18
+  throughput  P=3 -0.9%   P=4 -5.1%   P=5 -9.2%   P=6 -13.8%
+
+V3 penalty relative to V1:
+  days        P=3 -0.04   P=4 +0.23   P=5 +0.36   P=6 +0.81
+  throughput  P=3 -1.2%   P=4 -2.6%   P=5 -3.8%   P=6 -6.9%
+
+--------------------------------------------------------------------------------
+5. FINDINGS
+--------------------------------------------------------------------------------
+5.1  THE SHAPE OF THE HYPOTHESIS IS CONFIRMED.  V2's damage scales sharply and
+     monotonically with player count and is negligible at 3 players.  This explains
+     why physical playtesting had not surfaced it: at 3-4 players V2 is essentially
+     free, and it is specifically the 5-6 player game it damages.
+
+5.2  THE MAGNITUDE WAS OVERSTATED BY THE ANALYTICAL MODEL.  rules-v0.4.md predicted
+     1.89 of 7 machines running at six players under V2.  Measured: 4.10.  The model
+     was off by more than 2x.  Likely cause: games last only ~10-12 days, so the
+     {Circuit break, Animal control} endgame deck state rarely persists long enough
+     for the death spiral to compound.  Circuit break fires ~2.8 times per game at
+     six players, not every other event.
+
+     Consequence: this is a real, measurable, player-count-dependent tax -- not the
+     emergency it was first reported as.
+
+5.3  V3 ROUGHLY HALVES THE DAMAGE.  At six players it cuts machine-days lost from
+     30.6 to 13.2 and the length penalty from +2.18 to +0.81 days, while keeping the
+     card meaningfully threatening.
+
+5.4  V1 MAY BE TOO WEAK.  It costs ~0 days at every player count and removes zero
+     machine-days.  Whether it is distinguishable from having no card at all is
+     UNKNOWN -- see 6.1.
+
+--------------------------------------------------------------------------------
+6. VALIDITY THREATS AND KNOWN DEFECTS OF THIS RUN
+--------------------------------------------------------------------------------
+6.1  THE V0 CONTROL IS INVALID.  The first pass passed cfg['no_circuit_break']=True,
+     which the engine does not implement and silently ignored.  V0 therefore ran an
+     identical configuration to V1 and produced byte-identical results.  The question
+     "how much does Circuit break cost the game at all?" remains UNANSWERED.
+     Fixing this requires a small engine change to omit the card from the event deck.
+
+6.2  FIRST PASS USED WRONG METRIC KEYS.  Claude guessed stat key names that do not
+     exist, so the primary metric (available machines) reported n/a throughout.  The
+     corrected pass in section 4 uses the real keys.  The first pass is superseded and
+     is not reproduced here.
+
+6.3  UNDERPOWERED FOR SMALL EFFECTS.  500 games per cell.  The 6-player differences
+     are far larger than noise; the 3-player differences (0.02-0.06 days) are well
+     inside it and must not be interpreted.
+
+6.4  SINGLE POLICY.  CLUSTERING only.  Whether GREEDY shows the same pattern is
+     untested.
+
+6.5  NO CONFIDENCE INTERVALS computed.  Point estimates only.
+
+--------------------------------------------------------------------------------
+7. RECOMMENDATION
+--------------------------------------------------------------------------------
+Ship V3 "auto-restore", pending confirmation by a larger run.
+
+Rationale: V2 fails the pre-registered criterion of "no sharp degradation from 3 to 6
+players."  V1 passes it but appears to make the card nearly inert.  V3 keeps the card
+threatening while roughly halving V2's high-player-count penalty.
+
+If the game's primary configuration is 3-4 players, V2 as written is acceptable and no
+change is needed.
+
+--------------------------------------------------------------------------------
+8. NEXT STEP -- PROPOSED SETUP B (decision run, ~2 minutes at --jobs 10)
+--------------------------------------------------------------------------------
+  - Implement the V0 control properly in the engine first.
+  - 3,000 paired games per cell.
+  - 4 arms (V0, V1, V2, V3) x 4 player counts x 2 policies (CLUSTERING, GREEDY).
+  - Report confidence intervals.
+  - Pre-registered decision rule: ship the arm that keeps availability above ~70% of
+    live machines at every player count, keeps median length in the 8-16 day band,
+    and shows no sharp degradation from 3 to 6 players.  If several qualify, prefer
+    the rule that is simplest to explain at a table.
+
+Deck composition sweeps should NOT be run until the Circuit break arm is locked --
+blackout frequency changes the value of Coin and Snacc.
+
+--------------------------------------------------------------------------------
+9. REPRODUCING
+--------------------------------------------------------------------------------
+The corrected pass was run as an inline python3 -c script from /Users/kld/Projects/
+laundromat/sim, importing rules and bots directly, looping player counts 3-6 and arms
+V1/V2/V3 over seeds 0..499 with bots.make('CLUSTERING'), reading the stats keys listed
+in section 3 off the dict returned by rules.play_game(cfg, seed, policy).
+
+sim/run.py also exposes subcommands (main, occupancy, contention, deck, newcards,
+jimothy, events, seat, keyhazard) with -n, --seed0 and --jobs, but this experiment did
+not use them.
+================================================================================
