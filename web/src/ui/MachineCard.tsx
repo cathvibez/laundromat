@@ -1,5 +1,5 @@
 import type { GameState, Machine } from '../rules/types';
-import { itemLabel, tonight, willBeDamp } from '../rules/selectors';
+import { cardName, itemLabel, tonight, willBeDamp } from '../rules/selectors';
 
 const PLAYER_COLORS = ['var(--p0)', 'var(--p1)', 'var(--p2)', 'var(--p3)', 'var(--p4)', 'var(--p5)'];
 
@@ -22,6 +22,8 @@ interface Props {
   footer?: React.ReactNode;
   highlightItems?: string[];
   onItemClick?: (id: string) => void;
+  /** Staged but uncommitted loads, drawn differently so they read as pending. */
+  ghosts?: string[];
 }
 
 export function MachineCard({
@@ -33,6 +35,7 @@ export function MachineCard({
   footer,
   highlightItems,
   onItemClick,
+  ghosts,
 }: Props) {
   const t = tonight(G, machine);
   const capacity = G.cfg.capacity;
@@ -74,10 +77,11 @@ export function MachineCard({
           const wash = line?.willWash ?? false;
           const damp = wash && willBeDamp(G, machine, item);
           const netted = machine.netProtected.includes(id);
+          const ghost = ghosts?.includes(id);
           return (
             <div
               key={id}
-              className="slot filled"
+              className={`slot filled${ghost ? ' ghost' : ''}`}
               style={{
                 cursor: onItemClick ? 'pointer' : undefined,
                 outline: highlightItems?.includes(id) ? '1px solid var(--accent)' : undefined,
@@ -95,7 +99,8 @@ export function MachineCard({
               <span>
                 P{item.owner + 1} {itemLabel(item)}
                 {item.damp ? ' (damp)' : ''}
-                {netted ? ' [netted]' : ''}
+                {netted ? ' [in the bag]' : ''}
+                {ghost ? ' · not committed' : ''}
               </span>
               {t.status === 'on' && !G.cbBlackout && (
                 <span className={`verdict ${damp ? 'damp' : wash ? 'wash' : 'back'}`}>
@@ -116,7 +121,7 @@ export function MachineCard({
         <div className="cards">
           {machine.cards.map((c, i) => (
             <span key={i} className={`card-chip${c.name === 'Wash net' ? ' net' : ''}`}>
-              {c.name} · P{c.owner + 1}
+              {cardName(c.name)} · P{c.owner + 1}
             </span>
           ))}
         </div>

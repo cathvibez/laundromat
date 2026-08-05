@@ -6,6 +6,7 @@
 import type {
   CircuitBreakArm,
   EventName,
+  EventTimingArm,
   LaundromatConfig,
   SpecialName,
 } from './types';
@@ -65,6 +66,17 @@ export const CIRCUIT_BREAK_ARMS: Readonly<Record<CircuitBreakArm, string>> = {
   V3: 'Auto-restore - every washer switches off, all return at the end of the following day. (Experiment recommendation.)',
 };
 
+/**
+ * EXPERIMENT B — event timing arms.  The card is revealed on draw in every arm;
+ * only the moment of RESOLUTION differs.  Write-up and reasoning live in
+ * web/experiments/experiment-B-event-timing.md.
+ */
+export const EVENT_TIMING_ARMS: Readonly<Record<EventTimingArm, string>> = {
+  E1: 'Immediate - the event fires the moment it is drawn, mid-turn. Counter-cards can answer it the same day.',
+  E2: 'Deferred - the event fires after everyone has loaded, before the keyholder acts. (Brief v8 as written, and what the simulation assumes.)',
+  E3: 'Split - Circuit break and Animal control fire on draw; Gang and Jimothy wait until everyone has loaded.',
+};
+
 export function defaultConfig(
   players: number,
   overrides: Partial<LaundromatConfig> = {},
@@ -82,14 +94,36 @@ export function defaultConfig(
 
     circuitBreak: 'V3',
     turnOrder: 'cardLoadExtra', // designer-confirmed: card -> load -> extra [A-W03]
+    // EXPERIMENT B, unresolved. E1 diverges from brief v8 and from sim/rules.py,
+    // both of which are E2. See web/experiments/experiment-B-event-timing.md.
+    eventTiming: 'E1',
 
     specialDeck: { ...PLACEHOLDER_SPECIAL_DECK },
     eventDeck: { ...FIXED_EVENT_DECK } as Record<EventName, number>,
 
-    keyholderFirst: false, // [A-W01] fixed seat order; the key rotates independently
+    /**
+     * RESOLVED v9, no longer provisional and no longer an experiment.
+     *
+     * The roll phase begins with whoever holds the key and proceeds around the
+     * table, so the player immediately before the keyholder -- yesterday's
+     * keyholder -- acts last. The key passes every night, so acting order
+     * rotates with it. On day 2 the second player rolls and loads first, the
+     * first player acts last, and the second player also takes the key phase.
+     *
+     * This supersedes [A-W01]'s fixed seat order. It closes the seat-1 win-rate
+     * skew the simulation measured (38.4% at three players against a 33.3% fair
+     * share) and is the mitigation experiment B recommends pairing with E1.
+     *
+     * The false path is retained for ablation only and is not offered in the UI.
+     */
+    keyholderFirst: true,
     sanitizerOwnerOnly: false, // [A-W05] default is machine-wide
     bleachKillsDark: false, // rules-v0.2 [OQ-05] alternative reading
     socksBlanketExtraWash: true, // v8 core rule; switch exists for ablation
+    // Designer revision. 'v8net' restores brief v8's Wash net exactly.
+    meshBagRule: 'guaranteed',
+    // Designer revision. false restores brief v8's machine-wide shade ladder.
+    ownItemsDontTaint: true,
     publicDampZone: true, // [A-28]
 
     dayCap: 400,

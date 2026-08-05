@@ -2,13 +2,19 @@ import { useState } from 'react';
 import { Client } from 'boardgame.io/react';
 import { makeLaundromat } from './game/Laundromat';
 import { Board } from './ui/Board';
-import { CIRCUIT_BREAK_ARMS, PLACEHOLDER_SPECIAL_DECK, SPECIAL_DECK_IS_PROVISIONAL } from './rules/config';
-import type { CircuitBreakArm, LaundromatConfig } from './rules/types';
+import {
+  CIRCUIT_BREAK_ARMS,
+  EVENT_TIMING_ARMS,
+  PLACEHOLDER_SPECIAL_DECK,
+  SPECIAL_DECK_IS_PROVISIONAL,
+} from './rules/config';
+import type { CircuitBreakArm, EventTimingArm, LaundromatConfig } from './rules/types';
 import './ui/styles.css';
 
 interface Settings {
   players: number;
   circuitBreak: CircuitBreakArm;
+  eventTiming: EventTimingArm;
   sanitizerOwnerOnly: boolean;
   keyholderFirst: boolean;
   publicDampZone: boolean;
@@ -21,6 +27,7 @@ export function App() {
 
   const cfg: Partial<LaundromatConfig> = {
     circuitBreak: settings.circuitBreak,
+    eventTiming: settings.eventTiming,
     sanitizerOwnerOnly: settings.sanitizerOwnerOnly,
     keyholderFirst: settings.keyholderFirst,
     publicDampZone: settings.publicDampZone,
@@ -39,6 +46,7 @@ export function App() {
 function Setup({ onStart }: { onStart: (s: Settings) => void }) {
   const [players, setPlayers] = useState(4);
   const [arm, setArm] = useState<CircuitBreakArm>('V3');
+  const [eventTiming, setEventTiming] = useState<EventTimingArm>('E1');
   const [sanitizerOwnerOnly, setSanitizerOwnerOnly] = useState(false);
   const [keyholderFirst, setKeyholderFirst] = useState(false);
   const [publicDampZone, setPublicDampZone] = useState(true);
@@ -72,6 +80,26 @@ function Setup({ onStart }: { onStart: (s: Settings) => void }) {
       <div className="note">
         V2 is what the brief currently says. V3 is what the simulation experiment recommends and is
         the default here. The designer has not committed.
+      </div>
+
+      <label>Event timing (experiment B, under test)</label>
+      <select
+        value={eventTiming}
+        onChange={(e) => setEventTiming(e.target.value as EventTimingArm)}
+      >
+        {(Object.keys(EVENT_TIMING_ARMS) as EventTimingArm[]).map((k) => (
+          <option key={k} value={k}>
+            {k} - {EVENT_TIMING_ARMS[k]}
+          </option>
+        ))}
+      </select>
+      <div className="note">
+        The event card is revealed the instant it is drawn in every arm; only the moment it
+        RESOLVES differs. E2 is the brief as written and what the simulation assumes. E1 is the
+        only arm in which a Coin can answer a Circuit break, or a Snacc move Jimothy, on the day it
+        happens — but it lands unevenly on players who have already taken their turn, so it pairs
+        well with the keyholder-first switch below. Full write-up in
+        web/experiments/experiment-B-event-timing.md.
       </div>
 
       <label>Sensitivity switches</label>
@@ -124,7 +152,16 @@ function Setup({ onStart }: { onStart: (s: Settings) => void }) {
       <div style={{ marginTop: 22 }}>
         <button
           className="primary"
-          onClick={() => onStart({ players, circuitBreak: arm, sanitizerOwnerOnly, keyholderFirst, publicDampZone })}
+          onClick={() =>
+            onStart({
+              players,
+              circuitBreak: arm,
+              eventTiming,
+              sanitizerOwnerOnly,
+              keyholderFirst,
+              publicDampZone,
+            })
+          }
         >
           Start the day
         </button>

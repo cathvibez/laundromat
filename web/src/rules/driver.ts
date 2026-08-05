@@ -24,6 +24,9 @@ import {
   phaseEndOfDay,
   phaseEvent,
   phaseReckon,
+  loadBlocked,
+  skipBlockedLoad,
+  resolveEventNow,
   playSpecial,
   setPower,
   skipCard,
@@ -62,6 +65,10 @@ export function playDay(st: GameState, policy: Policy, rng: Rng): void {
         if (play && canPlaySpecial(st, pid, play.name)) playSpecial(st, pid, play.name, play.target, rng);
         else skipCard(st, rng);
       } else if (t.stage === 'load') {
+        if (loadBlocked(st)) {
+          skipBlockedLoad(st, rng);
+          continue;
+        }
         if (!mustStillLoad(st)) {
           advanceIfDone(st, rng);
           continue;
@@ -76,6 +83,22 @@ export function playDay(st: GameState, policy: Policy, rng: Rng): void {
         loadItem(st, pid, choice.item, choice.machine, rng);
       } else if (t.stage === 'extra') {
         const extra = DICE[t.face!].extra;
+        if (t.pendingEvent) {
+          // cfg.resolveEventsImmediately: the drawer names a washer mid-turn.
+          const cands = gangTargets(st);
+          const choice: { machine?: number; jimothyTo?: number } = {};
+          if (st.revealedEvent === 'Gang') {
+            choice.machine = policy.chooseGang?.(st, pid, cands) ?? cands[0];
+            const elsewhere = cands.filter((c) => c !== choice.machine);
+            if (elsewhere.length > 0) {
+              choice.jimothyTo = policy.chooseJimothy?.(st, pid, elsewhere) ?? elsewhere[0];
+            }
+          } else {
+            choice.machine = policy.chooseJimothy?.(st, pid, cands) ?? cands[0];
+          }
+          resolveEventNow(st, choice, rng);
+          continue;
+        }
         if (extra === 'displace') {
           const mv = policy.chooseDisplace?.(st, pid) ?? null;
           if (mv) displace(st, mv.from, mv.item, mv.to, rng);

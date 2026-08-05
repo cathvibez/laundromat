@@ -74,6 +74,8 @@ tests/
   ui/               jsdom render + interaction smoke tests
 tools/
   gen_fixtures.py   fixture generator (run with python3)
+experiments/
+  experiment-B-event-timing.md   the event-timing A/B: arms, reasoning, metrics
 ```
 
 Dependency direction is strictly `ui -> game -> rules`. Nothing in `rules/` imports
@@ -160,7 +162,10 @@ nowhere else. The starred ones are selectable from the setup screen.
 |---|---|---|
 | `circuitBreak` * | `'V3'` | **Under A/B test.** `V1` blackout: only tonight's reckoning is cancelled, power untouched. `V2` all-off: every washer off, keyholder restores one per day — **this is what brief v8 currently says**. `V3` auto-restore: all off, all back on at the end of the following day's reckoning — **this is what `sim/out/experiment-A-circuit-break.txt` recommends**, and the default here. The designer has not committed. |
 | `specialDeck` | flat 3/3/3/3/3/3/2 | **PLACEHOLDER, NOT A DESIGN DECISION.** Copy counts are P0 and unresolved. The only hard constraint is manufacturing: **exactly 20 cards** (`publishing-research.md:187`), asserted at setup. The setup screen says so in as many words, so nobody forms an opinion about card balance from it. |
+| `eventTiming` * | `'E1'` | **Under A/B test — experiment B.** When a drawn event RESOLVES (it is revealed on draw in every arm). `E1` immediate, mid-turn. `E2` deferred until everyone has loaded — **this is brief v8 as written and what `sim/rules.py` does**. `E3` split: untargeted events immediate, targeted ones deferred. Reasoning and what to measure: `experiments/experiment-B-event-timing.md`. |
 | `turnOrder` | `'cardLoadExtra'` | Designer-confirmed: roll → play a card → load → the die's extra effect. `'extraLoadCard'` implements the (now stale) rules-v0.4 §3.1 reading and still passes the integrity tests. |
+| `meshBagRule` | `'guaranteed'` | **Designer revision, diverges from brief v8 and from `sim/rules.py`.** `'guaranteed'` = Mesh bag: everything you load into that machine on the turn you play the card washes when the machine runs, whatever else is in there. `'v8net'` = brief v8's Wash net: same-turn underwear only, waiving underwear isolation and nothing else. **The oracle fixtures all run on `'v8net'`, which is why parity survives this change.** The card's internal id is still `'Wash net'`; it is displayed as "Mesh bag". Rename both sides together when the sim is updated. |
+| `ownItemsDontTaint` | `true` | **Designer revision, diverges from brief v8 and from `sim/rules.py`.** Your own items never taint your own items by shade. Each item is judged against the machine minus its owner's other items, and among your own items a shade-blind ladder applies: shoes (D = L) > clothing and blanket (D = L) > underwear (D = L). Opponents still taint you normally. `false` restores brief v8's single machine-wide shade ladder, which is what all the oracle fixtures use. **This breaks single-tier-per-machine**: each owner can be on a different rung at once. |
 | `sanitizerOwnerOnly` * | `false` | `false` = machine-wide, tiers 1–2 suppressed [A-21]. `true` = the owner-only reading rules-v0.4 [OQ-01] argues against. |
 | `publicDampZone` * | `true` | `true` = damp socks sit in a face-up zone [A-28]. `false` = they go back to the hidden hand, Python-style. No reckoning outcome changes either way. |
 | `keyholderFirst` * | `false` | Acting order: fixed seat order [A-W01], or keyholder-first. |
@@ -216,6 +221,13 @@ Two consequences worth stating because they are easy to get wrong:
 
 Plus the whole of `test_rules.py` re-expressed as TypeScript in `tests/ported/`,
 keeping the Python test names so a failure maps one-to-one onto the oracle's suite.
+
+**A second, newer caveat.** `sim/rules.py` implements event timing arm `E2` only.
+Running the web app on `E1` (the current default) or `E3` makes day-level behaviour
+non-comparable with the simulation, and invalidates existing balance numbers for
+any question that touches events. The reckoning parity suite is unaffected, because
+it tests a pure function that knows nothing about when events fire. See
+`experiments/experiment-B-event-timing.md` section 8.
 
 **NOT guaranteed, and it cannot be.** There is **no seed-for-seed parity of whole
 games** between this implementation and the Python simulation. Python's

@@ -12,7 +12,7 @@ import type { LaundromatG } from '../../src/game/Laundromat';
 import { anyLegalLoad } from '../../src/rules/driver';
 import { canPlaySpecial } from '../../src/rules/phases';
 import { assertInvariants } from '../../src/rules/phases';
-import type { CircuitBreakArm, LaundromatConfig } from '../../src/rules/types';
+import type { CircuitBreakArm, EventTimingArm, LaundromatConfig } from '../../src/rules/types';
 
 interface Played {
   days: number;
@@ -100,10 +100,20 @@ function playThrough(
       }
     } else if (t.stage === 'load') {
       const choice = anyLegalLoad(G, pid);
-      if (!choice) throw new Error('load stage with no legal load -- should have auto-advanced');
-      m.load(choice.item, choice.machine);
+      // The board can refuse everything; the player then skips explicitly.
+      if (!choice) m.skipLoad();
+      else m.load(choice.item, choice.machine);
     } else if (t.stage === 'extra') {
-      if (t.face === 4) m.passMove();
+      if (t.pendingEvent) {
+        // Events resolve the moment they are drawn: name a washer now.
+        const cands = G.machines.filter((x) => !x.dead).map((x) => x.id);
+        const target = cands[0];
+        if (G.revealedEvent === 'Gang' && G.machines[target].jimothy) {
+          m.resolveDrawnEvent(target, cands.find((c) => c !== target));
+        } else {
+          m.resolveDrawnEvent(target);
+        }
+      } else if (t.face === 4) m.passMove();
       else if (t.face === 5 && t.pendingDraw && t.pendingDraw.length > 0) m.keepCard(t.pendingDraw[0]);
       else m.passMove();
     } else {
@@ -138,6 +148,14 @@ describe('boardgame.io adapter', () => {
     }
   });
 
+  test('every event-timing arm finishes through the client', () => {
+    for (const arm of ['E1', 'E2', 'E3'] as EventTimingArm[]) {
+      const r = playThrough(4, { eventTiming: arm });
+      expect(r.winners.length, `arm ${arm}`).toBeGreaterThanOrEqual(1);
+      assertInvariants(r.G);
+    }
+  });
+
   test('the key rotates one seat per day', () => {
     const client = Client<LaundromatG>({ game: makeLaundromat(), numPlayers: 4, debug: false });
     client.start();
@@ -159,8 +177,11 @@ describe('boardgame.io adapter', () => {
         if (t.stage === 'roll') m.roll();
         else if (t.stage === 'card') m.passCard();
         else if (t.stage === 'load') {
-          const c = anyLegalLoad(G, t.player)!;
-          m.load(c.item, c.machine);
+          const c = anyLegalLoad(G, t.player);
+          if (!c) m.skipLoad();
+          else m.load(c.item, c.machine);
+        } else if (t.pendingEvent) {
+          m.resolveDrawnEvent(G.machines.find((x) => !x.dead)!.id);
         } else if (t.face === 5 && t.pendingDraw?.length) m.keepCard(t.pendingDraw[0]);
         else m.passMove();
       }

@@ -12,8 +12,10 @@ import {
   drawSpecialPair,
   keepSpecial,
   loadItem,
+  loadBlocked,
   loadsOutstanding,
   moveJimothy,
+  skipBlockedLoad,
   mustStillLoad,
   phaseEndOfDay,
   phaseReckon,
@@ -420,12 +422,28 @@ describe('DeckAndTurn', () => {
     expect(rg.st.turn!.stage).toBe('done');
   });
 
-  test('D7b a player with nothing loadable loads zero and the turn still ends', () => {
+  test('D7b a blocked player is parked at the load stage and must skip explicitly', () => {
     const rg = rig();
     beginTurn(rg.st, 0);
     rollDie(rg.st, fixedDie(2, rg.rng));
+    // Empty hand: nothing can be loaded, so the turn waits rather than silently
+    // moving on -- the player is shown that no washer will take anything.
+    expect(rg.st.turn!.stage).toBe('load');
+    expect(loadBlocked(rg.st)).toBe(true);
+    expect(skipBlockedLoad(rg.st, rg.rng)).toBe(true);
     expect(rg.st.turn!.stage).toBe('done');
     expect(rg.st.turn!.loadsDone).toBe(0);
+  });
+
+  test('D7c skipping is refused while a legal load exists', () => {
+    const rg = rig();
+    toHand(rg, 0, it_('A-D-shirts'));
+    beginTurn(rg.st, 0);
+    rollDie(rg.st, fixedDie(1, rg.rng));
+    expect(rg.st.turn!.stage).toBe('load');
+    expect(loadBlocked(rg.st)).toBe(false);
+    expect(skipBlockedLoad(rg.st, rg.rng)).toBe(false);
+    expect(rg.st.turn!.stage).toBe('load');
   });
 
   test('D8 off machine retains contents and cards', () => {

@@ -27,8 +27,10 @@ import {
   phaseEvent,
   phaseReckon,
   playSpecial,
+  resolveEventNow,
   rollDie,
   setPower,
+  skipBlockedLoad,
   skipCard,
   skipExtra,
   log,
@@ -43,8 +45,6 @@ export interface LaundromatG extends GameState {
   turnsTaken: number;
   lastReckoning: MachineResult[] | null;
   lastReckoningDay: number | null;
-  /** The event that most recently RESOLVED, so the UI can report what happened. */
-  lastEvent: { name: string; day: number; auto: boolean } | null;
 }
 
 interface RandomApi {
@@ -110,7 +110,23 @@ const rollMoves: MoveMap<LaundromatG> = {
 
   passMove: ({ G, random }: MoveCtx) => {
     if (!G.turn || G.turn.stage !== 'extra') return INVALID_MOVE;
+    if (G.turn.pendingEvent) return INVALID_MOVE;
     skipExtra(G, rngFrom(random));
+  },
+
+  /**
+   * Explicitly give up loads the board will not accept.  Guarded by
+   * `loadBlocked`, so it cannot be used to dodge mandatory loading.
+   */
+  skipLoad: ({ G, random }: MoveCtx) => {
+    if (!G.turn || G.turn.stage !== 'load') return INVALID_MOVE;
+    if (!skipBlockedLoad(G, rngFrom(random))) return INVALID_MOVE;
+  },
+
+  /** cfg.resolveEventsImmediately: the drawer names Gang's or Jimothy's washer. */
+  resolveDrawnEvent: ({ G, random }: MoveCtx, machine: number, jimothyTo?: number) => {
+    if (!G.turn?.pendingEvent) return INVALID_MOVE;
+    resolveEventNow(G, { machine, jimothyTo }, rngFrom(random));
   },
 
   keepCard: ({ G, random }: MoveCtx, name: SpecialName) => {
@@ -124,7 +140,6 @@ const rollMoves: MoveMap<LaundromatG> = {
 const eventMoves: MoveMap<LaundromatG> = {
   resolveEvent: ({ G, random, events }: MoveCtx, machine: number, jimothyTo?: number) => {
     if (G.revealedEvent === null) return INVALID_MOVE;
-    G.lastEvent = { name: G.revealedEvent, day: G.day, auto: false };
     phaseEvent(G, { machine, jimothyTo }, rngFrom(random));
     events.endPhase();
   },
@@ -162,7 +177,6 @@ function makeSetup(overrides: Partial<LaundromatConfig> = {}) {
     st.turnsTaken = 0;
     st.lastReckoning = null;
     st.lastReckoningDay = null;
-    st.lastEvent = null;
     return st;
   };
 }
@@ -212,7 +226,6 @@ export const Laundromat: Game<LaundromatG> = {
           return;
         }
         if (!eventNeedsChoice(G)) {
-          G.lastEvent = { name: G.revealedEvent, day: G.day, auto: true };
           phaseEvent(G, {}, rngFrom(random as unknown as RandomApi));
           events.endPhase();
         }

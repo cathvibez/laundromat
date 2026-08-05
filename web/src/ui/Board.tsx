@@ -2,18 +2,20 @@ import { useEffect, useState } from 'react';
 import type { BoardProps } from 'boardgame.io/react';
 import type { LaundromatG } from '../game/Laundromat';
 import { MachineCard, Swatch } from './MachineCard';
-import { DICE_TEXT, canPlaySpecial, loadsOutstanding, mustStillLoad } from '../rules/phases';
+import { DICE_TEXT, canPlaySpecial, loadBlocked, loadsOutstanding } from '../rules/phases';
 import {
   EVENT_TEXT,
   RULES_SUMMARY,
+  SORT_EXPLAINER,
   SPECIAL_TEXT,
+  cardName,
   itemLabel,
   loadTargets,
   sortItems,
   tonight,
   willBeDamp,
 } from '../rules/selectors';
-import { loadableItems } from '../rules/placement';
+import { hasLegalPlacement, loadableItems, machineAccepts } from '../rules/placement';
 import { ATTACHING } from '../rules/types';
 import type { ItemId, SpecialName } from '../rules/types';
 
@@ -35,6 +37,8 @@ interface Confirmation {
 
 export function Board({ G, ctx, moves }: Props) {
   const [selectedItem, setSelectedItem] = useState<ItemId | null>(null);
+  /** Loads chosen but NOT yet committed. Confirm sends them all; deselect removes one. */
+  const [staged, setStaged] = useState<{ item: ItemId; machine: number }[]>([]);
   const [pending, setPending] = useState<Pending>({ kind: 'none' });
   const [confirm, setConfirm] = useState<Confirmation | null>(null);
   const [seenReckoning, setSeenReckoning] = useState<number | null>(null);
@@ -50,6 +54,7 @@ export function Board({ G, ctx, moves }: Props) {
 
   useEffect(() => {
     setSelectedItem(null);
+    setStaged([]);
     setPending({ kind: 'none' });
     setConfirm(null);
   }, [ctx.currentPlayer, phase, turn?.stage]);
@@ -85,6 +90,26 @@ export function Board({ G, ctx, moves }: Props) {
 
   const modalUp = showReckoning || showReveal || showResolved || confirm !== null || showRules;
 
+  /**
+   * The board as it WOULD be with the staged loads applied.  Legality for the
+   * next staged item has to be judged against this, not against the committed
+   * board, or you could stage five items into a machine that holds four.
+   */
+  const shadow: LaundromatG = staged.length
+    ? {
+        ...G,
+        machines: G.machines.map((m) => ({
+          ...m,
+          items: [...m.items, ...staged.filter((s) => s.machine === m.id).map((s) => s.item)],
+        })),
+      }
+    : G;
+
+  const stagedItems = new Set(staged.map((s) => s.item));
+  const loadsLeft = Math.max(0, loadsOutstanding(G) - staged.length);
+  const stagingBlocked =
+    turn?.stage === 'load' && loadsLeft > 0 && !hasLegalPlacement(shadow, current);
+
   // ---- machine interaction ------------------------------------------------
   function machineSelectable(mi: number): { ok: boolean; refused: string | null } {
     if (ctx.gameover || modalUp) return { ok: false, refused: null };
@@ -110,7 +135,7 @@ export function Board({ G, ctx, moves }: Props) {
       return { ok: t.ok && mi !== pending.from, refused: t.reason };
     }
     if (turn.stage === 'load' && selectedItem) {
-      const t = loadTargets(G, current, selectedItem).find((x) => x.machine === mi)!;
+      const t = loadTargets(shadow, current, selectedItem).find((x) => x.machine === mi)!;
       return { ok: t.ok, refused: t.reason };
     }
     return { ok: false, refused: null };
@@ -221,7 +246,7 @@ export function Board({ G, ctx, moves }: Props) {
       const name = pending.name;
       const coinTo = !m.on;
       setConfirm({
-        title: `Play ${name} on M${mi + 1}?`,
+        title: `Play ${cardName(name)} on M${mi + 1}?`,
         body: (
           <>
             <p>{SPECIAL_TEXT[name]}</p>
@@ -237,7 +262,7 @@ export function Board({ G, ctx, moves }: Props) {
             <MachinePreview G={G} mi={mi} />
           </>
         ),
-        confirmLabel: `Play ${name}`,
+        confirmLabel: `Play ${cardName(name)}`,
         act: () => {
           if (name === 'Coin') moves.playCard(name, { machine: mi, on: coinTo });
           else moves.playCard(name, mi);
@@ -269,34 +294,18 @@ export function Board({ G, ctx, moves }: Props) {
       return;
     }
 
-    // ---- loading ----------------------------------------------------------
+    // ---- loading: stage it, commit later ---------------------------------
     if (turn.stage === 'load' && selectedItem) {
-      const item = G.items[selectedItem];
-      const damp = willBeDamp(G, m, item);
-      setConfirm({
-        title: `Load ${itemLabel(item)} into M${mi + 1}?`,
-        body: (
-          <>
-            <p>
-              {loadsOutstanding(G)} of {turn.loadsRequired} still to load this turn. Once it is in,
-              only a roll of 4 can move it.
-            </p>
-            {damp && (
-              <p className="note warn">
-                There is a blanket in this machine. If these socks wash here they come out DAMP and
-                will need one further wash.
-              </p>
-            )}
-            <MachinePreview G={G} mi={mi} adding={selectedItem} />
-          </>
-        ),
-        confirmLabel: 'Load it',
-        act: () => {
-          moves.load(selectedItem, mi);
-          setSelectedItem(null);
-        },
-      });
+      setStaged((prev) => [...prev, { item: selectedItem, machine: mi }]);
+      setSelectedItem(null);
     }
+  }
+
+  /** Send every staged load, in order.  The engine validates each one again. */
+  function commitStaged() {
+    for (const s of staged) moves.load(s.item, s.machine);
+    setStaged([]);
+    setSelectedItem(null);
   }
 
   const phaseLabel = ctx.gameover
@@ -343,13 +352,14 @@ export function Board({ G, ctx, moves }: Props) {
             <div>
               <div className="section-title">The floor · capacity {G.cfg.capacity} per machine</div>
               <div className="floor">
-                {G.machines.map((m) => {
+                {shadow.machines.map((m) => {
                   const sel = machineSelectable(m.id);
                   return (
                     <MachineCard
                       key={m.id}
-                      G={G}
+                      G={shadow}
                       machine={m}
+                      ghosts={staged.filter((s) => s.machine === m.id).map((s) => s.item)}
                       selectable={sel.ok}
                       refused={sel.ok ? null : sel.refused}
                       onSelect={() => onMachine(m.id)}
@@ -421,6 +431,7 @@ export function Board({ G, ctx, moves }: Props) {
           {phase === 'roll' && turn && !ctx.gameover && (
             <TurnBar
               G={G}
+              shadow={shadow}
               turn={turn}
               current={current}
               moves={moves}
@@ -428,15 +439,22 @@ export function Board({ G, ctx, moves }: Props) {
               setPending={setPending}
               selectedItem={selectedItem}
               setConfirm={setConfirm}
+              staged={staged}
+              setStaged={setStaged}
+              loadsLeft={loadsLeft}
+              stagingBlocked={stagingBlocked}
+              commitStaged={commitStaged}
             />
           )}
 
           <Zones
             G={G}
+            shadow={shadow}
             current={current}
             selectedItem={selectedItem}
             setSelectedItem={setSelectedItem}
-            canLoad={phase === 'roll' && turn?.stage === 'load' && !modalUp}
+            stagedItems={stagedItems}
+            canLoad={phase === 'roll' && turn?.stage === 'load' && !modalUp && loadsLeft > 0}
           />
 
           <div className="section-title">Log</div>
@@ -715,6 +733,7 @@ function ReckoningReview({ G, onDone }: { G: LaundromatG; onDone: () => void }) 
 
 function TurnBar({
   G,
+  shadow,
   turn,
   current,
   moves,
@@ -722,8 +741,14 @@ function TurnBar({
   setPending,
   selectedItem,
   setConfirm,
+  staged,
+  setStaged,
+  loadsLeft,
+  stagingBlocked,
+  commitStaged,
 }: {
   G: LaundromatG;
+  shadow: LaundromatG;
   turn: NonNullable<LaundromatG['turn']>;
   current: number;
   moves: Props['moves'];
@@ -731,6 +756,11 @@ function TurnBar({
   setPending: (p: Pending) => void;
   selectedItem: ItemId | null;
   setConfirm: (c: Confirmation | null) => void;
+  staged: { item: ItemId; machine: number }[];
+  setStaged: (s: { item: ItemId; machine: number }[]) => void;
+  loadsLeft: number;
+  stagingBlocked: boolean;
+  commitStaged: () => void;
 }) {
   const stage = turn.stage;
   const ready = G.players[current].ready;
@@ -748,8 +778,7 @@ function TurnBar({
               <div className="sub">
                 {stage === 'card' && 'You may play one ready card, or pass.'}
                 {stage === 'load' &&
-                  `Loading is mandatory: ${loadsOutstanding(G)} of ${turn.loadsRequired} still to load.` +
-                    (mustStillLoad(G) ? '' : ' Nothing can legally be loaded.')}
+                  `Loading is mandatory: ${loadsOutstanding(G)} of ${turn.loadsRequired} still to load.`}
                 {stage === 'extra' && 'Resolve the die.'}
                 {stage === 'done' && 'Turn complete.'}
               </div>
@@ -781,7 +810,7 @@ function TurnBar({
                 className={pending.kind === 'card' && pending.name === name ? 'primary' : ''}
                 onClick={() => setPending({ kind: 'card', name })}
               >
-                {name}
+                {cardName(name)}
                 {!playable && name === 'Snacc' ? ' (no raccoon)' : ''}
               </button>
             );
@@ -789,7 +818,7 @@ function TurnBar({
           <button onClick={() => moves.passCard()}>Play no card</button>
           {pending.kind === 'card' && (
             <div className="card-explainer">
-              <b>{pending.name}</b> — {SPECIAL_TEXT[pending.name]}
+              <b>{cardName(pending.name)}</b> — {SPECIAL_TEXT[pending.name]}
               <div className="sub">
                 {ATTACHING.has(pending.name)
                   ? 'Pick the machine to play it on. You will be asked to confirm.'
@@ -804,16 +833,100 @@ function TurnBar({
       )}
 
       {stage === 'load' && (
-        <div className="row">
-          <span className="sub">
-            {selectedItem
-              ? `Selected ${itemLabel(G.items[selectedItem])}. Now click a highlighted machine — nothing is committed until you confirm. Click the item again to deselect.`
-              : 'Pick one item from your hand below. You load them one at a time.'}
-          </span>
+        <div className="load-panel">
+          {loadBlocked(G) && staged.length === 0 ? (
+            <div className="blocked">
+              <b>No washer will take anything you are holding.</b>
+              <div className="sub">
+                Every machine is full, destroyed, occupied by Jimothy, or refuses what you hold
+                (a blanket needs a machine holding nothing but socks). You rolled {turn.face} but
+                may load {turn.loadsDone}. That is allowed — loading is "as many as you can".
+              </div>
+              <button className="primary" onClick={() => moves.skipLoad()}>
+                Load nothing and carry on
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="sub">
+                {selectedItem
+                  ? `${itemLabel(G.items[selectedItem])} selected — now click a machine to place it. Click the item again to deselect.`
+                  : loadsLeft > 0
+                    ? `Place ${loadsLeft} more item${loadsLeft === 1 ? '' : 's'}: pick one from your hand, then pick its machine. You may spread them across different machines.`
+                    : 'All placed. Check the board, then confirm.'}
+              </div>
+
+              {staged.length > 0 && (
+                <div className="staged">
+                  <div className="zone-label">Not yet committed</div>
+                  {staged.map((sg, i) => (
+                    <div key={`${sg.item}${i}`} className="staged-row">
+                      <Swatch owner={G.items[sg.item].owner} shade={G.items[sg.item].shade} />
+                      <span>
+                        {itemLabel(G.items[sg.item])} → M{sg.machine + 1}
+                      </span>
+                      <button
+                        onClick={() => setStaged(staged.filter((_, j) => j !== i))}
+                        title="Take it back"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="row">
+                <button
+                  className="primary"
+                  disabled={loadsLeft > 0 && !stagingBlocked}
+                  title={
+                    loadsLeft > 0 && !stagingBlocked
+                      ? `Place ${loadsLeft} more item${loadsLeft === 1 ? '' : 's'} first — loading is mandatory`
+                      : undefined
+                  }
+                  onClick={() =>
+                    setConfirm({
+                      title: `Commit ${staged.length} load${staged.length === 1 ? '' : 's'}?`,
+                      body: (
+                        <>
+                          <p>Once committed, only a roll of 4 can move these.</p>
+                          {[...new Set(staged.map((sg) => sg.machine))].map((mi) => (
+                            <MachinePreview key={mi} G={shadow} mi={mi} />
+                          ))}
+                        </>
+                      ),
+                      confirmLabel: 'Commit',
+                      act: commitStaged,
+                    })
+                  }
+                >
+                  Confirm {staged.length > 0 ? `${staged.length} load${staged.length === 1 ? '' : 's'}` : ''}
+                </button>
+                {staged.length > 0 && <button onClick={() => setStaged([])}>Clear all</button>}
+                {stagingBlocked && staged.length > 0 && (
+                  <span className="sub">
+                    No washer will take anything else you hold — commit what you have.
+                  </span>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
 
-      {stage === 'extra' && turn.face === 4 && (
+      {stage === 'extra' && turn.pendingEvent && G.revealedEvent && (
+        <div className="banner" style={{ marginTop: 10 }}>
+          <h3>{G.revealedEvent} — happening now</h3>
+          <div>{EVENT_TEXT[G.revealedEvent]}</div>
+          <div className="note">
+            You drew it, so you choose. Pick a washer above — it takes effect immediately, before
+            anyone else takes their turn.
+          </div>
+        </div>
+      )}
+
+      {stage === 'extra' && !turn.pendingEvent && turn.face === 4 && (
         <div className="row">
           {pending.kind === 'moveFrom' || pending.kind === 'moveTo' ? (
             <span className="sub">
@@ -853,7 +966,7 @@ function TurnBar({
           <div className="draw-options">
             {turn.pendingDraw.map((name, i) => (
               <div key={`${name}${i}`} className="draw-card">
-                <h4>{name}</h4>
+                <h4>{cardName(name)}</h4>
                 <div className="rules-help">{SPECIAL_TEXT[name]}</div>
                 {name === 'Snacc' && G.jimothyAt === null && (
                   <div className="note warn">
@@ -861,7 +974,7 @@ function TurnBar({
                   </div>
                 )}
                 <button className="primary" onClick={() => moves.keepCard(name)}>
-                  Keep {name}
+                  Keep {cardName(name)}
                 </button>
               </div>
             ))}
@@ -910,30 +1023,39 @@ function ProgressRail({ G, current }: { G: LaundromatG; current: number }) {
 
 function Zones({
   G,
+  shadow,
   current,
   selectedItem,
   setSelectedItem,
+  stagedItems,
   canLoad,
 }: {
   G: LaundromatG;
+  shadow: LaundromatG;
   current: number;
   selectedItem: ItemId | null;
   setSelectedItem: (id: ItemId | null) => void;
+  stagedItems: Set<ItemId>;
   canLoad: boolean;
 }) {
   const p = G.players[current];
-  const loadable = new Set(loadableItems(G, current));
+  // An item is only offerable if some machine would actually take it, judged
+  // against the board INCLUDING anything already staged this turn.
+  const loadable = new Set(
+    loadableItems(G, current).filter(
+      (id) => !stagedItems.has(id) && shadow.machines.some((m) => machineAccepts(shadow, m.id, id)),
+    ),
+  );
   const pct = Math.round((p.clean.length / Math.max(1, p.mustWash.length)) * 100);
 
   return (
     <div className="zones">
       <div className="panel">
-        <div className="zone-label">
-          Player {current + 1} · hand ({p.hand.length}) · shoes first, then dark before light, then
-          linen
+        <div className="zone-label" title={SORT_EXPLAINER}>
+          Player {current + 1} · hand ({p.hand.length}) · sorted {SORT_EXPLAINER}
         </div>
         <div className="items">
-          {sortItems(G, p.hand).map((id) => (
+          {sortItems(G, p.hand).filter((id) => !stagedItems.has(id)).map((id) => (
             <button
               key={id}
               className={`item-btn${selectedItem === id ? ' selected' : ''}`}
@@ -950,7 +1072,7 @@ function Zones({
 
         <div className="zone-label">Damp zone · public ({p.damp.length})</div>
         <div className="items">
-          {sortItems(G, p.damp).map((id) => (
+          {sortItems(G, p.damp).filter((id) => !stagedItems.has(id)).map((id) => (
             <button
               key={id}
               className={`item-btn damp${selectedItem === id ? ' selected' : ''}`}
@@ -990,7 +1112,7 @@ function Zones({
               style={{ opacity: 0.65 }}
               title={SPECIAL_TEXT[n]}
             >
-              {n}
+              {cardName(n)}
             </span>
           ))}
           {p.fresh.length === 0 && <span className="rules-help">nothing fresh</span>}
@@ -1000,7 +1122,7 @@ function Zones({
         <div className="items">
           {p.ready.map((n, i) => (
             <span key={`${n}${i}`} className="item-btn" title={SPECIAL_TEXT[n]}>
-              {n}
+              {cardName(n)}
             </span>
           ))}
           {p.ready.length === 0 && <span className="rules-help">nothing ready</span>}
@@ -1009,7 +1131,7 @@ function Zones({
           <div className="rules-help" style={{ marginTop: 8 }}>
             {p.ready.map((n, i) => (
               <div key={`${n}${i}`} style={{ marginBottom: 3 }}>
-                <b>{n}</b> — {SPECIAL_TEXT[n]}
+                <b>{cardName(n)}</b> — {SPECIAL_TEXT[n]}
               </div>
             ))}
           </div>

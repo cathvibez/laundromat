@@ -81,6 +81,7 @@ export function newGame(cfg: LaundromatConfig, rng: Rng): GameState {
     cbRestoreDay: null,
     over: false,
     winners: [],
+    lastEvent: null,
     turn: null,
     log: [],
   };

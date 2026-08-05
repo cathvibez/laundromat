@@ -6,12 +6,15 @@
  * @vitest-environment jsdom
  */
 
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { Client } from 'boardgame.io/react';
 import { makeLaundromat } from '../../src/game/Laundromat';
 import { Board } from '../../src/ui/Board';
 import { App } from '../../src/App';
+
+// Unmount between tests, so a failing test cannot leak its DOM into the next.
+afterEach(cleanup);
 
 function mountGame(numPlayers = 3) {
   const GameClient = Client({
@@ -29,7 +32,6 @@ describe('UI', () => {
     expect(screen.getByText('Laundromat')).toBeTruthy();
     expect(screen.getByText(/Special item deck is provisional/i)).toBeTruthy();
     expect(screen.getByText(/FLAT PLACEHOLDER/i)).toBeTruthy();
-    cleanup();
   });
 
   test('the board renders every machine, the key, the day and the hand', () => {
@@ -46,7 +48,6 @@ describe('UI', () => {
     expect(screen.getByText(/Damp zone · public/)).toBeTruthy();
     expect(screen.getByText(/Fresh · drawn today/)).toBeTruthy();
     expect(screen.getByText(/Ready · playable/)).toBeTruthy();
-    cleanup();
   });
 
   test('rolling shows the die and what it entitles you to, then loading works', () => {
@@ -67,28 +68,42 @@ describe('UI', () => {
     const handButtons = document.querySelectorAll('.panel .item-btn:not(:disabled)');
     expect(handButtons.length).toBeGreaterThan(0);
     fireEvent.click(handButtons[0]);
-    expect(screen.getByText(/nothing is committed until you confirm/)).toBeTruthy();
+    expect(screen.getByText(/selected — now click a machine/)).toBeTruthy();
 
-    // Deselecting must work: click it again, and the prompt goes away.
+    // Deselecting must work: click it again and the prompt reverts.
     fireEvent.click(handButtons[0]);
-    expect(screen.getByText(/Pick one item from your hand/)).toBeTruthy();
+    expect(screen.getByText(/pick one from your hand/)).toBeTruthy();
     fireEvent.click(handButtons[0]);
 
     const selectable = document.querySelector('.machine.selectable');
     expect(selectable).toBeTruthy();
     fireEvent.click(selectable!);
 
-    // Nothing is committed yet: a confirmation stands between click and load.
-    expect(screen.getByText(/^Load .* into M\d\?$/)).toBeTruthy();
-    expect(document.querySelectorAll('.slot.filled').length).toBe(0);
+    // Staged, not committed: it shows on the board as pending and is removable.
+    expect(document.querySelectorAll('.slot.filled.ghost').length).toBe(1);
+    expect(screen.getByText('Not yet committed')).toBeTruthy();
 
-    // Cancelling leaves the board untouched.
-    fireEvent.click(screen.getByText('Cancel'));
-    expect(document.querySelectorAll('.slot.filled').length).toBe(0);
+    // Removing a staged item puts it back in hand and disables Confirm again.
+    fireEvent.click(screen.getByText('Remove'));
+    expect(document.querySelectorAll('.slot.filled.ghost').length).toBe(0);
 
-    // Doing it for real commits.
-    fireEvent.click(document.querySelector('.machine.selectable')!);
-    fireEvent.click(screen.getByText('Load it'));
+    // Re-stage. Loading is mandatory, so Confirm stays disabled until the whole
+    // quota is placed -- which is the point of the staged flow.
+    let guard = 0;
+    while ((screen.getByRole('button', { name: /^Confirm/ }) as HTMLButtonElement).disabled) {
+      if (guard++ > 6) throw new Error('could not satisfy the load quota');
+      const item = document.querySelectorAll('.panel .item-btn:not(:disabled)')[0];
+      expect(item).toBeTruthy();
+      fireEvent.click(item);
+      const machine = document.querySelector('.machine.selectable');
+      expect(machine).toBeTruthy();
+      fireEvent.click(machine!);
+    }
+    const stagedCount = document.querySelectorAll('.slot.filled.ghost').length;
+    expect(stagedCount).toBeGreaterThanOrEqual(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Confirm/ }));
+    fireEvent.click(screen.getByText('Commit'));
 
     // A one-item load can end the turn outright, which raises the hot-seat
     // pass screen; step through it so the floor is visible again.
@@ -97,7 +112,6 @@ describe('UI', () => {
 
     // The item is on the floor and stays there for everyone to see.
     expect(document.querySelectorAll('.slot.filled').length).toBeGreaterThanOrEqual(1);
-    cleanup();
   });
 
   test('every machine narrates what will happen tonight', () => {
@@ -108,6 +122,5 @@ describe('UI', () => {
     for (const t of tonights) {
       expect(t.textContent).toMatch(/Empty|Tonight|off|Jimothy|Gang/i);
     }
-    cleanup();
   });
 });

@@ -45,6 +45,8 @@ export function opts(st: GameState): ReckoningOpts {
     bleachKillsDark: st.cfg.bleachKillsDark,
     sanitizerOwnerOnly: st.cfg.sanitizerOwnerOnly,
     crowdThreshold: st.cfg.crowdThreshold,
+    meshBag: st.cfg.meshBagRule,
+    ownItemsDontTaint: st.cfg.ownItemsDontTaint,
   };
 }
 
@@ -150,6 +152,7 @@ export function beginTurn(st: GameState, pid: PlayerId): void {
     extraResolved: false,
     netTurn: null,
     pendingDraw: null,
+    pendingEvent: false,
   };
 }
 
@@ -182,6 +185,31 @@ export function mustStillLoad(st: GameState): boolean {
   if (!t || t.stage !== 'load') return false;
   if (loadsOutstanding(st) === 0) return false;
   return hasLegalPlacement(st, t.player);
+}
+
+/**
+ * The player still owes loads, but no washer will accept anything they hold.
+ * [A-05]: they load min(rolled, hand, legal placements), and zero is allowed —
+ * but they should SEE that, not have the game quietly move on.
+ */
+export function loadBlocked(st: GameState): boolean {
+  const t = st.turn;
+  if (!t || t.stage !== 'load') return false;
+  return loadsOutstanding(st) > 0 && !hasLegalPlacement(st, t.player);
+}
+
+/** Explicitly give up the remaining loads.  Legal only when truly blocked. */
+export function skipBlockedLoad(st: GameState, rng: Rng): boolean {
+  const t = st.turn;
+  if (!t || !loadBlocked(st)) return false;
+  const missed = loadsOutstanding(st);
+  t.loadsRequired = t.loadsDone;
+  log(
+    st,
+    `Player ${t.player + 1} could not load ${missed} item(s): no washer would take anything they hold.`,
+  );
+  advanceIfDone(st, rng);
+  return true;
 }
 
 export function canPlaySpecial(st: GameState, pid: PlayerId, name: SpecialName): boolean {
@@ -258,7 +286,12 @@ export function loadItem(st: GameState, pid: PlayerId, id: ItemId, mi: number, r
   const m = st.machines[mi];
   m.items.push(id);
   const item = st.items[id];
-  if (item.type === 'underwear' && t.netTurn && t.netTurn.player === pid && t.netTurn.machine === mi) {
+  // Bag membership.  Under the Mesh bag rule ANY item loaded into that machine
+  // on the turn the bag was played goes in; brief v8's Wash net took underwear
+  // only.  Either way items already sitting in the machine are never covered --
+  // that is the v8 narrowing and it survives (worked example 22).
+  const bagOpen = !!t.netTurn && t.netTurn.player === pid && t.netTurn.machine === mi;
+  if (bagOpen && (st.cfg.meshBagRule === 'guaranteed' || item.type === 'underwear')) {
     m.netProtected.push(id);
   }
   t.loadsDone += 1;
@@ -319,17 +352,57 @@ export function keepSpecial(st: GameState, keep: SpecialName, rng: Rng): void {
   finishExtra(st, rng);
 }
 
-/** Face 6: only the FIRST 6 of the day draws.  Revealed the moment it is drawn. */
+/**
+ * EXPERIMENT B: does this event resolve the moment it is drawn?
+ *   E1 always; E2 never; E3 only when nobody has to choose a washer, i.e. the
+ *   untargeted events (Circuit break, Animal control).
+ */
+export function resolvesOnDraw(st: GameState): boolean {
+  switch (st.cfg.eventTiming) {
+    case 'E1':
+      return true;
+    case 'E3':
+      return !eventNeedsChoice(st);
+    default:
+      return false;
+  }
+}
+
+/**
+ * Face 6: only the FIRST 6 of the day draws.  Revealed the moment it is drawn
+ * in every arm.
+ *
+ * If the arm resolves it now and it needs a washer chosen (Gang, Jimothy), the
+ * turn parks until the drawer chooses; otherwise it fires on the spot and the
+ * turn continues.  Otherwise it waits for the event phase.
+ */
 export function drawEvent(st: GameState, rng: Rng): void {
   const t = st.turn!;
   if (st.revealedEvent === null && st.eventDeck.length > 0) {
     const idx = rng.int(st.eventDeck.length);
     st.revealedEvent = st.eventDeck.splice(idx, 1)[0];
     st.eventDrawer = t.player;
-    log(st, `Player ${t.player + 1} drew an event: ${st.revealedEvent}. It resolves after every turn.`);
+    log(st, `Player ${t.player + 1} drew an event: ${st.revealedEvent}.`);
+
+    if (resolvesOnDraw(st)) {
+      if (eventNeedsChoice(st)) {
+        t.pendingEvent = true; // wait for the drawer's choice
+        return;
+      }
+      phaseEvent(st, {}, rng);
+    }
   } else {
-    log(st, `Player ${t.player + 1} rolled a 6, but an event is already revealed today.`);
+    log(st, `Player ${t.player + 1} rolled a 6, but an event has already happened today.`);
   }
+  finishExtra(st, rng);
+}
+
+/** The drawer's answer to an event that fired on draw and needed a choice. */
+export function resolveEventNow(st: GameState, choice: EventChoice, rng: Rng): void {
+  const t = st.turn!;
+  if (!t.pendingEvent || st.revealedEvent === null) return;
+  phaseEvent(st, choice, rng);
+  t.pendingEvent = false;
   finishExtra(st, rng);
 }
 
@@ -360,11 +433,16 @@ export function advanceIfDone(st: GameState, rng: Rng): void {
     return;
   }
   if (t.stage === 'load') {
-    if (!mustStillLoad(st)) advanceStage(st, rng);
+    // Advance only when the quota is met.  If the quota is unmet but the board
+    // refuses everything, STAY here: the player is shown that no washer will
+    // take anything and skips explicitly (skipBlockedLoad).  Silently skipping
+    // hid a real and confusing situation.
+    if (loadsOutstanding(st) === 0) advanceStage(st, rng);
     return;
   }
   if (t.stage === 'extra') {
     const extra = DICE[t.face!].extra;
+    if (t.pendingEvent) return; // waiting on the drawer to choose a washer
     if (t.extraResolved || extra === null) advanceStage(st, rng);
     else if (extra === 'displace' && !anyLegalDisplacement(st)) finishExtra(st, rng);
     else if (extra === 'special') {
@@ -471,6 +549,7 @@ export function gangTargets(st: GameState): number[] {
 export function phaseEvent(st: GameState, choice: EventChoice, rng: Rng): void {
   const ev = st.revealedEvent;
   if (ev === null) return;
+  st.lastEvent = { name: ev, day: st.day, auto: !eventNeedsChoice(st) };
   st.revealedEvent = null;
   st.eventDrawer = null;
 

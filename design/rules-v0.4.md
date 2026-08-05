@@ -1,3 +1,25 @@
+> ## ⚠ SUPERSEDED IN PART — written against Design Brief **v8**
+>
+> The brief is now at **v9** and this document has **not** been regenerated. It remains the
+> best formal account of the reckoning algorithm, the invariants and the worked examples,
+> all of which are unchanged. It is **stale** on:
+>
+> - **§3.1 / [OQ-09] turn order.** It recommends roll → extra → load → card. The designer
+>   resolved this as **roll → card → load → extra**, and that is what both implementations do.
+> - **§3.1 Phase 2 / §5.4 event timing.** It assumes events always resolve after all turns.
+>   There are now three arms (E1 immediate / E2 deferred / E3 split); the prototype defaults
+>   to **E1**. Open.
+> - **§6.7 / [OQ-10] Wash net.** Narrowed-to-underwear is gone. The card is now the **Mesh
+>   bag**: everything you load that turn washes, any type. Open sub-questions remain.
+> - **§5.3 / §8.2 Circuit break.** Still open; the prototype defaults to arm **V3**, and
+>   §8.2's analytical prediction was measured to be off by more than 2× (`sim/out/
+>   experiment-A-circuit-break.txt`).
+> - **§2.5 special item deck.** Manufacturing fixes the deck at **exactly 20 cards**.
+> - **§3.1 acting order.** It says keyholder-first; both implementations use fixed seat order.
+>
+> **Current ground truth:** `design/game-brief.md` (v9).
+> **Where the three implementations disagree:** `design/implementation-status.md`.
+
 # Laundromat — Formal Rules v0.4
 
 **Supersedes:** `rules-v0.1.md`, `v0.2`, `v0.3` (all retained on disk unchanged).

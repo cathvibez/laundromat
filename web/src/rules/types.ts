@@ -181,6 +181,11 @@ export interface TurnScratch {
   netTurn: { player: PlayerId; machine: number } | null;
   /** Face 5: the two cards drawn, awaiting a keep decision. */
   pendingDraw: SpecialName[] | null;
+  /**
+   * Face 6 with cfg.resolveEventsImmediately: an event has been drawn and needs
+   * a machine chosen by the drawer before the turn can continue.
+   */
+  pendingEvent: boolean;
 }
 
 export interface LogEntry {
@@ -210,6 +215,8 @@ export interface GameState {
   cbRestoreDay: number | null;
   over: boolean;
   winners: PlayerId[];
+  /** The event that most recently RESOLVED, so the UI can report what happened. */
+  lastEvent: { name: EventName; day: number; auto: boolean } | null;
   turn: TurnScratch | null;
   log: LogEntry[];
 }
@@ -219,6 +226,13 @@ export interface GameState {
 // ---------------------------------------------------------------------------
 
 export type CircuitBreakArm = 'V1' | 'V2' | 'V3';
+
+/** Experiment B: when a drawn event RESOLVES.  See web/experiments/. */
+export type EventTimingArm = 'E1' | 'E2' | 'E3';
+
+// Type-only, so this does not create a runtime cycle with reckoning.ts.
+import type { MeshBagRule } from './reckoning';
+export type { MeshBagRule };
 export type TurnOrder = 'cardLoadExtra' | 'extraLoadCard';
 
 export interface LaundromatConfig {
@@ -230,6 +244,20 @@ export interface LaundromatConfig {
 
   circuitBreak: CircuitBreakArm;
   turnOrder: TurnOrder;
+  /**
+   * EXPERIMENT B — when a drawn event RESOLVES.  Under test; not settled.
+   * The card is REVEALED the instant it is drawn in every arm; only the moment
+   * of resolution differs.  At most one event happens per day in every arm.
+   *
+   *   E1 "immediate"  every event fires on draw, mid-roll-phase.
+   *   E2 "deferred"   every event fires after all turns, before the keyholder.
+   *                   This is brief v8 section 4, and what sim/rules.py does.
+   *   E3 "split"      untargeted events (Circuit break, Animal control) fire on
+   *                   draw; targeted ones (Gang, Jimothy) are deferred.
+   *
+   * See web/experiments/experiment-B-event-timing.md.
+   */
+  eventTiming: EventTimingArm;
 
   specialDeck: Record<SpecialName, number>;
   eventDeck: Record<EventName, number>;
@@ -238,6 +266,29 @@ export interface LaundromatConfig {
   sanitizerOwnerOnly: boolean;
   bleachKillsDark: boolean;
   socksBlanketExtraWash: boolean;
+  /**
+   * DESIGNER REVISION.  Diverges from brief v8 and from sim/rules.py.
+   *
+   * 'v8net'      — Wash net: same-turn UNDERWEAR only, and all it waives is
+   *                underwear isolation.
+   * 'guaranteed' — Mesh bag: everything you load into that machine on the turn
+   *                you play the bag goes in it, and all of it washes if the
+   *                machine reckons.
+   *
+   * The card's internal id stays 'Wash net' so the deck still matches the
+   * oracle's vocabulary and the constants parity check stays honest; it is
+   * DISPLAYED as "Mesh bag".  Rename both sides together when sim/rules.py is
+   * updated -- see README.
+   */
+  meshBagRule: MeshBagRule;
+  /**
+   * DESIGNER REVISION.  Diverges from brief v8 and from sim/rules.py.
+   * Your own items never taint your own items by shade; among your own items a
+   * shade-blind ladder applies instead:
+   *     shoes (D = L) > clothing and blanket (D = L) > underwear (D = L)
+   * Other players still taint you exactly as before.
+   */
+  ownItemsDontTaint: boolean;
   publicDampZone: boolean;
 
   dayCap: number;

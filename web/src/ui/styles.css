@@ -249,3 +249,21 @@ header.top .spacer { flex: 1; }
 
 .modal .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .modal p { margin: 6px 0; }
+
+/* ---------------- added: staged loading, blocked loads -------------------- */
+
+.load-panel { margin-top: 10px; }
+.staged {
+  margin: 8px 0; padding: 8px 10px; border-radius: 8px;
+  background: #161b23; border: 1px dashed var(--accent);
+}
+.staged-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 2px 0; }
+.staged-row button { margin-left: auto; padding: 2px 8px; font-size: 11px; }
+
+.slot.filled.ghost { border-style: dashed; border-color: var(--accent); opacity: 0.85; }
+
+.blocked {
+  padding: 10px 12px; border-radius: 8px;
+  background: #2a2317; border: 1px solid var(--warn);
+}
+.blocked .sub { margin: 4px 0 10px; }

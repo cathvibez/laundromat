@@ -40,10 +40,49 @@ export interface CardsKey {
   sanitizerOwners: PlayerId[];
 }
 
+export type MeshBagRule = 'v8net' | 'guaranteed';
+
 export interface ReckoningOpts {
   bleachKillsDark: boolean;
   sanitizerOwnerOnly: boolean;
   crowdThreshold: number;
+  /**
+   * What `cards.netKeys` MEANS.  Absent is treated as 'v8net', so fixtures
+   * generated from the Python oracle keep their original semantics.
+   *
+   * 'v8net'      — brief v8 Wash net: the listed items are underwear, and the
+   *                only thing they are exempt from is underwear isolation.
+   * 'guaranteed' — Mesh bag (designer revision): the listed items are everything
+   *                their owner loaded into this machine on the turn the bag was
+   *                played, and they ALL WASH if the machine reckons at all.
+   *                Nothing can stop them: not the tier ladder, not crowding, not
+   *                underwear isolation, not blanket exclusivity, not Coloring.
+   */
+  meshBag?: MeshBagRule;
+  /**
+   * DESIGNER REVISION.  Absent is treated as false, so oracle fixtures keep
+   * brief v8 semantics.
+   *
+   * When true, YOUR OWN ITEMS NEVER TAINT YOUR OWN ITEMS BY SHADE.  Two things
+   * happen together:
+   *
+   *  (a) Every item is judged against the machine MINUS its owner's other
+   *      items, so only OTHER players can taint you.  Opponents still taint you
+   *      exactly as before, by shoes and by shade.
+   *  (b) Among your own items a shade-blind category ladder applies instead:
+   *          shoes (D = L)  >  clothing and blanket (D = L)  >  underwear (D = L)
+   *      Only your top occupied category washes.  So your own shoes still stop
+   *      your own shirt, and your own shirt still stops your own underwear --
+   *      but your dark shirt no longer stops your light one.
+   */
+  ownItemsDontTaint?: boolean;
+}
+
+/** The shade-blind ladder that applies among a single owner's items. */
+export function ownCategory(type: ItemType, sanitized: boolean): number {
+  if (type === 'shoes') return sanitized ? 1 : 0; // Sanitizer stops shoes dominating here too
+  if (type === 'underwear') return 2;
+  return 1; // socks, pants, shirts, hats, blanket
 }
 
 export const DEFAULT_RECKONING_OPTS: ReckoningOpts = {
@@ -113,7 +152,62 @@ export function machineVerdicts(
     return items.map((it, i) => (owners.has(it.owner) ? san[i] : base[i]));
   }
 
-  return core(items, cards, opts, cards.sanitizerOwners.length > 0);
+  const sanitized = cards.sanitizerOwners.length > 0;
+
+  // ---- Own items never taint own items (designer revision) ----------------
+  // Each item is resolved in a virtual machine holding everything EXCEPT its
+  // owner's other items, and then filtered by the shade-blind own-item ladder.
+  //
+  // Every verdict is still a pure function of the machine's contents and cards,
+  // never of another item's verdict, so the filters still commute and item order
+  // still cannot matter (see the permutation tests).
+  //
+  // The cost, stated plainly: the machine no longer resolves at a single tier.
+  // Each owner can be on a different rung at once.  rules-v0.4 section 6.10
+  // rejected that shape when it was proposed for Sanitizer, on the grounds that
+  // it stops the reckoning being resolvable by eye at a table.  That objection
+  // applies here too, and more broadly.
+  // Under the Mesh bag rule netKeys mark membership only and carry no isolation
+  // waiver, so everything outside the bag resolves as if no net were attached.
+  const meshGuaranteed = (opts.meshBag ?? 'v8net') === 'guaranteed' && cards.netKeys.length > 0;
+  const effCards: CardsKey = meshGuaranteed ? { ...cards, netKeys: [] } : cards;
+
+  let base: boolean[];
+  if (opts.ownItemsDontTaint) {
+    base = items.map((x) => {
+      const others = items.filter((y) => y.owner !== x.owner);
+      const virtual = [...others, x];
+      const crossPlayer = core(virtual, effCards, opts, sanitized)[virtual.length - 1];
+      if (!crossPlayer) return false;
+      // The owner's own shade-blind ladder: only their top category washes.
+      const mine = items.filter((y) => y.owner === x.owner);
+      const top = Math.min(...mine.map((y) => ownCategory(y.type, sanitized)));
+      return ownCategory(x.type, sanitized) === top;
+    });
+  } else {
+    base = core(items, effCards, opts, sanitized);
+  }
+
+  // ---- Mesh bag (designer revision) --------------------------------------
+  // "Anything put into the mesh bag will get washed if the washer is reckoned."
+  // So a bagged item's verdict is simply TRUE.  Everything outside the bag
+  // resolves exactly as it always did, WITH the bagged items still present and
+  // still counting towards tier selection and crowding -- the bag protects its
+  // contents, it does not remove them from the wash.
+  //
+  // Verdicts remain a pure function of the machine's contents and cards, never
+  // of another item's verdict, so the filter chain still commutes and item order
+  // still cannot matter (see the permutation tests).
+  // The bag is the LAST word: it overrides the ladder, every filter, the
+  // own-item ladder and Coloring alike.
+  if (meshGuaranteed) {
+    const bagged = new Set(cards.netKeys);
+    return items.map((x, i) =>
+      bagged.has(`${x.owner}-${x.type}-${x.shade}`) ? true : base[i],
+    );
+  }
+
+  return base;
 }
 
 function core(

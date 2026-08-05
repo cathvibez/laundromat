@@ -8,7 +8,7 @@
 import { cardsKeyOf, currentTier, machineContents, opts } from './phases';
 import { TIER_TEXT, machineVerdicts } from './reckoning';
 import { REFUSAL_TEXT, refusalFor } from './placement';
-import type { GameState, ItemCard, ItemId, ItemType, Machine, PlayerId } from './types';
+import type { GameState, ItemCard, ItemId, Machine, PlayerId, SpecialName } from './types';
 
 export type MachineStatus = 'destroyed' | 'raccoon' | 'off' | 'on';
 
@@ -70,11 +70,20 @@ export function tonight(st: GameState, m: Machine): TonightSummary {
   const tier = currentTier(st, m);
   const lines = contents.map((item, i) => ({ item, willWash: verdicts[i] }));
   const washCount = lines.filter((l) => l.willWash).length;
+  // With ownItemsDontTaint the machine no longer resolves at one tier: the
+  // ladder below is what OTHER players' items impose on you. The per-item
+  // verdicts above are the truth and come from the real reckoning either way.
+  const tierLabel =
+    tier === null
+      ? null
+      : st.cfg.ownItemsDontTaint
+        ? `${TIER_TEXT[tier]} — that is what the room does to you. Your own items never taint each other; among them it is shoes, then clothing and blanket, then underwear.`
+        : TIER_TEXT[tier];
   const headline =
     washCount === 0
       ? 'Tonight: nothing washes. Everything goes back.'
       : `Tonight: ${washCount} of ${contents.length} wash.`;
-  return { status, headline, tierText: tier ? TIER_TEXT[tier] : null, lines };
+  return { status, headline, tierText: tierLabel, lines };
 }
 
 /** Will these socks come out damp rather than clean?  [A-24] keyed on contents. */
@@ -107,12 +116,32 @@ export function shortLabel(item: ItemCard): string {
   return `${item.shade} ${item.type}`;
 }
 
+/**
+ * What each card is CALLED in the product.  The engine keeps brief v8's internal
+ * ids so the deck still matches the Python oracle's vocabulary and the constants
+ * parity check stays meaningful; only the label differs.  When sim/rules.py is
+ * updated, rename both sides together and delete this map.
+ */
+export const SPECIAL_DISPLAY: Record<SpecialName, string> = {
+  Coloring: 'Coloring',
+  'Color catcher': 'Color catcher',
+  Bleach: 'Bleach',
+  'Wash net': 'Mesh bag',
+  Snacc: 'Snacc',
+  Sanitizer: 'Sanitizer',
+  Coin: 'Coin',
+};
+
+export function cardName(n: SpecialName): string {
+  return SPECIAL_DISPLAY[n] ?? n;
+}
+
 export const SPECIAL_TEXT: Record<string, string> = {
   Coloring: 'Play on a machine. Every other player’s items there are ruined and sent back.',
   'Color catcher': 'Play on a machine. Your items there ignore Coloring.',
   Bleach: 'Play on a machine. This wash runs backwards: light washes, dark is sent back.',
   'Wash net':
-    'Play on a machine as you load. Underwear you load THIS TURN washes there even among other garments.',
+    'Play on a machine as you load. Everything you load into it this turn goes in the bag, and all of it washes when that machine runs — whatever else is in there.',
   Sanitizer: 'Play on a machine. Shoes stop tainting this wash. Every other rule still applies.',
   Coin: 'Turn any one machine on or off. You do not need the key. One shot.',
   Snacc: 'Lure Jimothy to another machine. Items he leaves go back to their owners, unwashed.',
@@ -127,32 +156,38 @@ export const EVENT_TEXT: Record<string, string> = {
 };
 
 /**
- * Hand sort order, by how the reckoning treats things:
- *   shoes first (their own class, above the shade system)
- *   then the rest of the clothes, dark before light
- *   then linen: underwear, then blanket
- * Within a rank, dark sorts before light, then alphabetically by type.
+ * Hand sort order, designer-specified, following how dominant each item is in
+ * the reckoning:
+ *
+ *   dark shoes  >  light shoes
+ *   >  dark clothing + dark blanket  >  light clothing + light blanket
+ *   >  dark underwear  >  light underwear
+ *
+ * Underwear sorts last because it can only ever wash among underwear, so it is
+ * the least flexible thing you can hold; shoes sort first because they decide
+ * the whole machine.
  */
-const SORT_RANK: Record<ItemType, number> = {
-  shoes: 0,
-  socks: 1,
-  pants: 1,
-  shirts: 1,
-  hats: 1,
-  underwear: 2,
-  blanket: 3,
-};
+export function sortRank(item: ItemCard): number {
+  const dark = item.shade === 'D';
+  if (item.type === 'shoes') return dark ? 0 : 1;
+  if (item.type === 'underwear') return dark ? 4 : 5;
+  return dark ? 2 : 3; // all other clothing, and the blanket, ranked by shade
+}
 
 export function sortItems(st: GameState, ids: ItemId[]): ItemId[] {
   return [...ids].sort((a, b) => {
     const x = st.items[a];
     const y = st.items[b];
-    if (SORT_RANK[x.type] !== SORT_RANK[y.type]) return SORT_RANK[x.type] - SORT_RANK[y.type];
-    if (x.shade !== y.shade) return x.shade === 'D' ? -1 : 1;
+    const rx = sortRank(x);
+    const ry = sortRank(y);
+    if (rx !== ry) return rx - ry;
     if (x.type !== y.type) return x.type < y.type ? -1 : 1;
     return 0;
   });
 }
+
+export const SORT_EXPLAINER =
+  'dark shoes, light shoes, dark clothing and blanket, light clothing and blanket, dark underwear, light underwear';
 
 export const RULES_SUMMARY: { heading: string; lines: string[] }[] = [
   {
@@ -166,8 +201,9 @@ export const RULES_SUMMARY: { heading: string; lines: string[] }[] = [
     heading: 'A day, in order',
     lines: [
       '1. Roll — each player rolls, may play one ready card, then MUST load.',
-      '2. Event — the card drawn on the first 6 of the day resolves.',
-      '3. Key — the keyholder turns one machine on, one off, or passes.',
+      '2. An event drawn on a 6 happens IMMEDIATELY, mid-turn. Only one event per day.',
+      '3. Key — the keyholder turns one machine on, one off, or passes. This still',
+      '   happens after a Circuit break, so one washer can come straight back on.',
       '4. Reckoning — every machine that is on resolves.',
       '5. End of day — fresh cards become ready, the key passes on.',
     ],
@@ -189,7 +225,11 @@ export const RULES_SUMMARY: { heading: string; lines: string[] }[] = [
       'Tier 2 — else any light shoes: light shoes wash, everything else goes back.',
       'Tier 3 — else any dark item: all dark items wash, light goes back.',
       'Tier 4 — light items only: they all wash.',
-      'The tier is chosen for the WHOLE machine, and it ignores who owns what.',
+      'That ladder is what OTHER players impose on you.',
+      'Your own items never taint each other by shade. Among your own items only:',
+      '    shoes (dark = light) > clothing and blanket (dark = light) > underwear (dark = light).',
+      'So your own dark shirt no longer stops your own light one, but your own shoes',
+      'still stop your own shirt, and your own shirt still stops your own underwear.',
     ],
   },
   {
@@ -214,6 +254,7 @@ export const RULES_SUMMARY: { heading: string; lines: string[] }[] = [
     heading: 'Cards',
     lines: [
       'A card drawn today sits face-up in your FRESH zone and cannot be played until tomorrow.',
+      'Mesh bag: play it as you load, and everything you put in that machine this turn washes.',
       'You may play at most one ready card per turn, and it returns to the deck afterwards.',
       'Everything on the floor is public. Only your hand and your ready cards are private.',
     ],
