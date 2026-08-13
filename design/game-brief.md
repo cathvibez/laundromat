@@ -232,7 +232,7 @@ turn, never the day it was drawn. **After being played, shuffled back into its d
 |---|---|
 | **Coloring** | The owner ruins every other color in the same machine. |
 | **Color catcher** | Mitigates *Coloring* for the color catcher's owner. |
-| **Bleach** | Reverses dark/light roles — light washes, dark is sent back. |
+| **Bleach** | **Swaps every item's shade** in that machine before the ladder is read: dark counts as light, light counts as dark. *(Corrected 2026-08-06 — this row read "light washes, dark is sent back", which is wrong whenever shoes are present. See below.)* |
 | **Mesh bag** *(was Wash net)* | **REVISED v9.** Play it on a machine as you load. **Everything you load into that machine this turn goes in the bag, and all of it washes when that machine runs** — whatever else is in there. Items already sitting in the machine from earlier rounds are **not** in the bag. |
 | **Snacc** | Lures Jimothy to another machine of the player's choice. |
 | **Sanitizer** | **NEW.** Neutralizes shoe tainting in this machine — shoes no longer dominate. All other rules still apply. |
@@ -381,7 +381,16 @@ Convention: bold trigger, then effect, then any lingering rule. Two lines maximu
 
 > **Color catcher** — Play on a machine. Your items here ignore Coloring.
 
-> **Bleach** — Play on a machine. This wash runs backwards: light items wash, dark items are sent back.
+> **Bleach** — Play on a machine. Until it runs, every item inside counts as the opposite shade:
+> dark counts as light, light counts as dark. Shoes are still shoes.
+
+> **Corrected 2026-08-06.** Both this card face and the §6 table used to say "light items wash, dark
+> items are sent back." That is a **shorthand that gives the wrong answer whenever shoes are in the
+> machine.** Bleach swaps shade *before* tier selection, so bleached dark shoes read as **light
+> shoes** — still shoes, still the top occupied rung, and they still wash. See `rules-v0.4` §6.8 and
+> worked example 12, and `reckoning.ts` step S1, all three of which have always implemented the
+> swap. **No rule changed here; only the description was wrong.** Final card wording lives in
+> `design/strings/card-text.md`.
 
 > **Mesh bag** — Play on a machine as you load. Everything you load into it this turn goes in the bag, and all of it washes when that machine runs — whatever else is in there.
 

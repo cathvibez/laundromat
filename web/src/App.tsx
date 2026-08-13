@@ -16,12 +16,30 @@ interface Settings {
   circuitBreak: CircuitBreakArm;
   eventTiming: EventTimingArm;
   sanitizerOwnerOnly: boolean;
-  keyholderFirst: boolean;
   publicDampZone: boolean;
 }
 
+/**
+ * Dev convenience: `?autostart` skips the setup screen with sane defaults, and
+ * `?players=5` picks the count. Used for screenshots and manual testing; it
+ * reads settings only and cannot reach any rule the setup screen cannot.
+ */
+function autoStartSettings(): Settings | null {
+  if (typeof window === 'undefined') return null;
+  const q = new URLSearchParams(window.location.search);
+  if (!q.has('autostart')) return null;
+  const n = Number(q.get('players') ?? 4);
+  return {
+    players: [3, 4, 5, 6].includes(n) ? n : 4,
+    circuitBreak: 'V3',
+    eventTiming: 'E1',
+    sanitizerOwnerOnly: false,
+    publicDampZone: true,
+  };
+}
+
 export function App() {
-  const [settings, setSettings] = useState<Settings | null>(null);
+  const [settings, setSettings] = useState<Settings | null>(autoStartSettings);
 
   if (!settings) return <Setup onStart={setSettings} />;
 
@@ -29,7 +47,10 @@ export function App() {
     circuitBreak: settings.circuitBreak,
     eventTiming: settings.eventTiming,
     sanitizerOwnerOnly: settings.sanitizerOwnerOnly,
-    keyholderFirst: settings.keyholderFirst,
+    // keyholderFirst is NOT overridable: brief v9 section 4 settles it as always true and
+    // config.ts owns it. The setup screen used to offer it as a switch defaulting
+    // to false, which silently overrode the config and made the app play fixed
+    // seat order.
     publicDampZone: settings.publicDampZone,
   };
 
@@ -48,7 +69,6 @@ function Setup({ onStart }: { onStart: (s: Settings) => void }) {
   const [arm, setArm] = useState<CircuitBreakArm>('V3');
   const [eventTiming, setEventTiming] = useState<EventTimingArm>('E1');
   const [sanitizerOwnerOnly, setSanitizerOwnerOnly] = useState(false);
-  const [keyholderFirst, setKeyholderFirst] = useState(false);
   const [publicDampZone, setPublicDampZone] = useState(true);
 
   const deckTotal = Object.values(PLACEHOLDER_SPECIAL_DECK).reduce((a, b) => a + b, 0);
@@ -117,15 +137,6 @@ function Setup({ onStart }: { onStart: (s: Settings) => void }) {
           <input
             type="checkbox"
             style={{ width: 'auto' }}
-            checked={keyholderFirst}
-            onChange={(e) => setKeyholderFirst(e.target.checked)}
-          />
-          Keyholder acts first each day (default is fixed seat order)
-        </label>
-        <label style={{ display: 'flex', gap: 8, textTransform: 'none', letterSpacing: 0 }}>
-          <input
-            type="checkbox"
-            style={{ width: 'auto' }}
             checked={publicDampZone}
             onChange={(e) => setPublicDampZone(e.target.checked)}
           />
@@ -158,7 +169,6 @@ function Setup({ onStart }: { onStart: (s: Settings) => void }) {
               circuitBreak: arm,
               eventTiming,
               sanitizerOwnerOnly,
-              keyholderFirst,
               publicDampZone,
             })
           }

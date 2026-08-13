@@ -1,5 +1,7 @@
 import type { GameState, Machine } from '../rules/types';
 import { cardName, itemLabel, tonight, willBeDamp } from '../rules/selectors';
+import { GarmentCard } from './Card';
+import type { Verdict } from './Card';
 
 const PLAYER_COLORS = ['var(--p0)', 'var(--p1)', 'var(--p2)', 'var(--p3)', 'var(--p4)', 'var(--p5)'];
 
@@ -78,14 +80,26 @@ export function MachineCard({
           const damp = wash && willBeDamp(G, machine, item);
           const netted = machine.netProtected.includes(id);
           const ghost = ghosts?.includes(id);
+          const live = t.status === 'on' && !G.cbBlackout;
+          const verdict: Verdict = live ? (damp ? 'damp' : wash ? 'wash' : 'back') : null;
+          const note = [
+            netted ? 'in the bag' : '',
+            item.damp ? 'damp' : '',
+            ghost ? 'not committed' : '',
+          ]
+            .filter(Boolean)
+            .join(' · ');
+
           return (
-            <div
+            <GarmentCard
               key={id}
-              className={`slot filled${ghost ? ' ghost' : ''}`}
-              style={{
-                cursor: onItemClick ? 'pointer' : undefined,
-                outline: highlightItems?.includes(id) ? '1px solid var(--accent)' : undefined,
-              }}
+              item={item}
+              size="xs"
+              verdict={verdict}
+              note={note || undefined}
+              ghost={ghost}
+              selected={highlightItems?.includes(id)}
+              title={`P${item.owner + 1} ${itemLabel(item)}${note ? ` — ${note}` : ''}`}
               onClick={
                 onItemClick
                   ? (e) => {
@@ -94,25 +108,12 @@ export function MachineCard({
                     }
                   : undefined
               }
-            >
-              <Swatch owner={item.owner} shade={item.shade} />
-              <span>
-                P{item.owner + 1} {itemLabel(item)}
-                {item.damp ? ' (damp)' : ''}
-                {netted ? ' [in the bag]' : ''}
-                {ghost ? ' · not committed' : ''}
-              </span>
-              {t.status === 'on' && !G.cbBlackout && (
-                <span className={`verdict ${damp ? 'damp' : wash ? 'wash' : 'back'}`}>
-                  {damp ? 'damp' : wash ? 'washes' : 'back'}
-                </span>
-              )}
-            </div>
+            />
           );
         })}
         {Array.from({ length: empties }, (_, i) => (
           <div key={`e${i}`} className="slot">
-            empty slot
+            empty
           </div>
         ))}
       </div>

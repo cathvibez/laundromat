@@ -40,9 +40,15 @@ and the code it gates disagree, that is called out explicitly.
 
 ### Prerequisite before any of it can be trusted again
 
-`sim/rules.py` needs three ports, in this order of impact: **event timing arms**, the
-**Mesh bag** rule, and the **20-card deck constraint**. Until then the simulation and the
-prototype are the same *reckoning*, not the same *game*.
+`sim/rules.py` needs five ports, in this order of impact: **event timing arms**, the
+**Mesh bag** rule, **"own items don't taint own items"**, the **20-card deck constraint**, and
+**keyholder-first acting order**. Until then the simulation and the prototype are not even the same
+*reckoning* — the own-items rule changes verdicts — let alone the same *game*.
+
+> **Note added 2026-08-06.** The own-items rule is the one that hurts. Every fixture in the parity
+> suite runs with `ownItemsDontTaint: false`, so parity is still honest about what it tests, but it
+> now tests **brief v8's reckoning, which is not the reckoning the app plays.** Porting it into the
+> oracle and regenerating the fixtures should happen in one change.
 
 ---
 
@@ -60,7 +66,7 @@ Legend: **=** agrees · **≠** diverges · **—** not modelled.
 | **Circuit break arm** | All three recorded, OPEN | **default V2** | **default V3**, all three implemented, selectable | **OPEN** | Both implement all three arms identically; only the *default* differs. `sim/out/experiment-A` recommends V3 but is a smoke test with an invalid V0 control. |
 | **Special deck size** | OPEN (P0); records the 20-card manufacturing constraint | **14 cards** (2 of each); no constraint | **20 cards**, flat 3/3/3/3/3/3/2, **asserted at setup** (`assertDeckSize`) | **web** for the total, **nobody** for the split | The 20-card constraint comes from `publishing-research.md:187` and is real. The split is explicitly labelled arbitrary in `config.ts` and is not a recommendation. **OPEN (P0).** |
 | **Turn order within a turn** | roll → card → load → extra | roll → card → load → extra `[A-W03]` | roll → card → load → extra (`cfg.turnOrder = 'cardLoadExtra'`) | **all three agree** | Included because it was contested: **`rules-v0.4.md §3.1` still says roll → extra → load → card** and is stale. The app keeps that reading as a dead ablation switch. |
-| **Acting order** | "in turn order"; key rotates independently | `keyholder_first = False` | `keyholderFirst = false` | agrees | **But:** `experiment-B` recommends E1 be paired with keyholder-first to rotate E1's seat-order harm, and the app ships E1 *with fixed seat order* — the unmitigated combination. A config-vs-intent gap, not a code bug. **OPEN.** |
+| **Acting order** | **RESOLVED v9 §4: keyholder acts first, always. No longer a switch.** | `keyholder_first = False` | **`keyholderFirst = true`** | **brief + web** | **Corrected 2026-08-06** — this row previously recorded all three as fixed seat order and marked it OPEN. Verified in `config.ts:119` (`keyholderFirst: true`, commented "RESOLVED v9") and `setup.ts:actingOrder`. This is the mitigation `experiment-B` recommends pairing with E1, so the app is **no longer** shipping the unmitigated combination. `sim/rules.py` is now the only artefact on fixed seat order and needs the port. `web/README.md`'s config table was stale on this and has been corrected. |
 | **Damp socks zone** | Public face-up damp zone (new v9) | Kept in `hand`; `wash_count` int on the item | `players[x].damp`, public, loadable like the hand (`cfg.publicDampZone = true`) | **web** (cosmetic) | Verified in `placement.ts:loadableItems` and `phases.ts:returnToOwner`. A partition of what Python keeps in `hand`; **no reckoning outcome changes.** Safe. |
 | **Card sort order** | Documented in v9 §1 | — | `selectors.ts:sortRank` + `SORT_EXPLAINER`, used by the hand/damp/clean zones | **web** | Was documented *nowhere but the code* until v9. dark shoes → light shoes → dark clothing+blanket → light clothing+blanket → dark underwear → light underwear. Cosmetic, but should match on printed cards. |
 | **Sanitizer scope** | OPEN, default machine-wide | `sanitizer_owner_only = False` | `sanitizerOwnerOnly = false` | agrees | Both default machine-wide, tiers 1–2 suppressed. `rules-v0.4 [OQ-01]` argues owner-only is disqualifying. Still nominally **OPEN** but both implementations and the brief concur. |
@@ -117,16 +123,28 @@ Ordered by how much downstream work each one unblocks.
    frequency sets the value of Coin and Snacc.
 4. **Special item deck composition (P0).** Exactly 20 cards, split unset. Blocked behind
    decisions 2 and 3. This is the last big balance lever.
-5. **Acting order — fixed seat or keyholder-first.** Cheap to change, but it is the stated
-   mitigation for E1's seat-order asymmetry, so it should be decided *with* decision 1
-   rather than after it.
+5. ~~**Acting order — fixed seat or keyholder-first.**~~ **CLOSED** (brief v9 §4, and the app now
+   ships it). Keyholder-first is permanent and is no longer a design decision. What remains is a
+   **port**: `sim/rules.py` still runs `keyholder_first = False`, so any fairness or seat-order
+   number it produces describes a game nobody plays.
 6. **Does the crowding rule earn its complexity?** It fires in ~0–1% of reckonings. Removing
    it simplifies the reckoning; keeping it costs a paragraph of rules text. Low urgency,
    trivially reversible.
-7. **"Own items don't taint own items."** Proposed by the designer, flagged as structurally
-   expensive — it would make an item's verdict depend on ownership in a way that threatens
-   the pure-conjunction structure the whole reckoning implementation rests on. Never ruled
-   on. Should be costed before it is considered.
+7. **"Own items don't taint own items." — NO LONGER HYPOTHETICAL. Corrected 2026-08-06.**
+   This entry used to read "never ruled on; should be costed before it is considered." It has
+   since been **built and turned on by default**: `config.ts` ships `ownItemsDontTaint: true`,
+   `reckoning.ts:176-186` implements it, and `tests/ported/ownTaint.test.ts` pins 21 cases.
+   Every item is judged against the machine minus its owner's other items, and among your own
+   items a shade-blind ladder applies: shoes > clothing and blanket > underwear.
+   **The cost was paid, not avoided.** Purity survived — verdicts still never read another
+   item's verdict, and the permutation test (`O20`) passes — but **a machine no longer resolves
+   at a single tier**, which is the property `rules-v0.4 §6.10` called load-bearing for
+   resolving the reckoning by eye at a table. Two side effects nobody has signed off on: your
+   own copies no longer crowd you (`O17`), and underwear isolation now only bites across
+   players.
+   **What is actually outstanding is documentation, not code:** brief v9 does not mention this
+   rule at all, and it is the central mechanic of the rulebook in `design/strings/`. Promote it
+   into the brief (v10) or rule it out.
 8. **Sanitizer scope.** Nominally open, but the brief, the simulation and the app all
    default to machine-wide and `rules-v0.4 [OQ-01]` argues the alternative is disqualifying.
    Closing this is bookkeeping.

@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laundromat — paper cutout style study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* ---- paper ---- */
+  --paper:#F7F1E4;
+  --paper-2:#FDF9F1;
+  --card:#FFFFFF;
+  --ink:#3B3330;
+  --ink-soft:#8B7F73;
+  --rule:#E3D8C4;
+  --rule-2:#D3C4AA;
+
+  /* ---- verdicts ---- */
+  --good:#5FA86B;
+  --bad:#E0705A;
+  --damp:#E2A93F;
+
+  /* ---- player colours, lifted from the art ---- */
+  --purple:#6E52A3;  --purple-l:#B9A7DA;
+  --tan:#B0762E;     --tan-l:#D8C7A5;
+  --blue:#3F6F90;    --blue-l:#A9C5D7;
+  --orange:#F0642B;  --orange-l:#F4B9A1;
+  --green:#3F9C48;   --green-l:#A9CFA8;
+  --pink:#E63A8B;    --pink-l:#F4A9C6;
+
+  --shadow: 6px 6px 0 rgba(59,51,48,.16);
+  --shadow-sm: 4px 4px 0 rgba(59,51,48,.14);
+  --shadow-lift: 7px 8px 0 rgba(59,51,48,.15);
+
+  font-family:'Fredoka', ui-rounded, 'SF Pro Rounded', 'Segoe UI', system-ui, sans-serif;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; color:var(--ink); background:var(--paper); font-size:14px; line-height:1.5;
+  background-image:
+    radial-gradient(rgba(139,127,115,.055) 1px, transparent 1px),
+    radial-gradient(rgba(139,127,115,.035) 1px, transparent 1px);
+  background-size:22px 22px, 13px 13px;
+  background-position:0 0, 7px 9px;
+}
+.wrap{max-width:1360px;margin:0 auto;padding:26px 24px 70px}
+
+/* ---------------- header ---------------- */
+header.top{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:26px}
+.logo{
+  background:var(--card);border:2px solid var(--ink);border-radius:16px;
+  padding:10px 20px 12px;box-shadow:var(--shadow);transform:rotate(-1.4deg);
+}
+.logo h1{margin:0;font-size:30px;font-weight:700;letter-spacing:.02em;line-height:1}
+.logo .tag{font-size:12px;color:var(--ink-soft);margin-top:2px}
+.chip{
+  background:var(--card);border:2px solid var(--rule-2);border-radius:999px;
+  padding:6px 15px;font-size:13px;font-weight:500;box-shadow:var(--shadow-sm);
+}
+.chip.key{border-color:var(--damp);color:#9A6B10;transform:rotate(1.2deg)}
+.chip.day{font-weight:600;transform:rotate(-.8deg)}
+.spacer{flex:1}
+
+.section{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);
+  margin:30px 0 12px;font-weight:600}
+
+/* ---------------- the floor ---------------- */
+.floor{display:grid;align-items:start;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:20px}
+.washer{
+  background:var(--paper-2);border:2px solid var(--ink);border-radius:18px;
+  box-shadow:var(--shadow);padding:12px 13px 13px;position:relative;
+}
+.washer:nth-child(odd){transform:rotate(-.5deg)}
+.washer:nth-child(even){transform:rotate(.6deg)}
+.washer.off{background:#F0EADD;border-color:var(--rule-2)}
+.washer.dead{background:#EFE9DF;border-color:var(--rule-2);opacity:.6}
+
+.w-head{display:flex;align-items:center;gap:9px;margin-bottom:11px}
+.w-name{font-weight:600;font-size:16px}
+.pill{font-size:11px;font-weight:600;padding:2px 10px;border-radius:999px;border:2px solid}
+.pill.on{color:#3D7A48;border-color:var(--good);background:#EAF5EC}
+.pill.off{color:var(--ink-soft);border-color:var(--rule-2);background:#F4EFE5}
+.pill.rac{color:#9A6B10;border-color:var(--damp);background:#FBF2DC}
+.pill.gone{color:#B24E3B;border-color:var(--bad);background:#FBECE8}
+.cap{margin-left:auto;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+
+/* the drum: cards overlap like laundry in a basket */
+.drum{
+  background:#FFFDF8;border:2px dashed var(--rule-2);border-radius:14px;
+  min-height:206px;padding:12px 10px 10px;display:flex;align-items:flex-start;
+}
+.drum .g{margin-right:-26px}
+.drum .g:last-child{margin-right:0}
+.drum.empty{align-items:center;justify-content:center;color:var(--ink-soft);font-size:13px}
+
+.tonight{margin-top:11px;font-size:13px;display:flex;align-items:baseline;gap:7px}
+.tonight b{font-weight:600}
+.tonight .sub{font-size:11.5px;color:var(--ink-soft)}
+
+/* ---------------- garment card ---------------- */
+.g{
+  position:relative;width:104px;height:168px;flex:none;
+  background:var(--card);border:2px solid var(--ink);border-radius:11px;
+  box-shadow:var(--shadow-sm);overflow:hidden;
+}
+.g.lg{width:150px;height:242px;border-radius:14px;box-shadow:var(--shadow)}
+.g .pic{
+  position:absolute;inset:0;
+  background-repeat:no-repeat;
+  background-size:500% 400%;
+  background-position:calc(var(--c) * 25%) calc(var(--r) * 33.3333%);
+}
+.g .nm{
+  position:absolute;left:0;right:0;bottom:0;padding:3px 7px 4px;
+  font-size:9.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  background:rgba(255,255,255,.9);border-top:1px solid var(--rule);
+  color:var(--ink-soft);text-align:center;
+}
+.g.lg .nm{font-size:11.5px;padding:5px 8px 6px}
+.g .dot{position:absolute;top:7px;left:7px;width:13px;height:13px;border-radius:50%}
+.g.lg .dot{width:17px;height:17px;top:9px;left:9px}
+.g .dot.d{background:var(--dotc)}
+.g .dot.l{background:transparent;border:3px solid var(--dotc)}
+.g.tilt-a{transform:rotate(-3deg)}
+.g.tilt-b{transform:rotate(2.4deg)}
+.g.tilt-c{transform:rotate(-1.2deg)}
+
+/* verdict stamps */
+.stamp{
+  position:absolute;top:50%;left:50%;font-size:12.5px;font-weight:700;letter-spacing:.09em;
+  padding:4px 11px;border:3px solid;border-radius:7px;text-transform:uppercase;
+  background:rgba(255,255,255,.86);white-space:nowrap;
+}
+.stamp.wash{color:var(--good);border-color:var(--good);transform:translate(-50%,-50%) rotate(-11deg)}
+.stamp.back{color:var(--bad);border-color:var(--bad);transform:translate(-50%,-50%) rotate(-8deg)}
+.stamp.damp{color:#9A6B10;border-color:var(--damp);transform:translate(-50%,-50%) rotate(-9deg)}
+
+/* ---------------- special item card ---------------- */
+.item{
+  position:relative;width:150px;height:236px;flex:none;
+  background:var(--card);border:2px solid var(--ink);border-radius:14px;
+  box-shadow:var(--shadow);overflow:hidden;
+}
+.item .pic{
+  position:absolute;inset:0;background-image:url('art/items.png');background-repeat:no-repeat;
+  --s:.771; /* 150 / 194.6 cell width */
+  background-size:calc(1069px * var(--s)) calc(731px * var(--s));
+  background-position:
+    calc(-1 * (37px + var(--ic) * 194.6px) * var(--s))
+    calc(-1 * (43px + var(--ir) * 316px) * var(--s));
+}
+.item.tilt-a{transform:rotate(-2.2deg)}
+.item.tilt-b{transform:rotate(1.8deg)}
+
+/* ---------------- turn bar ---------------- */
+.turnbar{
+  margin-top:26px;background:var(--card);border:2px solid var(--ink);border-radius:18px;
+  box-shadow:var(--shadow-lift);padding:15px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  transform:rotate(-.35deg);
+}
+.die{
+  width:58px;height:58px;border-radius:14px;background:var(--paper-2);
+  border:2px solid var(--ink);box-shadow:var(--shadow-sm);
+  display:flex;align-items:center;justify-content:center;font-size:27px;font-weight:700;
+  transform:rotate(-5deg);flex:none;
+}
+.turnbar h2{margin:0;font-size:18px;font-weight:600}
+.turnbar .sub{font-size:13px;color:var(--ink-soft)}
+.btn{
+  font:inherit;font-weight:600;font-size:14px;padding:9px 18px;border-radius:11px;
+  border:2px solid var(--ink);background:var(--card);color:var(--ink);
+  box-shadow:var(--shadow-sm);cursor:pointer;
+}
+.btn.go{background:#FFE9A8}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(59,51,48,.11)}
+
+/* ---------------- zones ---------------- */
+.zones{display:grid;grid-template-columns:1fr 300px;gap:22px;align-items:start;margin-top:8px}
+.tray{
+  background:var(--paper-2);border:2px solid var(--rule-2);border-radius:16px;
+  box-shadow:var(--shadow-sm);padding:14px 15px 16px;
+}
+.tray h3{margin:0 0 10px;font-size:13px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-soft);font-weight:600}
+.hand{display:flex;gap:9px;flex-wrap:wrap}
+.mini{display:flex;gap:7px;flex-wrap:wrap}
+
+.rail-row{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:2px dotted var(--rule)}
+.rail-row:last-child{border-bottom:none}
+.swatch{width:15px;height:15px;border-radius:50%;flex:none;border:2px solid rgba(59,51,48,.25)}
+.rail-row .nm{font-weight:500;font-size:13.5px}
+.rail-row .sc{margin-left:auto;font-size:12.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.bar{height:9px;background:#EDE5D6;border-radius:99px;overflow:hidden;margin-top:5px;border:1px solid var(--rule)}
+.bar > i{display:block;height:100%;background:var(--good)}
+
+.note{font-size:12.5px;color:var(--ink-soft);margin-top:26px;text-align:center;font-style:italic}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="logo">
+      <h1>Laundromat</h1>
+      <div class="tag">a tactical card game about shared washing machines</div>
+    </div>
+    <div class="chip day">Day 3</div>
+    <div class="chip key">🔑 Green holds the key</div>
+    <div class="spacer"></div>
+    <button class="btn">Rules</button>
+  </header>
+
+  <div class="section">The floor — 5 washers</div>
+  <div class="floor">
+
+    <!-- washer 1 -->
+    <div class="washer">
+      <div class="w-head">
+        <span class="w-name">Washer 1</span>
+        <span class="pill on">ON</span>
+        <span class="cap">3 / 4</span>
+      </div>
+      <div class="drum">
+        <!-- purple dark shirt -->
+        <div class="g tilt-a" style="--dotc:var(--purple)">
+          <div class="pic" style="background-image:url('art/sheet1.jpg');--c:1;--r:0"></div>
+          <div class="dot d"></div><div class="nm">Dark Shirt</div>
+          <div class="stamp wash">Washed</div>
+        </div>
+        <!-- blue dark socks -->
+        <div class="g tilt-c" style="--dotc:var(--blue)">
+          <div class="pic" style="background-image:url('art/sheet2.jpg');--c:3;--r:0"></div>
+          <div class="dot d"></div><div class="nm">Dark Socks</div>
+          <div class="stamp wash">Washed</div>
+        </div>
+        <!-- pink light hat -->
+        <div class="g tilt-b" style="--dotc:var(--pink)">
+          <div class="pic" style="background-image:url('art/sheet3.jpg');--c:0;--r:3"></div>
+          <div class="dot l"></div><div class="nm">Light Hat</div>
+          <div class="stamp back">Back</div>
+        </div>
+      </div>
+      <div class="tonight"><b>Tonight:</b> 2 of 3 wash.
+        <span class="sub">Dark wins — light goes back.</span></div>
+    </div>
+
+    <!-- washer 2 -->
+    <div class="washer">
+      <div class="w-head">
+        <span class="w-name">Washer 2</span>
+        <span class="pill on">ON</span>
+        <span class="cap">2 / 4</span>
+      </div>
+      <div class="drum">
+        <!-- orange dark shoes -->
+        <div class="g tilt-b" style="--dotc:var(--orange)">
+          <div class="pic" style="background-image:url('art/sheet2.jpg');--c:4;--r:2"></div>
+          <div class="dot d"></div><div class="nm">Dark Shoes</div>
+          <div class="stamp wash">Washed</div>
+        </div>
+        <!-- green dark pants -->
+        <div class="g tilt-a" style="--dotc:var(--green)">
+          <div class="pic" style="background-image:url('art/sheet3.jpg');--c:2;--r:0"></div>
+          <div class="dot d"></div><div class="nm">Dark Pants</div>
+          <div class="stamp back">Back</div>
+        </div>
+      </div>
+      <div class="tonight"><b>Tonight:</b> 1 of 2 wash.
+        <span class="sub">Shoes beat everything.</span></div>
+    </div>
+
+    <!-- washer 3 — off -->
+    <div class="washer off">
+      <div class="w-head">
+        <span class="w-name">Washer 3</span>
+        <span class="pill off">OFF</span>
+        <span class="cap">2 / 4</span>
+      </div>
+      <div class="drum">
+        <div class="g tilt-c" style="--dotc:var(--tan)">
+          <div class="pic" style="background-image:url('art/sheet1.jpg');--c:1;--r:3"></div>
+          <div class="dot l"></div><div class="nm">Light Shirt</div>
+        </div>
+        <div class="g tilt-a" style="--dotc:var(--purple)">
+          <div class="pic" style="background-image:url('art/sheet1.jpg');--c:3;--r:1"></div>
+          <div class="dot l"></div><div class="nm">Light Socks</div>
+        </div>
+      </div>
+      <div class="tonight"><b>Switched off.</b>
+        <span class="sub">It keeps both items into tomorrow.</span></div>
+    </div>
+
+    <!-- washer 4 — raccoon -->
+    <div class="washer">
+      <div class="w-head">
+        <span class="w-name">Washer 4</span>
+        <span class="pill rac">🦝 Jimothy</span>
+        <span class="cap">1 / 4</span>
+      </div>
+      <div class="drum">
+        <div class="g tilt-b" style="--dotc:var(--blue)">
+          <div class="pic" style="background-image:url('art/sheet2.jpg');--c:2;--r:1"></div>
+          <div class="dot l"></div><div class="nm">Light Pants</div>
+          <div class="stamp damp">Hostage</div>
+        </div>
+      </div>
+      <div class="tonight"><b>Out of service.</b>
+        <span class="sub">Nothing washes. Nothing may be loaded.</span></div>
+    </div>
+
+    <!-- washer 5 — destroyed -->
+    <div class="washer dead">
+      <div class="w-head">
+        <span class="w-name">Washer 5</span>
+        <span class="pill gone">Destroyed</span>
+        <span class="cap">— / —</span>
+      </div>
+      <div class="drum empty">The gang shot it. Out of the game.</div>
+      <div class="tonight"><span class="sub">Four washers left for the rest of the game.</span></div>
+    </div>
+  </div>
+
+  <div class="turnbar">
+    <div class="die">3</div>
+    <div>
+      <h2>Green — load 3 items</h2>
+      <div class="sub">Play a card first if you want one. Loading is not optional.</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn">Play a card</button>
+    <button class="btn go">Load</button>
+  </div>
+
+  <div class="section">Your laundry</div>
+  <div class="zones">
+    <div class="tray">
+      <h3>Hand — 6 left to wash</h3>
+      <div class="hand">
+        <div class="g lg tilt-c" style="--dotc:var(--green)">
+          <div class="pic" style="background-image:url('art/sheet3.jpg');--c:4;--r:0"></div>
+          <div class="dot d"></div><div class="nm">Dark Shoes</div>
+        </div>
+        <div class="g lg" style="--dotc:var(--green)">
+          <div class="pic" style="background-image:url('art/sheet3.jpg');--c:4;--r:1"></div>
+          <div class="dot l"></div><div class="nm">Light Shoes</div>
+        </div>
+        <div class="g lg tilt-b" style="--dotc:var(--green)">
+          <div class="pic" style="background-image:url('art/sheet3.jpg');--c:1;--r:0"></div>
+          <div class="dot d"></div><div class="nm">Dark Shirt</div>
+        </div>
+        <div class="g lg tilt-a" style="--dotc:var(--green)">
+          <div class="pic" style="background-image:url('art/sheet3.jpg');--c:0;--r:1"></div>
+          <div class="dot l"></div><div class="nm">Light Hat</div>
+        </div>
+        <div class="g lg" style="--dotc:var(--green)">
+          <div class="pic" style="background-image:url('art/sheet3.jpg');--c:2;--r:1"></div>
+          <div class="dot l"></div><div class="nm">Light Pants</div>
+        </div>
+      </div>
+
+      <h3 style="margin-top:20px">Damp — needs one more wash</h3>
+      <div class="mini">
+        <div class="g" style="--dotc:var(--green)">
+          <div class="pic" style="background-image:url('art/sheet3.jpg');--c:3;--r:0"></div>
+          <div class="dot d"></div><div class="nm">Dark Socks</div>
+          <div class="stamp damp">Damp</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tray">
+      <h3>The laundromat</h3>
+      <div class="rail-row"><span class="swatch" style="background:var(--green)"></span>
+        <span class="nm">Green (you)</span><span class="sc">4 / 10</span></div>
+      <div class="bar"><i style="width:40%"></i></div>
+      <div class="rail-row"><span class="swatch" style="background:var(--purple)"></span>
+        <span class="nm">Purple</span><span class="sc">6 / 10</span></div>
+      <div class="bar"><i style="width:60%"></i></div>
+      <div class="rail-row"><span class="swatch" style="background:var(--orange)"></span>
+        <span class="nm">Orange</span><span class="sc">3 / 10</span></div>
+      <div class="bar"><i style="width:30%"></i></div>
+      <div class="rail-row"><span class="swatch" style="background:var(--blue)"></span>
+        <span class="nm">Blue</span><span class="sc">5 / 10</span></div>
+      <div class="bar"><i style="width:50%"></i></div>
+    </div>
+  </div>
+
+  <div class="section">Your cards — ready to play</div>
+  <div class="hand">
+    <div class="item tilt-a"><div class="pic" style="--ic:0;--ir:0"></div></div>
+    <div class="item"><div class="pic" style="--ic:3;--ir:0"></div></div>
+    <div class="item tilt-b"><div class="pic" style="--ic:1;--ir:1"></div></div>
+    <div class="item"><div class="pic" style="--ic:2;--ir:0"></div></div>
+  </div>
+
+  <p class="note">Style study only — nothing here is wired to the game engine.</p>
+</div>
+</body>
+</html>

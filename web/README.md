@@ -138,7 +138,7 @@ is present — which today never happens, since hot-seat runs one client.
 ### Phase mapping
 
 ```
-phase "roll"   one turn per player, in seat order (or keyholder-first, see config)
+phase "roll"   one turn per player, starting with the keyholder and going around the table
                turn stages: roll -> card -> load -> extra
 phase "event"  the drawn event resolves; Gang and Jimothy need a choice from the drawer
 phase "key"    the keyholder turns one machine on, one off, or passes
@@ -168,7 +168,7 @@ nowhere else. The starred ones are selectable from the setup screen.
 | `ownItemsDontTaint` | `true` | **Designer revision, diverges from brief v8 and from `sim/rules.py`.** Your own items never taint your own items by shade. Each item is judged against the machine minus its owner's other items, and among your own items a shade-blind ladder applies: shoes (D = L) > clothing and blanket (D = L) > underwear (D = L). Opponents still taint you normally. `false` restores brief v8's single machine-wide shade ladder, which is what all the oracle fixtures use. **This breaks single-tier-per-machine**: each owner can be on a different rung at once. |
 | `sanitizerOwnerOnly` * | `false` | `false` = machine-wide, tiers 1–2 suppressed [A-21]. `true` = the owner-only reading rules-v0.4 [OQ-01] argues against. |
 | `publicDampZone` * | `true` | `true` = damp socks sit in a face-up zone [A-28]. `false` = they go back to the hidden hand, Python-style. No reckoning outcome changes either way. |
-| `keyholderFirst` * | `false` | Acting order: fixed seat order [A-W01], or keyholder-first. |
+| `keyholderFirst` | `true` | **RESOLVED in brief v9 §4 — no longer an experiment and no longer offered in the setup UI.** The roll phase begins with the keyholder and proceeds around the table, so yesterday's keyholder acts last; acting order rotates with the key. This closes the measured seat-1 skew (38.4% at three players against a 33.3% fair share) and is the mitigation experiment B recommends pairing with E1. `false` restores [A-W01]'s fixed seat order and is retained for ablation only. |
 | `bleachKillsDark` | `false` | Sensitivity reading from rules-v0.2 [OQ-05]: Bleach destroys dark instead of swapping shades. |
 | `socksBlanketExtraWash` | `true` | The v8 socks/blanket rule. Present as an ablation switch. |
 | `crowdThreshold` | `3` | ≥N of a garment type sends them all back [A-22]. |

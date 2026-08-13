@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { BoardProps } from 'boardgame.io/react';
 import type { LaundromatG } from '../game/Laundromat';
 import { MachineCard, Swatch } from './MachineCard';
+import { GarmentCard, SpecialCard } from './Card';
 import { DICE_TEXT, canPlaySpecial, loadBlocked, loadsOutstanding } from '../rules/phases';
 import {
   EVENT_TEXT,
@@ -44,7 +45,13 @@ export function Board({ G, ctx, moves }: Props) {
   const [seenReckoning, setSeenReckoning] = useState<number | null>(null);
   const [briefedReveal, setBriefedReveal] = useState<number | null>(null);
   const [briefedResolved, setBriefedResolved] = useState<number | null>(null);
-  const [hideBetweenTurns, setHideBetweenTurns] = useState(true);
+  // Dev: `?autostart` also skips the pass-the-device interstitial, which is
+  // meaningless for a single operator and blocks automated screenshots.
+  const [hideBetweenTurns, setHideBetweenTurns] = useState(
+    () =>
+      typeof window === 'undefined' ||
+      !new URLSearchParams(window.location.search).has('autostart'),
+  );
   const [revealed, setRevealed] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(false);
 
@@ -111,13 +118,35 @@ export function Board({ G, ctx, moves }: Props) {
     turn?.stage === 'load' && loadsLeft > 0 && !hasLegalPlacement(shadow, current);
 
   // ---- machine interaction ------------------------------------------------
+  /**
+   * An event is waiting for the drawer to choose a washer. This happens in TWO
+   * places and they must behave identically:
+   *   'phase'   — arms E2/E3, where the whole event phase is a separate step;
+   *   'midturn' — arm E1, where the event fires on draw and the turn parks at
+   *               turn.pendingEvent until the drawer answers.
+   * The mid-turn case was unhandled: the banner said "pick a washer above"
+   * while machineSelectable refused every one of them.
+   */
+  const eventChoice: 'phase' | 'midturn' | null =
+    phase === 'event'
+      ? 'phase'
+      : phase === 'roll' && turn?.stage === 'extra' && turn.pendingEvent
+        ? 'midturn'
+        : null;
+
+  /** The two paths take different moves but ask exactly the same question. */
+  function submitEventChoice(machine: number, jimothyTo?: number) {
+    if (eventChoice === 'midturn') moves.resolveDrawnEvent(machine, jimothyTo);
+    else moves.resolveEvent(machine, jimothyTo);
+  }
+
   function machineSelectable(mi: number): { ok: boolean; refused: string | null } {
     if (ctx.gameover || modalUp) return { ok: false, refused: null };
     const m = G.machines[mi];
 
     if (phase === 'key') return { ok: !m.dead, refused: m.dead ? 'Destroyed' : null };
 
-    if (phase === 'event') {
+    if (eventChoice) {
       if (G.revealedEvent === 'Gang' || G.revealedEvent === 'Jimothy') {
         return { ok: !m.dead, refused: m.dead ? 'Already destroyed' : null };
       }
@@ -172,7 +201,7 @@ export function Board({ G, ctx, moves }: Props) {
     }
 
     // ---- event phase: confirm the target ----------------------------------
-    if (phase === 'event') {
+    if (eventChoice) {
       if (G.revealedEvent === 'Gang') {
         const others = G.machines.filter((x) => !x.dead && x.id !== mi);
         if (m.jimothy && others.length > 0) {
@@ -190,7 +219,7 @@ export function Board({ G, ctx, moves }: Props) {
                       key={o.id}
                       onClick={() => {
                         setConfirm(null);
-                        moves.resolveEvent(mi, o.id);
+                        submitEventChoice(mi, o.id);
                       }}
                     >
                       Send him to M{o.id + 1}
@@ -216,7 +245,7 @@ export function Board({ G, ctx, moves }: Props) {
             </>
           ),
           confirmLabel: 'Shoot it',
-          act: () => moves.resolveEvent(mi),
+          act: () => submitEventChoice(mi),
         });
         return;
       }
@@ -233,7 +262,7 @@ export function Board({ G, ctx, moves }: Props) {
             </>
           ),
           confirmLabel: 'Put him there',
-          act: () => moves.resolveEvent(mi),
+          act: () => submitEventChoice(mi),
         });
       }
       return;
@@ -301,10 +330,14 @@ export function Board({ G, ctx, moves }: Props) {
     }
   }
 
-  /** Send every staged load, in order.  The engine validates each one again. */
-  function commitStaged() {
-    for (const s of staged) moves.load(s.item, s.machine);
-    setStaged([]);
+  /**
+   * Send staged loads, in order. The engine validates each one again.
+   * `only` commits a single staged entry; omitted, it commits all of them.
+   */
+  function commitStaged(only?: number) {
+    const send = only === undefined ? staged : [staged[only]];
+    for (const s of send) moves.load(s.item, s.machine);
+    setStaged(only === undefined ? [] : staged.filter((_, i) => i !== only));
     setSelectedItem(null);
   }
 
@@ -483,9 +516,19 @@ export function Board({ G, ctx, moves }: Props) {
           <div className="modal">
             <h2>Event drawn: {G.revealedEvent}</h2>
             <p>{EVENT_TEXT[G.revealedEvent]}</p>
+            {/*
+              This text used to say "it resolves after every player has taken
+              their turn" unconditionally. That is only true of arms E2/E3. Under
+              E1 (the default) the event fires NOW and may be waiting on the
+              drawer to name a washer — telling them to wait left the turn stuck.
+            */}
             <p className="note">
-              Drawn by Player {(G.eventDrawer ?? 0) + 1} and revealed at once. It resolves after
-              every player has taken their turn — so everyone acting after this knows it is coming.
+              Drawn by Player {(G.eventDrawer ?? 0) + 1} and revealed at once.{' '}
+              {turn?.pendingEvent
+                ? 'You drew it, so you choose where it lands. Close this and pick a washer — the day cannot go on until you do.'
+                : G.cfg.eventTiming === 'E1'
+                  ? 'It takes effect immediately, before anyone else takes their turn.'
+                  : 'It resolves after every player has taken their turn — so everyone acting after this knows it is coming.'}
             </p>
             <div className="row">
               <button className="primary" onClick={() => setBriefedReveal(G.day)}>
@@ -760,7 +803,8 @@ function TurnBar({
   setStaged: (s: { item: ItemId; machine: number }[]) => void;
   loadsLeft: number;
   stagingBlocked: boolean;
-  commitStaged: () => void;
+  /** `only` commits a single staged entry; omitted, it commits all of them. */
+  commitStaged: (only?: number) => void;
 }) {
   const stage = turn.stage;
   const ready = G.players[current].ready;
@@ -842,7 +886,28 @@ function TurnBar({
                 (a blanket needs a machine holding nothing but socks). You rolled {turn.face} but
                 may load {turn.loadsDone}. That is allowed — loading is "as many as you can".
               </div>
-              <button className="primary" onClick={() => moves.skipLoad()}>
+              <button
+                className="primary"
+                onClick={() =>
+                  setConfirm({
+                    title: 'Load nothing this turn?',
+                    body: (
+                      <>
+                        <p>
+                          You rolled {turn.face} and have loaded {turn.loadsDone}. No washer will
+                          accept anything you are holding, so the rest of your loading is skipped.
+                        </p>
+                        <p className="note">
+                          This is legal — loading is "as many as you can" — but it cannot be undone,
+                          and it is a wasted turn. Check the floor once more before you confirm.
+                        </p>
+                      </>
+                    ),
+                    confirmLabel: 'Yes, load nothing',
+                    act: () => moves.skipLoad(),
+                  })
+                }
+              >
                 Load nothing and carry on
               </button>
             </div>
@@ -850,10 +915,10 @@ function TurnBar({
             <>
               <div className="sub">
                 {selectedItem
-                  ? `${itemLabel(G.items[selectedItem])} selected — now click a machine to place it. Click the item again to deselect.`
+                  ? `${itemLabel(G.items[selectedItem])} is in your hand — now click a washer to put it there. Click the card again to put it back.`
                   : loadsLeft > 0
-                    ? `Place ${loadsLeft} more item${loadsLeft === 1 ? '' : 's'}: pick one from your hand, then pick its machine. You may spread them across different machines.`
-                    : 'All placed. Check the board, then confirm.'}
+                    ? `${loadsLeft} more to load. Click a card, then click the washer you want it in. You may spread them across different washers, and load them one at a time or all together.`
+                    : 'Everything is placed. Load them when you are ready.'}
               </div>
 
               {staged.length > 0 && (
@@ -871,37 +936,64 @@ function TurnBar({
                       >
                         Remove
                       </button>
+                      <button
+                        onClick={() => commitStaged(i)}
+                        title="Send just this one into the washer now"
+                        style={{ marginLeft: 6 }}
+                      >
+                        Load just this
+                      </button>
                     </div>
                   ))}
                 </div>
               )}
 
               <div className="row">
+                {/*
+                  Loading is mandatory but it does NOT have to happen in one go:
+                  the button lights up as soon as one card is staged, and the
+                  turn simply stays on the load stage until the quota is met.
+                */}
                 <button
                   className="primary"
-                  disabled={loadsLeft > 0 && !stagingBlocked}
+                  disabled={staged.length === 0}
                   title={
-                    loadsLeft > 0 && !stagingBlocked
-                      ? `Place ${loadsLeft} more item${loadsLeft === 1 ? '' : 's'} first — loading is mandatory`
-                      : undefined
+                    staged.length === 0
+                      ? 'Put at least one card in a washer first'
+                      : loadsLeft > 0
+                        ? `Loads ${staged.length} now. You will still owe ${loadsLeft}.`
+                        : undefined
                   }
                   onClick={() =>
                     setConfirm({
-                      title: `Commit ${staged.length} load${staged.length === 1 ? '' : 's'}?`,
+                      title:
+                        staged.length === 1
+                          ? 'Load this one?'
+                          : `Load these ${staged.length} together?`,
                       body: (
                         <>
-                          <p>Once committed, only a roll of 4 can move these.</p>
+                          <p>Once loaded, only a roll of 4 can move them.</p>
+                          {loadsLeft > 0 && (
+                            <p className="note warn">
+                              You will still owe {loadsLeft} more load
+                              {loadsLeft === 1 ? '' : 's'} this turn.
+                            </p>
+                          )}
                           {[...new Set(staged.map((sg) => sg.machine))].map((mi) => (
                             <MachinePreview key={mi} G={shadow} mi={mi} />
                           ))}
                         </>
                       ),
-                      confirmLabel: 'Commit',
-                      act: commitStaged,
+                      confirmLabel: staged.length === 1 ? 'Load it' : `Load all ${staged.length}`,
+                      act: () => commitStaged(),
                     })
                   }
                 >
-                  Confirm {staged.length > 0 ? `${staged.length} load${staged.length === 1 ? '' : 's'}` : ''}
+                  {staged.length === 0
+                    ? 'Load'
+                    : staged.length === 1
+                      ? 'Load this one'
+                      : `Load all ${staged.length}`}
                 </button>
                 {staged.length > 0 && <button onClick={() => setStaged([])}>Clear all</button>}
                 {stagingBlocked && staged.length > 0 && (
@@ -1054,34 +1146,49 @@ function Zones({
         <div className="zone-label" title={SORT_EXPLAINER}>
           Player {current + 1} · hand ({p.hand.length}) · sorted {SORT_EXPLAINER}
         </div>
-        <div className="items">
-          {sortItems(G, p.hand).filter((id) => !stagedItems.has(id)).map((id) => (
-            <button
-              key={id}
-              className={`item-btn${selectedItem === id ? ' selected' : ''}`}
-              disabled={!canLoad || !loadable.has(id)}
-              onClick={() => setSelectedItem(selectedItem === id ? null : id)}
-              title={selectedItem === id ? 'Click again to deselect' : undefined}
-            >
-              <Swatch owner={G.items[id].owner} shade={G.items[id].shade} />
-              {itemLabel(G.items[id])}
-            </button>
-          ))}
+        {!canLoad && p.hand.length > 0 && (
+          <div className="hand-hint">
+            Your hand is asleep — you can only pick cards up during the loading part of your turn.
+            Roll the die first.
+          </div>
+        )}
+        <div className="items scroll">
+          {sortItems(G, p.hand).filter((id) => !stagedItems.has(id)).map((id) => {
+            const usable = canLoad && loadable.has(id);
+            return (
+              <GarmentCard
+                key={id}
+                item={G.items[id]}
+                size="md"
+                selected={selectedItem === id}
+                className={usable ? 'item-btn' : 'item-btn disabled'}
+                title={
+                  selectedItem === id
+                    ? 'Click again to put it back'
+                    : usable
+                      ? `${itemLabel(G.items[id])} — click to pick it up`
+                      : `${itemLabel(G.items[id])} — no washer will take this right now`
+                }
+                onClick={usable ? () => setSelectedItem(selectedItem === id ? null : id) : undefined}
+              />
+            );
+          })}
           {p.hand.length === 0 && <span className="rules-help">empty</span>}
         </div>
 
         <div className="zone-label">Damp zone · public ({p.damp.length})</div>
-        <div className="items">
+        <div className="items scroll">
           {sortItems(G, p.damp).filter((id) => !stagedItems.has(id)).map((id) => (
-            <button
+            <GarmentCard
               key={id}
-              className={`item-btn damp${selectedItem === id ? ' selected' : ''}`}
-              disabled={!canLoad}
-              onClick={() => setSelectedItem(selectedItem === id ? null : id)}
-            >
-              <Swatch owner={G.items[id].owner} shade={G.items[id].shade} />
-              {itemLabel(G.items[id])} · needs one more wash
-            </button>
+              item={G.items[id]}
+              size="md"
+              verdict="damp"
+              note="needs one more wash"
+              selected={selectedItem === id}
+              className="item-btn damp"
+              onClick={canLoad ? () => setSelectedItem(selectedItem === id ? null : id) : undefined}
+            />
           ))}
           {p.damp.length === 0 && <span className="rules-help">nothing damp</span>}
         </div>
@@ -1092,38 +1199,27 @@ function Zones({
         <div className="progress">
           <div style={{ width: `${pct}%` }} />
         </div>
-        <div className="items" style={{ marginTop: 6 }}>
+        <div className="items scroll" style={{ marginTop: 8 }}>
           {sortItems(G, p.clean).map((id) => (
-            <span key={id} className="item-btn" style={{ opacity: 0.7 }}>
-              <Swatch owner={G.items[id].owner} shade={G.items[id].shade} />
-              {itemLabel(G.items[id])}
-            </span>
+            <GarmentCard key={id} item={G.items[id]} size="xs" />
           ))}
+          {p.clean.length === 0 && <span className="rules-help">nothing washed yet</span>}
         </div>
       </div>
 
       <div className="panel">
         <div className="zone-label">Fresh · drawn today, unplayable ({p.fresh.length})</div>
-        <div className="items">
+        <div className="items scroll">
           {p.fresh.map((n, i) => (
-            <span
-              key={`${n}${i}`}
-              className="item-btn"
-              style={{ opacity: 0.65 }}
-              title={SPECIAL_TEXT[n]}
-            >
-              {cardName(n)}
-            </span>
+            <SpecialCard key={`${n}${i}`} name={n} size="sm" fresh title={SPECIAL_TEXT[n]} />
           ))}
           {p.fresh.length === 0 && <span className="rules-help">nothing fresh</span>}
         </div>
 
         <div className="zone-label">Ready · playable ({p.ready.length})</div>
-        <div className="items">
+        <div className="items scroll">
           {p.ready.map((n, i) => (
-            <span key={`${n}${i}`} className="item-btn" title={SPECIAL_TEXT[n]}>
-              {cardName(n)}
-            </span>
+            <SpecialCard key={`${n}${i}`} name={n} size="sm" title={SPECIAL_TEXT[n]} />
           ))}
           {p.ready.length === 0 && <span className="rules-help">nothing ready</span>}
         </div>

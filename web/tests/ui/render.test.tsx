@@ -65,45 +65,50 @@ describe('UI', () => {
     expect(screen.getByText(/Loading is mandatory/)).toBeTruthy();
 
     // Pick the first item in hand, then the first machine.
-    const handButtons = document.querySelectorAll('.panel .item-btn:not(:disabled)');
+    // Click to pick up, click a washer to place. Drag was tried and removed:
+    // it did not work in the designer's browser and buys nothing over clicking.
+    const tap = (el: Element) => fireEvent.click(el);
+
+    const handButtons = document.querySelectorAll('.panel .gcard.item-btn.clickable');
     expect(handButtons.length).toBeGreaterThan(0);
-    fireEvent.click(handButtons[0]);
-    expect(screen.getByText(/selected — now click a machine/)).toBeTruthy();
+    tap(handButtons[0]);
+    expect(screen.getByText(/now click a washer to put it there/)).toBeTruthy();
 
     // Deselecting must work: click it again and the prompt reverts.
-    fireEvent.click(handButtons[0]);
-    expect(screen.getByText(/pick one from your hand/)).toBeTruthy();
-    fireEvent.click(handButtons[0]);
+    tap(handButtons[0]);
+    expect(screen.getByText(/Click a card, then click the washer/)).toBeTruthy();
+    tap(handButtons[0]);
 
     const selectable = document.querySelector('.machine.selectable');
     expect(selectable).toBeTruthy();
     fireEvent.click(selectable!);
 
-    // Staged, not committed: it shows on the board as pending and is removable.
-    expect(document.querySelectorAll('.slot.filled.ghost').length).toBe(1);
+    // Staged, not committed: it shows on the board as a pending ghost CARD and is
+    // removable. (Markup moved from .slot.filled.ghost to .gcard.ghost in the
+    // paper-cutout restyle; the behaviour under test is unchanged.)
+    expect(document.querySelectorAll('.gcard.ghost').length).toBe(1);
     expect(screen.getByText('Not yet committed')).toBeTruthy();
 
-    // Removing a staged item puts it back in hand and disables Confirm again.
+    // Removing a staged item puts it back in hand and disables the Load button.
     fireEvent.click(screen.getByText('Remove'));
-    expect(document.querySelectorAll('.slot.filled.ghost').length).toBe(0);
+    expect(document.querySelectorAll('.gcard.ghost').length).toBe(0);
 
-    // Re-stage. Loading is mandatory, so Confirm stays disabled until the whole
-    // quota is placed -- which is the point of the staged flow.
-    let guard = 0;
-    while ((screen.getByRole('button', { name: /^Confirm/ }) as HTMLButtonElement).disabled) {
-      if (guard++ > 6) throw new Error('could not satisfy the load quota');
-      const item = document.querySelectorAll('.panel .item-btn:not(:disabled)')[0];
-      expect(item).toBeTruthy();
-      fireEvent.click(item);
-      const machine = document.querySelector('.machine.selectable');
-      expect(machine).toBeTruthy();
-      fireEvent.click(machine!);
-    }
-    const stagedCount = document.querySelectorAll('.slot.filled.ghost').length;
-    expect(stagedCount).toBeGreaterThanOrEqual(1);
+    // Re-stage ONE card. Loading is mandatory in total, but it no longer has to
+    // happen in a single commit: the Load button lights up as soon as one card
+    // is staged, and the turn stays on the load stage until the quota is met.
+    const item = document.querySelectorAll('.panel .gcard.item-btn.clickable')[0];
+    expect(item).toBeTruthy();
+    tap(item);
+    const machine = document.querySelector('.machine.selectable');
+    expect(machine).toBeTruthy();
+    fireEvent.click(machine!);
 
-    fireEvent.click(screen.getByRole('button', { name: /^Confirm/ }));
-    fireEvent.click(screen.getByText('Commit'));
+    expect(document.querySelectorAll('.gcard.ghost').length).toBe(1);
+    const loadBtn = screen.getByRole('button', { name: /^Load this one$/ }) as HTMLButtonElement;
+    expect(loadBtn.disabled).toBe(false);
+
+    fireEvent.click(loadBtn);
+    fireEvent.click(screen.getByText('Load it'));
 
     // A one-item load can end the turn outright, which raises the hot-seat
     // pass screen; step through it so the floor is visible again.
@@ -111,7 +116,7 @@ describe('UI', () => {
     if (nextPlayer) fireEvent.click(nextPlayer);
 
     // The item is on the floor and stays there for everyone to see.
-    expect(document.querySelectorAll('.slot.filled').length).toBeGreaterThanOrEqual(1);
+    expect(document.querySelectorAll('.slots .gcard').length).toBeGreaterThanOrEqual(1);
   });
 
   test('every machine narrates what will happen tonight', () => {

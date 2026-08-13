@@ -15,7 +15,10 @@
 >   §8.2's analytical prediction was measured to be off by more than 2× (`sim/out/
 >   experiment-A-circuit-break.txt`).
 > - **§2.5 special item deck.** Manufacturing fixes the deck at **exactly 20 cards**.
-> - **§3.1 acting order.** It says keyholder-first; both implementations use fixed seat order.
+> - **§3.1 acting order.** It says keyholder-first — and that is now **correct and settled**
+>   (brief v9 §4; `web` ships `keyholderFirst: true`). `sim/rules.py` still runs fixed seat order
+>   and is the one behind. *(Corrected 2026-08-06; this line previously said both implementations
+>   used fixed seat order.)*
 >
 > **Current ground truth:** `design/game-brief.md` (v9).
 > **Where the three implementations disagree:** `design/implementation-status.md`.
@@ -34,6 +37,14 @@ error — see §2.4, which is exactly that case.
 
 **Tags.** **[A-nn]** assumption I introduced, collected in §7. **[!]** integrity problem, §8.
 **[CONFLICT]** hand-resolvability vs implementation. **[v8]** changed this pass.
+
+**Corrections log.** This document is superseded in places by brief v9; the corrections below fix
+statements that were *wrong or stale*, not statements that were merely overtaken.
+
+| Date | Where | What |
+|---|---|---|
+| 2026-08-06 | §3.1, §3.2 rows 1–4, §4.3 [A-03] | **Turn order was wrong.** The document had roll → extra → load → card. The settled order is **roll → card → load → extra** (brief v9 §4; `sim/rules.py` [A-W03]; `web` `turnOrder: 'cardLoadExtra'`). The roll-4 move therefore happens *after* the load. |
+| 2026-08-06 | §6.13 Table A row 14 | **Verdict was wrong.** The row claimed a Sanitizer put a machine holding dark shoes on tier 4 and sent the shoes back. Sanitizer suppresses the two *shoe* rungs only, so a dark shoe is still a dark item and tier 3 fires on it — contradicting §6.10 of this same document. Replaced with a board that does support the row's point. |
 
 ---
 
@@ -396,12 +407,19 @@ return). Two consequences worth flagging now and analysing later:
 
 **PHASE 1 — ROLL**
 - *Actors:* every player once, in acting order (keyholder first, then clockwise [A-09]), sequentially.
-- *Each player's turn, in this order [A-03]:*
+- *Each player's turn, in this order [A-03] — **corrected 2026-08-06**, see below:*
   1. Roll 1d6.
-  2. Resolve the face's extra action, if any (§4): move an item (4), draw two/keep one (5), or draw
-     and immediately reveal an event (6).
+  2. Optionally play **one** special item card from the **ready** hand.
   3. **Load exactly the number rolled** (§4.2), or as many as legally possible.
-  4. Optionally play **one** special item card from the **ready** hand.
+  4. Resolve the face's extra action, if any (§4): move an item (4), draw two/keep one (5), or draw
+     and immediately reveal an event (6).
+
+  > This list previously read roll → extra → load → card. That ordering is **superseded**: brief v9
+  > §4 settles the turn as **roll → card → load → extra**, and it is what `sim/rules.py` `[A-W03]`
+  > and `web/src/rules/config.ts` (`turnOrder: 'cardLoadExtra'`) both implement. Card play must
+  > precede loading or the *Mesh bag* cannot function at all — the bag has to be open before the
+  > laundry goes in. Two consequences: the roll-4 move happens **after** you load (§4.3), and an
+  > event drawn on a 6 is revealed after that player has already loaded.
 - *Constraints:* one card per player per turn; fresh cards are unplayable; the Coin, if one-shot
   [A-15], is played here like any other card.
 - *Exit:* every player has taken a turn.
@@ -440,10 +458,10 @@ return). Two consequences worth flagging now and analysing later:
 | # | State | ctx.actor | Legal moves | Guard | Next | Exit |
 |---|---|---|---|---|---|---|
 | 0 | `DAY_START` | — | — | — | `TURN(0)` | auto |
-| 1 | `TURN(i).roll` | `order(k)[i]` | `rollDie()` | not yet rolled today | `TURN(i).extra` | rolled |
-| 2 | `TURN(i).extra` | `order(k)[i]` | face 4: `moveItem(id,from,to)`; face 5: `drawTwoKeepOne(keepId)`; face 6: `drawEvent()` (auto-reveal); faces 1–3: none | move: item loaded, `¬isHostage`, `to ≠ from`, `machineAccepts(to)`; face 6: `revealedEvent == null` else no-op | `TURN(i).load` | resolved |
-| 3 | `TURN(i).load` | `order(k)[i]` | `loadItem(itemId, machineId)` × `n`, `n = min(face', handSize, legalPlacements)` where `face' = face if ≤3 else 1` | item ∈ hand; `machineAccepts` (§4.6) | `TURN(i).card` | `n` loads done |
-| 4 | `TURN(i).card` | `order(k)[i]` | `playSpecial(cardId, target…)` or `pass()` | card ∈ **ready**; ≤1 this turn | `TURN(i+1)` or `EVENT` | played/passed |
+| 1 | `TURN(i).roll` | `order(k)[i]` | `rollDie()` | not yet rolled today | `TURN(i).card` | rolled |
+| 2 | `TURN(i).card` | `order(k)[i]` | `playSpecial(cardId, target…)` or `pass()` | card ∈ **ready**; ≤1 this turn | `TURN(i).load` | played/passed |
+| 3 | `TURN(i).load` | `order(k)[i]` | `loadItem(itemId, machineId)` × `n`, `n = min(face', handSize, legalPlacements)` where `face' = face if ≤3 else 1` | item ∈ hand or damp zone; `machineAccepts` (§4.6) | `TURN(i).extra` | `n` loads done |
+| 4 | `TURN(i).extra` | `order(k)[i]` | face 4: `moveItem(id,from,to)`; face 5: `drawTwoKeepOne(keepId)`; face 6: `drawEvent()` (auto-reveal); faces 1–3: none | move: item loaded, `¬isHostage`, `to ≠ from`, `machineAccepts(to)`; face 6: `revealedEvent == null` else no-op | `TURN(i+1)` or `EVENT` | resolved |
 | 5 | `EVENT` | drawer (Gang/Jimothy only) | `resolveEvent(choice?)` | `revealedEvent ≠ null` else skip | `KEY` | resolved |
 | 6 | `KEY` | keyholder | `setPower(machineId, ON\|OFF)` or `pass()` | machine not destroyed; new ≠ old | `RECKON(0)` | acted/passed |
 | 7 | `RECKON(j)` | — | `resolveMachine(M[j])` | — | `RECKON(j+1)` or `END_OF_DAY` | `j > M` |
@@ -515,9 +533,14 @@ that otherwise accepts nothing will still accept socks.
 Unchanged from v0.3 and still correct per [R-3.1(b)]: because it may take *any* item including your
 own, it is a positioning tool rather than a mandatory targeted attack.
 
-- **[A-07]** The move is optional; the load is mandatory. **[A-03]** The move resolves **before**
-  the load, so a player may free a slot and then load into it. (Fixing this order removes an
-  ambiguity; the alternative — player's choice of order — is also defensible and is at [OQ-02].)
+- **[A-07]** The move is optional; the load is mandatory. **[A-03] — SUPERSEDED, corrected
+  2026-08-06.** This clause used to say the move resolves **before** the load, so that a player
+  could free a slot and then load into it. That is **not** the turn order the design settled on.
+  Brief v9 §4 fixes the turn as **roll → play a card → load → the die's extra effect**, confirmed by
+  `sim/rules.py` `[A-W03]` and by `web/src/rules/config.ts` (`turnOrder: 'cardLoadExtra'`, with the
+  old reading retained only as a dead ablation switch). **The move therefore resolves *after* the
+  load.** You cannot free a slot and then load into it on the same turn. §3.1 of this document is
+  stale on the same point.
 - **[A-08]** A blanket may be moved, but only into a machine that is empty **or contains only
   socks** — the same exception that governs loading.
 - Hostage items cannot be moved (§5.5).
@@ -1012,7 +1035,7 @@ Machine ON, undestroyed, Jimothy-free, unless stated. Capacity 4.
 | 11 | `A-D-shirt`, `B-L-shirt` | `[Bleach:A]` | 3 | `B-L-shirt` **WASHED**; `A-D-shirt` SENT BACK | Bleach doing what its text says. A played it and lost their own shirt — the card is ownership-blind. |
 | 12 | `A-D-shoes`, `B-L-shirt` | `[Bleach:A]` | 2 | `A-D-shoes` **WASHED**; shirt SENT BACK | **Bleach does not disarm shoes.** The swap makes them effectively light shoes — still the top occupied rung. Shade axis only. |
 | 13 | **`A-D-shoes`, `B-L-shirt`, `C-D-pants`** | **`[Sanitizer:B]`** | **3** | `C-D-pants` **WASHED**; `A-D-shoes` **WASHED**; `B-L-shirt` SENT BACK | **Sanitizer, the headline case.** Tiers 1–2 are suppressed, so the machine resolves on shade alone: both dark items wash *including the shoes*, which become ordinary. Compare row 1 — same machine, one card, two washes instead of one. Note B played it and still lost their light shirt: Sanitizer is machine-wide and shade-blind. |
-| 14 | `A-D-shoes`, `B-L-shirt`, `C-L-hat` | `[Sanitizer:A]` | 4 | `B-L-shirt` **WASHED**, `C-L-hat` **WASHED**; `A-D-shoes` SENT BACK | **Sanitizer can hurt its own player.** With shoes neutralised the only items left are light, so tier 4 fires and A's dark shoes — the very item that would have washed on tier 1 — are sent back. A rescued two opponents and washed nothing. |
+| 14 | `A-L-shoes`, `B-D-shirt` | `[Sanitizer:A]` | 3 | `B-D-shirt` **WASHED**; `A-L-shoes` SENT BACK | **Sanitizer can hurt its own player.** Without the card this is row 2: tier 2 fires and A's light shoes wash alone. With shoes neutralised they are merely a *light* item, tier 3 fires on B's dark shirt, and A has spent a card to hand an opponent the wash and lose their own. **Corrected 2026-08-06** — this row previously used `A-D-shoes`, `B-L-shirt`, `C-L-hat` and claimed tier 4 with the shoes sent back. That is wrong: Sanitizer suppresses the two *shoe* rungs only, so a dark shoe is still a dark item and tier 3 fires on it (§6.10, "a dark shoe washes with the dark items"; verified against `machineVerdicts`, which washes `A-D-shoes` alone on that board). No test or fixture asserted the old value. |
 | 15 | `A-L-shoes`, `B-D-shirt` | `[Sanitizer:A]`, `[Bleach:A]` | 3 | `A-L-shoes` **WASHED**; `B-D-shirt` SENT BACK | **The two pre-ladder modifiers compose and commute.** Bleach swaps: shoes→dark, shirt→light. Sanitizer suppresses tiers 1–2. Tier 3 fires on effective-dark = A's shoes. Applying them in either order gives the same answer (§6.1). |
 | 16 | `A-D-blanket`, `A-D-socks` | — | 3 | blanket **WASHED**; **`A-D-socks` → DAMP**, sent back with a token | **The socks/blanket rule, base case.** Both would have washed on tier 3, but socks sharing with a blanket take a partial. A used dead board space and paid one extra wash. |
 | 17 | `A-D-socks` (damp), `B-L-hat` | — | 3 | `A-D-socks` **WASHED (clean)**, token removed; `B-L-hat` SENT BACK | **The second wash.** Any wash event completes damp socks [A-27] — no special machine required. |
@@ -1142,14 +1165,18 @@ break (§8.4).
 (b) Force a load somewhere by relaxing a constraint — no.
 **Recommend (a). [A-05]**
 
-★ **[OQ-09] Order of the sub-actions within a turn.**
-(a) **Roll → face-extra → load → card** (recommended, [A-03]): the move on a 4 frees a slot before
-loading, and the event on a 6 is revealed before anyone loads, including the drawer.
-(b) Player's choice of order.
-Consequence: (a) is deterministic and removes an ambiguity; (b) preserves a small real decision
-(load first to deny a slot, or move first to open one). Worth revisiting if playtest finds (a)
-constraining.
-**Recommend (a). [A-03]**
+★ **[OQ-09] Order of the sub-actions within a turn. — CLOSED, and not in this document's favour.**
+(a) Roll → face-extra → load → card (this document's original recommendation, [A-03]): the move on a
+4 frees a slot before loading, and the event on a 6 is revealed before anyone loads, including the
+drawer.
+(b) **Roll → card → load → face-extra.** ← **this is the settled rule.**
+(c) Player's choice of order.
+**Resolved as (b)** by the designer (brief v9 §4), and implemented by `sim/rules.py` `[A-W03]` and by
+the web prototype (`turnOrder: 'cardLoadExtra'`; (a) survives only as a dead ablation switch). The
+deciding argument is the *Mesh bag*, which covers what you load "on the turn you play it" and
+therefore cannot work unless card play precedes loading. Accepted costs: the roll-4 move can no
+longer free a slot for your own load, and a 6 is revealed after the drawer has already loaded.
+**[A-03] is superseded — see the corrections log at the head of this document.**
 
 ★ **[OQ-10] When is a Wash net's protection fixed?**
 Must be a **per-item flag set at load time**, not per-machine or per-player — worked example 22
@@ -1504,7 +1531,7 @@ Sweep copy counts for all seven cards, measuring for each:
 | **P2** | OQ-03 | Animal control blank ~60% of the time | **Accept** [A-17] — the price of a self-correcting counter |
 | **P2** | OQ-05 | Second blanket wash completes damp socks? | **Yes, any wash event** [A-27] |
 | **P2** | OQ-10 | Wash net protection is a per-item flag | **Yes; stack the underwear on the card** [A-25] |
-| **P2** | OQ-09 | Sub-action order within a turn | **Roll → extra → load → card** [A-03] |
+| **P2** | OQ-09 | Sub-action order within a turn | **CLOSED as roll → card → load → extra** (brief v9 §4). [A-03]'s recommendation was not adopted. |
 | **P2** | §8.8.2 | Wash net may now be unplayable | **Measure before cutting** |
 | **P3** | OQ-12 | Acting order | **Keyholder first, then clockwise** [A-09] |
 | **P3** | OQ-13 | Hidden hands | **Yes** [A-10] — but §10 of the brief argues the other way |
