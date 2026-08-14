@@ -20,5 +20,5 @@
     "noFallthroughCasesInSwitch": true,
     "exactOptionalPropertyTypes": false
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests", "server"]
 }

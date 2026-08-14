@@ -56,6 +56,11 @@ function safeJoin(root: string, urlPath: string): string | null {
   return full;
 }
 
+/** `name-<base64url hash>.ext`, which is what Vite emits into dist/assets/. */
+export function isFingerprinted(file: string): boolean {
+  return /-[A-Za-z0-9_-]{8,}\.[A-Za-z0-9]+$/.test(file);
+}
+
 async function send(ctx: Context, file: string): Promise<boolean> {
   let stat: Awaited<ReturnType<typeof fs.stat>>;
   try {
@@ -68,14 +73,13 @@ async function send(ctx: Context, file: string): Promise<boolean> {
   ctx.type = TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream';
   ctx.length = stat.size;
   ctx.set('Last-Modified', stat.mtime.toUTCString());
-  // Vite hashes asset filenames, so everything under /assets/ is immutable and
-  // index.html must never be cached or a deploy strands people on old code.
-  ctx.set(
-    'Cache-Control',
-    /[.-][0-9a-f]{8,}\.[a-z0-9]+$/i.test(file)
-      ? 'public, max-age=31536000, immutable'
-      : 'no-cache',
-  );
+  // Vite fingerprints asset filenames (`index-B-6EWwvY.js`), so those are
+  // immutable forever; index.html must never be cached or a deploy strands
+  // people on old code pointing at deleted chunks.
+  //
+  // The hash is base64url, NOT hex: it contains upper case, `-` and `_`. A
+  // hex-only pattern silently matches nothing and every asset gets `no-cache`.
+  ctx.set('Cache-Control', isFingerprinted(file) ? 'public, max-age=31536000, immutable' : 'no-cache');
   ctx.status = 200;
   if (ctx.method === 'HEAD') {
     ctx.body = null;

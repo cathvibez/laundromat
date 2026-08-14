@@ -1,0 +1,16 @@
+node_modules
+dist
+server-dist
+.git
+.gitignore
+.DS_Store
+*.local
+__pycache__
+tests
+experiments
+tools
+fly.toml
+render.yaml
+Dockerfile
+.dockerignore
+DEPLOY.md
