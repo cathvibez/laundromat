@@ -1,0 +1,50 @@
+# Fly.io — https://fly.io/docs/reference/configuration/
+#
+# `fly launch --no-deploy` will regenerate this file and overwrite the app name;
+# edit the name below instead and use `fly deploy`.
+
+app = "laundromat"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # The server reads PORT. Fly's proxy forwards to internal_port below, so the
+  # two must agree.
+  PORT = "8080"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+
+  # ROOMS LIVE IN MEMORY. A machine that stops loses every room and every game
+  # in progress, so autostop is off and one machine is always running. This is
+  # the single most important line in this file: turn autostop back on and
+  # players will be dropped mid-game whenever traffic goes quiet.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  # For the same reason, do NOT scale past one machine without adding shared
+  # storage. boardgame.io's default store is per-process: two machines means two
+  # disjoint sets of rooms behind one hostname, and players who type the same
+  # code land in different games. See "Scaling" in DEPLOY.md.
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 250
+    soft_limit = 200
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/api/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

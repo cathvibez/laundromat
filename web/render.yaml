@@ -1,0 +1,33 @@
+# Render blueprint — https://render.com/docs/blueprint-spec
+#
+# Commit this at the repository root of whatever Render is pointed at. If the
+# repo root is one level above `web/`, keep `rootDir: web` below; if you point
+# Render at `web/` directly, delete that line.
+
+services:
+  - type: web
+    name: laundromat
+    runtime: node
+    rootDir: web
+    plan: starter # NOT `free`: free instances sleep, and a sleeping instance loses every room.
+    region: frankfurt
+
+    buildCommand: npm ci && npm run build:all
+    startCommand: npm start
+
+    healthCheckPath: /api/health
+
+    # ROOMS LIVE IN MEMORY, so there must be exactly one instance. Two instances
+    # behind one hostname means two disjoint sets of rooms, and two players who
+    # type the same code land in different games.
+    numInstances: 1
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render injects PORT itself and the server reads it; this is only a
+      # fallback for local `render`-style runs.
+      - key: PORT
+        value: 8000
+      - key: NODE_VERSION
+        value: 20

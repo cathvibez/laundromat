@@ -11,7 +11,7 @@
     "build:all": "npm run build && npm run build:server",
     "preview": "vite preview",
     "serve": "node server-dist/index.cjs",
-    "dev:server": "node --experimental-strip-types server/index.ts",
+    "dev:server": "npm run build:server && node server-dist/index.cjs",
     "start": "node server-dist/index.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
