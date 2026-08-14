@@ -14,6 +14,7 @@
  * game server is on 8000.
  */
 
+import { createElement, type ComponentType } from 'react';
 import { Client } from 'boardgame.io/react';
 import { SocketIO } from 'boardgame.io/multiplayer';
 import { Laundromat } from '../game/Laundromat';
@@ -162,13 +163,24 @@ export function makeClient(seat: {
   playerID: string;
   credentials: string;
 }): GameClient {
-  return Client({
+  const Networked = Client({
     game: Laundromat,
     board: Board,
-    multiplayer: SocketIO({ server: SERVER_URL || undefined }),
-    matchID: seat.code,
-    playerID: seat.playerID,
-    credentials: seat.credentials,
+    multiplayer: SocketIO(SERVER_URL ? { server: SERVER_URL } : {}),
     debug: false,
-  }) as unknown as GameClient;
+  });
+
+  // `matchID`, `playerID` and `credentials` are PROPS of the component
+  // boardgame.io returns, not options to `Client()`.  Closing over the seat
+  // here keeps `NetApi.makeClient(seat) => Component` true, and means the UI
+  // never has to know that the room code doubles as the matchID.
+  const Seated = (props: Record<string, unknown>) =>
+    createElement(Networked as unknown as ComponentType<Record<string, unknown>>, {
+      ...props,
+      matchID: seat.code,
+      playerID: seat.playerID,
+      credentials: seat.credentials,
+    });
+  Seated.displayName = `Laundromat(${seat.code}/${seat.playerID})`;
+  return Seated;
 }
