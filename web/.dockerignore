@@ -8,7 +8,10 @@ server-dist
 __pycache__
 tests
 experiments
-tools
+# NOT tools/ — `npm run build:server` in the build stage is
+# `node tools/build-server.mjs`, so excluding it breaks the build with
+# MODULE_NOT_FOUND. It never reaches the runtime image anyway: that stage
+# copies only dist/ and server-dist/.
 fly.toml
 render.yaml
 Dockerfile
