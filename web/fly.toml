@@ -3,7 +3,7 @@
 # `fly launch --no-deploy` will regenerate this file and overwrite the app name;
 # edit the name below instead and use `fly deploy`.
 
-app = "laundromat"
+app = "play-laundromat"
 primary_region = "lhr"
 
 [build]
