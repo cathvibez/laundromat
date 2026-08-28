@@ -84,7 +84,7 @@ everything is same-origin.
 # once
 brew install flyctl                 # or: curl -L https://fly.io/install.sh | sh
 fly auth login
-fly launch --no-deploy --copy-config --name laundromat --region lhr
+fly launch --no-deploy --copy-config --name play-laundromat --region sjc
 
 # every deploy
 fly deploy
@@ -92,8 +92,8 @@ fly deploy
 # check it
 fly status
 fly logs
-curl https://laundromat.fly.dev/api/health
-npm run smoke -- https://laundromat.fly.dev
+curl https://play-laundromat.fly.dev/api/health
+npm run smoke -- https://play-laundromat.fly.dev
 ```
 
 `fly launch` will offer to add Postgres and Redis — **decline both.** Rooms are
@@ -105,6 +105,17 @@ Notes baked into `fly.toml`:
 - `auto_stop_machines = false` and `min_machines_running = 1`. A stopped machine
   loses every room and every game in progress.
 - One machine only. Do not `fly scale count 2` — see "Scaling".
+
+**`min_machines_running = 1` will not keep you at one machine.** It is a floor,
+not a ceiling. `fly deploy` prints "Creating a second machine for high
+availability and zero downtime deployments" and does it, which is precisely the
+split-brain described under "Scaling" — players typing the same code land in
+different games. Check and correct after every deploy:
+
+```bash
+fly machines list -a play-laundromat   # expect exactly one
+fly scale count 1                      # if there are two
+```
 
 Custom domain:
 
