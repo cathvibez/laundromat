@@ -1,0 +1,44 @@
+User Manual:
+## About the game:
+You and your people visit the same laundromat. The neighborhood is not always safe, the washers are limited, but good things happen :)
+Rush to get your laundry done before your friends! Sabotage or collaborate, your choice! Special items give you special power. Special events add chaos to the game. The first person to get all their stuff washed wins!
+
+## Setup:
+1. Table set up:
+No. of players | No. of washers | Washer capacity | Items to wash per player
+3 | 4 | 4 | 10
+4 | 5 | 5 | 10
+5 | 6 | 6 | 8
+6 | 7 | 7 | 8
+2. Everyone picks a color. Draw items randomly from your own color deck, these are what you need to wash for this game. Set the rest of the items aside. 
+3. Lay out washers at the table. Place the ON token on each washer.
+4. Give the key to whoever did their laundry most recently! 
+
+## The days:
+1. The day begins. Everyone takes turns starting from the key holder. 
+2. During your turn, you roll the die and do as the die says.
+3. You can use at most 1 special item anytime during your turn. 
+4. The event is announced immediately. Some events happen right away, some before the washers run. 
+5. After everyone's turn, the key holder must turn on or off 1 machine. 
+6. Let it spin! The washers that are ON and available start washing. Some clothes get sent back to the owner, some get stuck in the washers, some get washed. 
+7. Pass the key to the next person. The next day begins! 
+
+## The die: 
+1: load 1 item 
+2: load 2 items 
+3: load 3 items
+4: move any 1 item from washer to washer
+5: draw 1 special item from the deck
+6: draw 1 special event from the deck only if no event happened that day
+* If you have no items in your hands to load, move 1 of your item from washer to washer.
+* If an event already happened that day, no other events will happen.  
+
+## The washers:
+1. Shoes are dirtier than all other items, underwear are more delicate than all other items. If shoes are in the washer, nothing else gets washed. If anything else is in the washer, the underwear doesn't get washed. For example, even your own shoes will taint your own shirt. 
+2. Dark items will taint light items! For example, your dark green pants will taint another person's light pink hat; however, your own dark green items won't taint your own light green shirt. 
+3. The shoes > other items > underwear rule takes precedence over the dark > light rules. For example, your light shoes will taint your dark pants. 
+4. Blankets are big! A washer can fit at most 1 other item if a blanket is present. But the thing inside the washer will get tangled into the blanket, meaning they stay in the washer for one more round.
+
+# To win:
+Whoever gets rid of all the clothing cards in their hands wins. No one wins if there's a tie (muah ha ha ha). 
+
