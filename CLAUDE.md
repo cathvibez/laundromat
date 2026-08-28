@@ -70,6 +70,24 @@ Tests live in `web/tests/`: `ported/` (Python suite rewritten in TS, same test
 names), `parity/` (generated-from-oracle fixture replay), `game/` (whole games
 through the driver and through the real bgio client), `server/`, `ui/`.
 
+## Branches and deploying
+
+Develop on **`main`**. `prod` is a release pointer, not a place to write code:
+pushing to it triggers `.github/workflows/deploy.yml`, which deploys to Fly,
+forces the machine count back to 1 and runs the smoke test against the live
+server.
+
+```bash
+scripts/deploy.sh            # promote main -> prod and push; CI deploys
+scripts/deploy.sh --local    # skip CI, fly deploy from this machine
+scripts/deploy.sh --check    # verify the live deploy, change nothing
+```
+
+`deploy.sh` refuses to run on a dirty tree or off `main`, runs the suite first,
+and **asks before deploying while any room is open** — a deploy ends every game
+in progress, and no green test run can tell you that. Do not bypass that prompt
+to save a minute.
+
 ## Constraints and traps
 
 **Exactly one server instance.** Rooms live in a `Map` in `server/rooms.ts` and

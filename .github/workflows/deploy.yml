@@ -1,0 +1,93 @@
+# Deploy to Fly on every push to `prod`.
+#
+# READ THIS BEFORE MERGING TO prod: rooms and games live in memory, so this
+# deploy ENDS EVERY GAME IN PROGRESS. There is no draining and no handover —
+# players get a disconnected client and there is nothing to reconnect to.
+# Merge to prod between sessions, not during one.
+#
+# `main` is where development happens. `prod` is a release pointer: promote it
+# with scripts/deploy.sh, which fast-forwards prod to main and pushes.
+
+name: Deploy to Fly
+
+on:
+  push:
+    branches: [prod]
+  # Deliberate deploys without a merge — re-deploy the current prod, or ship a
+  # hotfix branch by pushing it to prod first.
+  workflow_dispatch:
+
+# One deploy at a time. Two concurrent `fly deploy` runs against a
+# single-machine app will fight over the machine lease, and the loser fails
+# halfway. `cancel-in-progress: false` because a half-finished deploy is worse
+# than a queued one.
+concurrency:
+  group: deploy-play-laundromat
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build, deploy, and prove it works
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      FLY_APP: play-laundromat
+      BASE_URL: https://play-laundromat.fly.dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      # The Dockerfile is at the REPOSITORY ROOT (it has to sit with
+      # .dockerignore), so the build context is the root and the config is
+      # pointed at explicitly. Running this from web/ would give the build a
+      # context with no web/ directory and every COPY would fail.
+      - name: Deploy
+        run: flyctl deploy --config web/fly.toml --remote-only
+
+      # Fly announces "Creating a second machine for high availability" and
+      # does it, even with min_machines_running = 1 — that setting is a floor,
+      # not a ceiling. Two machines means two in-memory room stores behind one
+      # hostname, so two players typing the same code land in different games.
+      # This is the single most important step after the deploy itself.
+      - name: Enforce exactly one machine
+        run: |
+          count=$(flyctl machines list -a "$FLY_APP" --json | jq 'length')
+          echo "machines: $count"
+          if [ "$count" -ne 1 ]; then
+            echo "::warning::$count machines running; scaling back to 1"
+            flyctl scale count 1 -y
+            flyctl machines list -a "$FLY_APP"
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # `npm run smoke` runs server-dist/smoke.cjs, which build:server produces.
+      - name: Build the smoke client
+        working-directory: web
+        run: npm ci && npm run build:server
+
+      # The real acceptance test, and the reason this job does not stop at a
+      # green deploy: it opens a room, seats three real SocketIO clients, makes
+      # a move, and fails unless the other two receive it. It also asserts that
+      # no client saw another player's cards and that a dropped player can
+      # reclaim their seat.
+      - name: Smoke test the live deploy
+        working-directory: web
+        run: npm run smoke -- "$BASE_URL"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Deploy to $FLY_APP"
+            echo ""
+            echo "- URL: $BASE_URL"
+            echo "- Commit: \`${GITHUB_SHA::7}\`"
+            echo "- Machines: $(flyctl machines list -a "$FLY_APP" --json | jq 'length')"
+          } >> "$GITHUB_STEP_SUMMARY"

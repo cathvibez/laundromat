@@ -76,6 +76,25 @@ everything is same-origin.
 
 ---
 
+## How a deploy normally happens
+
+Develop on `main`; `prod` is a release pointer. Pushing `prod` triggers
+`.github/workflows/deploy.yml`, which deploys, forces the machine count back to
+one and smoke-tests the live server. Promote with:
+
+```bash
+scripts/deploy.sh            # main -> prod, push, wait, verify
+scripts/deploy.sh --local    # skip CI, deploy from this machine
+scripts/deploy.sh --check    # verify what is live, deploy nothing
+```
+
+The script refuses a dirty tree or a branch other than `main`, runs the suite
+first, and asks for confirmation if `/api/health` reports any open room —
+because a deploy ends every game in progress. The rest of this section is what
+those steps do underneath.
+
+---
+
 ## Fly.io
 
 `fly.toml` is committed, and lives here in `web/`. The Dockerfile does **not** —
@@ -89,8 +108,9 @@ brew install flyctl                 # or: curl -L https://fly.io/install.sh | sh
 fly auth login
 fly launch --no-deploy --copy-config --name play-laundromat --region sjc
 
-# every deploy — FROM THE REPO ROOT, not web/. The Dockerfile is at the root
-# (it has to sit with the .dockerignore), so the build context is the root too.
+# every deploy — normally you do NOT run this by hand. Use scripts/deploy.sh
+# from the repo root, which runs the tests, warns if anyone is mid-game, and
+# verifies afterwards. The raw command, for reference, is:
 fly deploy --config web/fly.toml
 
 # check it
