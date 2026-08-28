@@ -188,7 +188,10 @@ function textOf(e: unknown): string {
   return [c.code, c.reason, c.message, String(e)]
     .filter((x) => typeof x === 'string')
     .join(' ')
-    .toLowerCase();
+    .toLowerCase()
+    // The wire codes are hyphenated (`not-found`, `nickname-taken`); flatten
+    // the separators so one spelling of each phrase is enough to match.
+    .replace(/[-_]+/g, ' ');
 }
 
 /**
@@ -200,29 +203,49 @@ export function humanNetError(e: unknown, ctx: NetContext): string {
   if (e instanceof NetUnavailable) return e.message;
   const t = textOf(e);
   const status = Number((e as CodedError)?.status ?? NaN);
+  const raw = typeof (e as CodedError)?.message === 'string' ? ((e as CodedError).message as string) : '';
 
-  if (t.includes('not_found') || t.includes('not found') || t.includes('no such') || status === 404) {
+  /*
+   * ORDER MATTERS, and it is the specific codes first.
+   *
+   * The server returns 409 for FOUR different things — full, already started,
+   * nickname taken, not enough players — so a status-first test would tell a
+   * player locked out of a game in progress that the room is "full", which is
+   * both wrong and unactionable. Statuses are only ever the fallback for a
+   * code we did not recognise.
+   */
+  if (t.includes('not found') || t.includes('no such') || status === 404) {
     return ctx === 'join'
       ? 'No room with that code. Codes are four characters and expire when the room is closed — check with whoever set it up.'
       : 'That room is gone. Whoever set it up may have closed it.';
-  }
-  if (t.includes('full') || status === 409) {
-    return 'That room is full. Laundromat seats six players at most.';
   }
   if (t.includes('started') || t.includes('in progress') || status === 410) {
     return ctx === 'join'
       ? 'That game has already started, and Laundromat has no spectator seats. You can only rejoin a game you were already in.'
       : 'The game has already started, so that can no longer be changed.';
   }
-  if (t.includes('forbidden') || t.includes('not admin') || t.includes('unauthor') || status === 401 || status === 403) {
+  // Specifically TAKEN. A bare "nickname" also appears in "A nickname is
+  // required", which is a different problem with a different fix.
+  if (t.includes('nickname taken') || t.includes('name taken') || t.includes('already uses that name')) {
+    return 'Someone in that room is already using that name. Pick another one.';
+  }
+  if (t.includes('not enough players') || t.includes('at least three')) {
+    return 'Laundromat needs at least three players. Wait for one more, then start.';
+  }
+  if (t.includes('not admin') || t.includes('forbidden') || t.includes('unauthor') || status === 401 || status === 403) {
     return 'Only the player who created the room can change that.';
   }
-  if (t.includes('min') && t.includes('player')) {
-    return 'Laundromat needs at least three players.';
+  if (t.includes('full') || status === 409) {
+    return 'That room is full. Laundromat seats six players at most.';
   }
-  if (t.includes('nickname') || t.includes('name taken')) {
-    return 'Someone in that room is already using that name. Pick another.';
-  }
+  /*
+   * A 400 is "you sent something the server will not take" — a nickname it
+   * rejected, a setting out of range. The server writes those as finished
+   * sentences aimed at a player ("Seats must be 3-6."), and wrapping one in
+   * "could not join (…)" makes it less clear, not more.
+   */
+  if (status === 400 && /[.!?]$/.test(raw) && raw.length <= 140) return raw;
+
   if (
     t.includes('failed to fetch') ||
     t.includes('networkerror') ||
@@ -233,7 +256,6 @@ export function humanNetError(e: unknown, ctx: NetContext): string {
     return 'Could not reach the game server. Check your connection and try again.';
   }
 
-  const raw = typeof (e as CodedError)?.message === 'string' ? ((e as CodedError).message as string) : '';
   const tail = raw && raw.length < 140 ? ` (${raw})` : '';
   switch (ctx) {
     case 'create':

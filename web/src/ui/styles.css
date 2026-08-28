@@ -449,6 +449,215 @@ header.top .spacer { flex: 1; }
   .die { width: 46px; height: 46px; font-size: 21px; }
 }
 
+/* =====================================================================
+   ONLINE — lobby, roster, turn strip.
+
+   Same paper as the rest of the game: flat fill, ink outline, hard offset
+   shadow, a fraction of a degree off square. A lobby that looks like a web
+   form would read as a different product bolted on the front.
+   ===================================================================== */
+
+/* ---- mode chooser: two tabs, and no more than two ---- */
+
+.mode-choice { display: flex; gap: 8px; margin: 14px 0 4px; flex-wrap: wrap; }
+.mode-btn { flex: 1 1 160px; transform: rotate(-0.5deg); }
+.mode-btn:nth-child(2) { transform: rotate(0.6deg); }
+.mode-btn.active { background: #ffe9a8; border-color: var(--ink); cursor: default; }
+
+/* ---- masthead ---- */
+
+.lobby-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.lobby-head h1 {
+  font-size: 22px; margin: 0; font-weight: 700;
+  background: var(--card); border: 2px solid var(--ink); border-radius: var(--radius);
+  padding: 7px 16px 8px; box-shadow: var(--shadow); transform: rotate(-1.3deg);
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+.lobby-sub { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+
+/* ---- the code, big enough to read across a room ---- */
+
+.code-card {
+  margin-top: 18px; padding: 16px 18px 18px; text-align: center;
+  background: var(--card); border: 2px solid var(--ink); border-radius: var(--radius);
+  box-shadow: var(--shadow); transform: rotate(-0.6deg);
+}
+.code-label { font-size: 11.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+.code-big {
+  font-size: 68px; line-height: 1.05; font-weight: 700; letter-spacing: 0.16em;
+  margin: 4px 0 2px; text-indent: 0.16em; /* balance the trailing letter-space */
+}
+@media (max-width: 400px) { .code-big { font-size: 54px; } }
+.share-row { margin-top: 12px; gap: 8px; flex-wrap: nowrap; }
+.share-row input {
+  flex: 1 1 auto; min-width: 0; font-size: 12.5px; padding: 9px 11px;
+  border: 2px solid var(--rule-2); border-radius: var(--radius-sm);
+  background: var(--paper-2); color: var(--dim); font-family: inherit;
+}
+.share-row button { flex: none; }
+
+.code-input {
+  font-size: 30px; font-weight: 700; letter-spacing: 0.34em; text-align: center;
+  text-transform: uppercase; text-indent: 0.34em;
+}
+
+/* ---- who is here ---- */
+
+.roster { display: grid; gap: 8px; }
+.roster-row {
+  display: flex; align-items: center; gap: 9px; padding: 10px 13px;
+  background: var(--card); border: 2px solid var(--rule-2); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+.roster-row:nth-child(odd) { transform: rotate(-0.35deg); }
+.roster-row:nth-child(even) { transform: rotate(0.3deg); }
+.roster-row.me { border-color: var(--ink); }
+.roster-row.away { opacity: 0.62; }
+.roster-row.empty { border-style: dashed; box-shadow: none; background: transparent; color: var(--dim); }
+.roster-name { font-weight: 600; font-size: 15px; }
+.roster-row .badge { margin-left: 6px; }
+.roster-row .badge:first-of-type { margin-left: auto; }
+.seat-dot { width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(59, 51, 48, 0.3); background: var(--p0); flex: none; }
+.seat-dot[data-seat='1'] { background: var(--p1); }
+.seat-dot[data-seat='2'] { background: var(--p2); }
+.seat-dot[data-seat='3'] { background: var(--p3); }
+.seat-dot[data-seat='4'] { background: var(--p4); }
+.seat-dot[data-seat='5'] { background: var(--p5); }
+.seat-dot.ghost { background: transparent; border-style: dashed; }
+
+/* ---- create / join ---- */
+
+.online-split { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 18px; }
+@media (min-width: 720px) { .online-split { grid-template-columns: 1fr 1fr; } }
+.online-half {
+  padding: 14px 15px 16px; background: var(--paper-2);
+  border: 2px solid var(--rule-2); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+}
+.online-half h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+.online-half button { width: 100%; margin-top: 12px; }
+.online-half label { margin-top: 12px; }
+
+.rejoin-card {
+  margin-top: 16px; padding: 14px 15px 16px;
+  background: #fdf4de; border: 2px solid var(--warn); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); transform: rotate(-0.5deg);
+}
+.rejoin-card h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; color: #9a6b10; }
+.rejoin-card .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* ---- rules, editable and read-only ---- */
+
+.settings-form select, .settings-form input[type='text'] {
+  width: 100%; padding: 11px; background: var(--card); color: var(--ink);
+  border: 2px solid var(--rule-2); border-radius: var(--radius-sm); font: inherit;
+}
+.settings-form label { display: block; margin: 14px 0 5px; font-size: 11.5px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
+.settings-summary {
+  padding: 12px 14px; background: var(--paper-2);
+  border: 2px solid var(--rule-2); border-radius: var(--radius);
+}
+.summary-row { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px dotted var(--line); font-size: 13px; }
+.summary-row:last-of-type { border-bottom: none; }
+.summary-key { flex: none; width: 118px; color: var(--dim); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; padding-top: 1px; }
+
+/* ---- start / wait ---- */
+
+.start-block { margin-top: 20px; }
+button.big { width: 100%; font-size: 17px; padding: 15px 18px; min-height: 56px; }
+.waiting-block {
+  margin-top: 20px; padding: 14px 15px; display: flex; gap: 12px; align-items: flex-start;
+  background: var(--card); border: 2px dashed var(--rule-2); border-radius: var(--radius);
+}
+.waiting-spinner {
+  flex: none; width: 20px; height: 20px; margin-top: 2px; border-radius: 50%;
+  border: 3px solid var(--rule-2); border-top-color: var(--ink);
+  animation: spin 1.1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .waiting-spinner { animation: none; } }
+
+.banner.error { border-color: var(--bad); background: #fbece8; }
+.banner.error h3 { color: #b24e3b; }
+
+/* ---- in-game: whose turn, and are we connected ---- */
+
+.badge.conn.ok { border-color: var(--good); color: #3d7a48; }
+.badge.conn.bad { border-color: var(--bad); color: #b24e3b; background: #fbece8; }
+
+/*
+ * The single most important thing on the screen. It is deliberately loud and
+ * deliberately at the top: a phone comes out of a pocket and has to answer
+ * "is it me?" before anything else on the board matters.
+ */
+.turn-strip {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 14px; padding: 11px 15px 12px;
+  border: 2px solid var(--ink); border-radius: var(--radius);
+  box-shadow: var(--shadow); transform: rotate(-0.4deg);
+}
+.turn-strip-main { font-size: 20px; font-weight: 700; letter-spacing: 0.02em; }
+.turn-strip-sub { font-size: 13px; color: var(--dim); }
+.turn-strip.yours { background: #ffe9a8; }
+.turn-strip.yours .turn-strip-sub { color: #8a6a12; }
+.turn-strip.theirs { background: var(--panel-2); border-color: var(--rule-2); }
+.turn-strip.theirs .turn-strip-main { font-weight: 600; }
+
+.turnbar.waiting { background: var(--panel-2); border-color: var(--rule-2); box-shadow: var(--shadow-sm); }
+.turnbar.waiting h2 { color: var(--dim); }
+
+/* ---- the floor on a phone, with up to seven washers ---- */
+
+/*
+ * Seven stacked machine cards is roughly six screens of scrolling, and the
+ * washer you want is never the one in view. On a phone the floor becomes a
+ * snapping carousel one washer wide, with a strip of chips above it to jump
+ * straight to one. Above 620px nothing changes: the grid already fits.
+ */
+.floor-strip { display: none; }
+
+@media (max-width: 619px) {
+  .floor-strip {
+    display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .floor-chip {
+    flex: none; min-height: 34px; padding: 5px 11px; font-size: 12.5px; font-weight: 600;
+    border-radius: 999px; border: 2px solid var(--rule-2); background: var(--card);
+    box-shadow: var(--shadow-sm);
+  }
+  .floor-chip.on { border-color: var(--good); color: #3d7a48; }
+  .floor-chip.off { color: var(--dim); }
+  .floor-chip.dead { border-color: var(--bad); color: #b24e3b; text-decoration: line-through; }
+  .floor-chip.pick { background: #eaf5ec; border-color: var(--good); }
+
+  .floor {
+    display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px;
+    scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+  }
+  .floor > .machine {
+    flex: none; width: 86vw; max-width: 340px; scroll-snap-align: center;
+  }
+  /* inside a carousel the hand's sideways scroll would fight the floor's */
+  .floor .slots { flex-wrap: wrap; }
+}
+
+/* ---- the reckoning on a small screen ---- */
+
+@media (max-width: 619px) {
+  .modal h2 { font-size: 17px; }
+  /*
+   * Two columns of item + verdict is unreadable at 360px: the verdict wraps to
+   * three lines and the two columns lose their alignment. Stack them instead,
+   * one item per row, verdict under the name and right-aligned.
+   */
+  .modal table, .modal tbody, .modal tr, .modal td { display: block; width: 100%; }
+  .modal tr { padding: 5px 0; border-bottom: 1px dotted var(--line); }
+  .modal tr:last-child { border-bottom: none; }
+  .modal td { border-bottom: none; padding: 1px 0; }
+  .modal td + td { text-align: right; font-weight: 600; font-size: 12px; }
+  .result-machine h4 { position: sticky; top: 0; background: var(--paper-2); padding: 4px 0; z-index: 1; }
+}
+
 /* ---------------- picking a card up ---------------- */
 
 /* A card you are holding, and the washers that will take it. */

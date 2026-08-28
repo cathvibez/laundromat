@@ -256,8 +256,57 @@ clean items) over many self-played games, rather than claiming equality.
   and 6 players and under every circuit break arm.
 - The hot-seat UI renders, rolls, loads, plays cards and narrates each machine.
 
-**Not built (out of Milestone 1 scope):** networking, lobby, persistence, bots in the
-UI, undo/replay, animation, mobile layout, spectator mode.
+- The online client: mode chooser, create/join, lobby, reconnection, and the board
+  played from one seat. See "Playing online" below.
+
+**Not built:** bots in the UI, undo/replay, animation, spectator mode (there is
+deliberately no way to watch a game you are not seated in).
+
+---
+
+## Playing online (the client half)
+
+Hot-seat is unchanged and is still the default landing screen. Online is an
+addition next to it, and the two share nothing but `src/rules/` and `Board.tsx`.
+
+```
+src/online/
+  api.ts      the ONLY module that reaches src/net/. Declares NetApi, loads the
+              transport, and turns every failure into a sentence a player can act on.
+  session.ts  {code, playerID, credentials} in localStorage, the /join/ABCD link,
+              and a store that copes with localStorage being broken or absent.
+  Online.tsx  three screens: entry (create or join), lobby, game.
+```
+
+**The seat, not the turn.** `Board.tsx` keys everything off `playerID`. Absent
+means hot-seat: one screen speaks for everybody and the hand on show is always
+the active player's. Present means online: `seat` is you and never moves,
+`current` is whoever is acting, and they are equal only on your turn. Every
+control is gated on that, and the hand zone reads `seat` — never `current`,
+because the server has already stripped the other hands out of `G` and asking
+for one would render nothing at all.
+
+**What the other players are.** A count. `playerView` replaces their item ids
+with placeholders, so `hand.length` survives and the ids do not. There is
+deliberately no row of card backs anywhere: a face-down card implies the
+information is there to be had, and it is not. Everything else — washers,
+loaded items, damp piles, clean piles, power, markers — is public and is drawn
+in full for everyone, which is the point of the game.
+
+**No pass-the-device screen online.** It exists to hide a hand from the person
+sitting next to you. There is nobody sitting next to you, your hand was never on
+their device, and there is nothing to pass — so it would be both a lie and a
+dead end. `needsPass` is gated on `!online` for exactly that reason.
+
+**Saying what is happening.** A screen that waits silently is indistinguishable
+from one that has crashed, which is how an online board game usually looks
+broken. Every phase and stage produces a sentence through `doingNow()`, shown in
+two places at once: the turn strip at the top of the screen and the sticky bar
+under the thumb. Disconnections are announced by name, and say whether the game
+is waiting on that player or carrying on without them.
+
+The server half is `server/` and `src/net/`; see their own notes for the wire
+format and room lifecycle.
 
 **Known rough edges:**
 

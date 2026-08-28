@@ -36,7 +36,25 @@ interface Confirmation {
   act: () => void;
 }
 
-export function Board({ G, ctx, moves }: Props) {
+/**
+ * Bring a washer into view on the phone carousel. jsdom has no layout and no
+ * `scrollIntoView`, so this is a no-op under test rather than a crash.
+ */
+function scrollToMachine(index: number): void {
+  if (typeof document === 'undefined') return;
+  const el = document.querySelectorAll('.floor .machine')[index] as HTMLElement | undefined;
+  if (el && typeof el.scrollIntoView === 'function') {
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }
+}
+
+/**
+ * Who is who. Online, boardgame.io hands us `matchData` with the nicknames from
+ * the lobby; hot-seat has none, and "Player 3" is exactly right there.
+ */
+type MatchRow = { id: number; name?: string; isConnected?: boolean };
+
+export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props) {
   const [selectedItem, setSelectedItem] = useState<ItemId | null>(null);
   /** Loads chosen but NOT yet committed. Confirm sends them all; deselect removes one. */
   const [staged, setStaged] = useState<{ item: ItemId; machine: number }[]>([]);
@@ -58,6 +76,28 @@ export function Board({ G, ctx, moves }: Props) {
   const current = Number(ctx.currentPlayer);
   const phase = ctx.phase;
   const turn = G.turn;
+
+  // ---- online vs hot-seat -------------------------------------------------
+  /**
+   * The one distinction the whole file turns on. Hot-seat has no playerID: one
+   * screen speaks for everybody, so the seat on show is always the seat whose
+   * turn it is. Online, `seat` is ME and never moves, `current` is whoever is
+   * acting, and the two are equal only when it is my turn.
+   */
+  const online = playerID !== null && playerID !== undefined;
+  const seat = online ? Number(playerID) : current;
+  const myTurn = !online || seat === current;
+  const rows = (matchData ?? []) as MatchRow[];
+
+  function nameOf(i: number): string {
+    const row = rows.find((m) => Number(m.id) === i);
+    return row?.name?.trim() ? row.name.trim() : `Player ${i + 1}`;
+  }
+  /** Second person for yourself, but only online — hot-seat is read aloud. */
+  const youOrName = (i: number) => (online && i === seat ? 'you' : nameOf(i));
+
+  const away = online ? rows.filter((m) => m.isConnected === false && Number(m.id) !== seat) : [];
+  const offline = online && isConnected === false;
 
   useEffect(() => {
     setSelectedItem(null);
@@ -85,7 +125,14 @@ export function Board({ G, ctx, moves }: Props) {
     !showReckoning &&
     !showReveal;
 
+  /**
+   * The pass-the-device screen hides one hand from the person sitting next to
+   * you. Online there is nobody next to you and your hand was never on their
+   * device in the first place — the server strips it. Showing it there would
+   * be a lie AND a dead end, since there is no one to pass to.
+   */
   const needsPass =
+    !online &&
     hideBetweenTurns &&
     phase === 'roll' &&
     turn?.stage === 'roll' &&
@@ -141,6 +188,9 @@ export function Board({ G, ctx, moves }: Props) {
   }
 
   function machineSelectable(mi: number): { ok: boolean; refused: string | null } {
+    // Not your turn: the board is a spectator view. The engine would reject the
+    // move anyway; offering it and then silently swallowing the tap is worse.
+    if (!myTurn) return { ok: false, refused: null };
     if (ctx.gameover || modalUp) return { ok: false, refused: null };
     const m = G.machines[mi];
 
@@ -171,6 +221,7 @@ export function Board({ G, ctx, moves }: Props) {
   }
 
   function onMachine(mi: number) {
+    if (!myTurn) return;
     const m = G.machines[mi];
 
     // ---- key phase: confirm the toggle ------------------------------------
@@ -361,15 +412,65 @@ export function Board({ G, ctx, moves }: Props) {
         <button className="info-btn" title="Show the rules" onClick={() => setShowRules(true)}>
           i
         </button>
-        <label className="rules-help" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <input
-            type="checkbox"
-            checked={hideBetweenTurns}
-            onChange={(e) => setHideBetweenTurns(e.target.checked)}
-          />
-          hide hands between turns
-        </label>
+        {online ? (
+          <span
+            className={`badge conn ${offline ? 'bad' : 'ok'}`}
+            title={
+              offline
+                ? 'Your device has lost the connection to the game'
+                : 'Connected to the game'
+            }
+          >
+            {offline ? 'Reconnecting…' : 'Connected'}
+          </span>
+        ) : (
+          <label className="rules-help" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={hideBetweenTurns}
+              onChange={(e) => setHideBetweenTurns(e.target.checked)}
+            />
+            hide hands between turns
+          </label>
+        )}
       </header>
+
+      {/*
+        Online, this is the most important thing on the screen: a phone comes
+        out of a pocket and has to answer "is it me?" before anything else.
+      */}
+      {online && !ctx.gameover && (
+        <div className={`turn-strip ${myTurn ? 'yours' : 'theirs'}`} role="status">
+          <span className="turn-strip-main">
+            {myTurn ? 'Your turn' : `${nameOf(current)}’s turn`}
+          </span>
+          <span className="turn-strip-sub">{doingNow(G, ctx.phase, myTurn)}</span>
+        </div>
+      )}
+
+      {offline && (
+        <div className="banner error" role="alert">
+          <h3>You are offline</h3>
+          <div>
+            This device has lost its connection. The game is still running for everyone else —
+            nothing you tap now will be sent. It reconnects on its own as soon as the network is
+            back.
+          </div>
+        </div>
+      )}
+
+      {!offline && away.length > 0 && (
+        <div className="banner" role="status">
+          <h3>{away.length === 1 ? 'A player has dropped out' : 'Players have dropped out'}</h3>
+          <div>
+            {away.map((m) => nameOf(Number(m.id))).join(', ')}{' '}
+            {away.length === 1 ? 'has' : 'have'} lost connection.
+            {away.some((m) => Number(m.id) === current)
+              ? ' The game is waiting on them, so nothing will move until they are back.'
+              : ' Play carries on; their turn will wait for them when it comes.'}
+          </div>
+        </div>
+      )}
 
       {needsPass ? (
         <div className="pass-screen">
@@ -384,6 +485,37 @@ export function Board({ G, ctx, moves }: Props) {
           <div className="main-grid">
             <div>
               <div className="section-title">The floor · capacity {G.cfg.capacity} per machine</div>
+
+              {/*
+                Phone only (CSS decides), and only once the floor is big enough
+                to get lost in. At six players the floor is seven washers and a
+                stacked column means the one you want is never on screen.
+              */}
+              {shadow.machines.length >= 5 && (
+                <div className="floor-strip" role="group" aria-label="Jump to a washer">
+                  {shadow.machines.map((m) => {
+                    const sel = machineSelectable(m.id);
+                    const cls = m.dead ? 'dead' : sel.ok ? 'pick' : m.on ? 'on' : 'off';
+                    return (
+                      <button
+                        key={m.id}
+                        className={`floor-chip ${cls}`}
+                        title={
+                          m.dead
+                            ? `M${m.id + 1} is destroyed`
+                            : sel.ok
+                              ? `M${m.id + 1} will take it`
+                              : `M${m.id + 1} is ${m.on ? 'on' : 'off'}`
+                        }
+                        onClick={() => scrollToMachine(m.id)}
+                      >
+                        M{m.id + 1} · {m.items.length}/{G.cfg.capacity}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               <div className="floor">
                 {shadow.machines.map((m) => {
                   const sel = machineSelectable(m.id);
@@ -425,14 +557,24 @@ export function Board({ G, ctx, moves }: Props) {
               </div>
             </div>
 
-            <ProgressRail G={G} current={current} />
+            <ProgressRail
+              G={G}
+              current={current}
+              seat={online ? seat : null}
+              nameOf={online ? nameOf : null}
+              awayIds={new Set(away.map((m) => Number(m.id)))}
+            />
           </div>
 
           {phase === 'event' && G.revealedEvent && (
             <div className="banner">
               <h3>Resolve: {G.revealedEvent}</h3>
               <div>{EVENT_TEXT[G.revealedEvent]}</div>
-              <div className="note">Player {(G.eventDrawer ?? 0) + 1} picks a washer above.</div>
+              <div className="note">
+                {online && myTurn
+                  ? 'You drew it, so you choose. Pick a washer above.'
+                  : `${nameOf(G.eventDrawer ?? 0)} picks a washer above.`}
+              </div>
             </div>
           )}
 
@@ -440,33 +582,52 @@ export function Board({ G, ctx, moves }: Props) {
             <div className="banner">
               <h3>Key phase</h3>
               <div>
-                Player {G.key + 1} holds the key: turn one machine on, turn one off, or pass.
+                {online
+                  ? `${youOrName(G.key)} ${G.key === seat ? 'hold' : 'holds'} the key: turn one machine on, turn one off, or pass.`
+                  : `Player ${G.key + 1} holds the key: turn one machine on, turn one off, or pass.`}
               </div>
-              <div className="row" style={{ marginTop: 8 }}>
-                <button
-                  onClick={() =>
-                    setConfirm({
-                      title: 'Pass the key phase?',
-                      body: (
-                        <p>No machine changes power today. The reckoning follows immediately.</p>
-                      ),
-                      confirmLabel: 'Pass',
-                      act: () => moves.passKey(),
-                    })
-                  }
-                >
-                  Pass, and go to the reckoning
-                </button>
-              </div>
+              {!myTurn && (
+                <div className="note">
+                  Nothing for you to do — the day ends when they have chosen.
+                </div>
+              )}
+              {myTurn && (
+                <div className="row" style={{ marginTop: 8 }}>
+                  <button
+                    onClick={() =>
+                      setConfirm({
+                        title: 'Pass the key phase?',
+                        body: (
+                          <p>No machine changes power today. The reckoning follows immediately.</p>
+                        ),
+                        confirmLabel: 'Pass',
+                        act: () => moves.passKey(),
+                      })
+                    }
+                  >
+                    Pass, and go to the reckoning
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
-          {phase === 'roll' && turn && !ctx.gameover && (
+          {online && !myTurn && !ctx.gameover && (
+            <WaitingBar
+              G={G}
+              phase={phase}
+              name={nameOf(current)}
+              disconnected={rows.some((m) => Number(m.id) === current && m.isConnected === false)}
+            />
+          )}
+
+          {phase === 'roll' && turn && !ctx.gameover && myTurn && (
             <TurnBar
               G={G}
               shadow={shadow}
               turn={turn}
-              current={current}
+              current={seat}
+              heading={online ? 'Your turn' : `Player ${current + 1}, it is your turn`}
               moves={moves}
               pending={pending}
               setPending={setPending}
@@ -480,14 +641,27 @@ export function Board({ G, ctx, moves }: Props) {
             />
           )}
 
+          {/*
+            ALWAYS `seat`, never `current`. Online, the server has already
+            removed every other hand from G; asking for one would render a row
+            of undefined items. This is your hand and nobody else's.
+          */}
           <Zones
             G={G}
             shadow={shadow}
-            current={current}
+            current={seat}
+            label={online ? 'Your' : `Player ${seat + 1} ·`}
             selectedItem={selectedItem}
             setSelectedItem={setSelectedItem}
             stagedItems={stagedItems}
-            canLoad={phase === 'roll' && turn?.stage === 'load' && !modalUp && loadsLeft > 0}
+            canLoad={
+              myTurn && phase === 'roll' && turn?.stage === 'load' && !modalUp && loadsLeft > 0
+            }
+            asleepReason={
+              !myTurn
+                ? `Your hand is asleep — it is ${nameOf(current)}’s turn. You will be able to load when your turn comes round.`
+                : null
+            }
           />
 
           <div className="section-title">Log</div>
@@ -613,15 +787,17 @@ export function Board({ G, ctx, moves }: Props) {
           <div className="modal">
             <h2>
               {ctx.gameover.winners.length > 1
-                ? `Players ${ctx.gameover.winners.map((w: number) => w + 1).join(' and ')} win together`
-                : `Player ${ctx.gameover.winners[0] + 1} wins`}
+                ? `${ctx.gameover.winners.map((w: number) => nameOf(w)).join(' and ')} win together`
+                : online && ctx.gameover.winners[0] === seat
+                  ? 'You win'
+                  : `${nameOf(ctx.gameover.winners[0])} wins`}
             </h2>
             <p>All ten items washed on day {G.day}.</p>
             <table>
               <tbody>
                 {G.players.map((p) => (
                   <tr key={p.id}>
-                    <td>Player {p.id + 1}</td>
+                    <td>{online ? nameOf(p.id) : `Player ${p.id + 1}`}</td>
                     <td>
                       {p.clean.length}/{p.mustWash.length} clean
                     </td>
@@ -630,6 +806,79 @@ export function Board({ G, ctx, moves }: Props) {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// "What is actually happening right now", in one clause.
+//
+// A screen that says nothing while you wait is indistinguishable from a screen
+// that has frozen, which is the single most common way an online board game
+// looks broken. Every phase and stage has to produce a sentence here.
+// ---------------------------------------------------------------------------
+
+export function doingNow(G: LaundromatG, phase: string | null, mine: boolean): string {
+  if (phase === 'event') {
+    return mine
+      ? `Resolve ${G.revealedEvent ?? 'the event'} — pick a washer.`
+      : `Resolving ${G.revealedEvent ?? 'an event'}.`;
+  }
+  if (phase === 'key') {
+    return mine
+      ? 'You hold the key: switch one washer on, one off, or pass.'
+      : 'The keyholder is deciding what to switch.';
+  }
+  const stage = G.turn?.stage;
+  if (G.turn?.pendingEvent) {
+    return mine ? `${G.revealedEvent} is waiting on you.` : `${G.revealedEvent} is being resolved.`;
+  }
+  switch (stage) {
+    case 'roll':
+      return mine ? 'Roll the die.' : 'Rolling the die.';
+    case 'card':
+      return mine ? 'Play a card, or pass.' : 'Choosing whether to play a card.';
+    case 'load':
+      return mine ? 'Load the washers.' : 'Loading the washers.';
+    case 'extra':
+      return mine ? 'Resolve the die.' : 'Resolving the die.';
+    case 'done':
+      return mine ? 'Turn complete.' : 'Finishing their turn.';
+    default:
+      return mine ? 'Your move.' : 'Taking their turn.';
+  }
+}
+
+/**
+ * The sticky bar when the turn is not yours. It occupies exactly the place the
+ * turn bar occupies, so the answer to "what now?" is always in the same spot
+ * under your thumb.
+ */
+function WaitingBar({
+  G,
+  phase,
+  name,
+  disconnected,
+}: {
+  G: LaundromatG;
+  phase: string | null;
+  name: string;
+  disconnected: boolean;
+}) {
+  return (
+    <div className="turnbar waiting" role="status">
+      <h2>Waiting for {name}</h2>
+      <div className="sub">{doingNow(G, phase, false)}</div>
+      {disconnected ? (
+        <div className="note warn">
+          {name} has lost connection. The game cannot go on until they are back — nobody can act on
+          their behalf.
+        </div>
+      ) : (
+        <div className="note">
+          Everything on the floor is public, so you can plan while you wait. Only hands are secret.
         </div>
       )}
     </div>
@@ -779,6 +1028,7 @@ function TurnBar({
   shadow,
   turn,
   current,
+  heading,
   moves,
   pending,
   setPending,
@@ -794,6 +1044,7 @@ function TurnBar({
   shadow: LaundromatG;
   turn: NonNullable<LaundromatG['turn']>;
   current: number;
+  heading: string;
   moves: Props['moves'];
   pending: Pending;
   setPending: (p: Pending) => void;
@@ -811,7 +1062,7 @@ function TurnBar({
 
   return (
     <div className="turnbar">
-      <h2>Player {current + 1}, it is your turn</h2>
+      <h2>{heading}</h2>
 
       <div className="row">
         {turn.face && <div className="die">{turn.face}</div>}
@@ -1079,7 +1330,25 @@ function TurnBar({
 
 // ---------------------------------------------------------------------------
 
-function ProgressRail({ G, current }: { G: LaundromatG; current: number }) {
+/**
+ * Everybody's public position. Hands appear here as a COUNT and only a count —
+ * online the server has already replaced other players' item ids with
+ * placeholders, and there is deliberately no face-down card row: a row of card
+ * backs would imply the information is there to be had. It is not.
+ */
+function ProgressRail({
+  G,
+  current,
+  seat,
+  nameOf,
+  awayIds,
+}: {
+  G: LaundromatG;
+  current: number;
+  seat: number | null;
+  nameOf: ((i: number) => string) | null;
+  awayIds: Set<number>;
+}) {
   return (
     <div className="panel rail">
       <div className="zone-label">Race to ten</div>
@@ -1089,8 +1358,10 @@ function ProgressRail({ G, current }: { G: LaundromatG; current: number }) {
           <div key={p.id} className={`rail-row${p.id === current ? ' current' : ''}`}>
             <div className="rail-name">
               <Swatch owner={p.id} shade="D" />
-              <span>P{p.id + 1}</span>
+              <span>{nameOf ? nameOf(p.id) : `P${p.id + 1}`}</span>
+              {p.id === seat && <span className="badge phase">you</span>}
               {G.key === p.id && <span className="badge key">key</span>}
+              {awayIds.has(p.id) && <span className="badge provisional">away</span>}
             </div>
             <div className="progress">
               <div style={{ width: `${pct}%` }} />
@@ -1099,7 +1370,14 @@ function ProgressRail({ G, current }: { G: LaundromatG; current: number }) {
               <span>
                 {p.clean.length}/{p.mustWash.length} clean
               </span>
-              <span className="rules-help">
+              <span
+                className="rules-help"
+                title={
+                  seat === null || p.id === seat
+                    ? 'Items in hand'
+                    : 'How many items they are holding. Which ones is the only secret in the game.'
+                }
+              >
                 hand {p.hand.length}
                 {p.damp.length > 0 ? ` · damp ${p.damp.length}` : ''}
               </span>
@@ -1117,18 +1395,23 @@ function Zones({
   G,
   shadow,
   current,
+  label,
   selectedItem,
   setSelectedItem,
   stagedItems,
   canLoad,
+  asleepReason,
 }: {
   G: LaundromatG;
   shadow: LaundromatG;
   current: number;
+  label: string;
   selectedItem: ItemId | null;
   setSelectedItem: (id: ItemId | null) => void;
   stagedItems: Set<ItemId>;
   canLoad: boolean;
+  /** Online: why the hand is inert when the reason is not "you have not rolled". */
+  asleepReason: string | null;
 }) {
   const p = G.players[current];
   // An item is only offerable if some machine would actually take it, judged
@@ -1144,12 +1427,12 @@ function Zones({
     <div className="zones">
       <div className="panel">
         <div className="zone-label" title={SORT_EXPLAINER}>
-          Player {current + 1} · hand ({p.hand.length}) · sorted {SORT_EXPLAINER}
+          {label} hand ({p.hand.length}) · sorted {SORT_EXPLAINER}
         </div>
         {!canLoad && p.hand.length > 0 && (
           <div className="hand-hint">
-            Your hand is asleep — you can only pick cards up during the loading part of your turn.
-            Roll the die first.
+            {asleepReason ??
+              'Your hand is asleep — you can only pick cards up during the loading part of your turn. Roll the die first.'}
           </div>
         )}
         <div className="items scroll">

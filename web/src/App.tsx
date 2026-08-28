@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Client } from 'boardgame.io/react';
 import { makeLaundromat } from './game/Laundromat';
 import { Board } from './ui/Board';
+import { Online } from './online/Online';
+import { codeFromUrl, loadSession } from './online/session';
 import {
   CIRCUIT_BREAK_ARMS,
   EVENT_TIMING_ARMS,
@@ -38,10 +40,29 @@ function autoStartSettings(): Settings | null {
   };
 }
 
+/**
+ * Two ways to play, and they share nothing but the rules.
+ *
+ * `local` is the hot-seat the designer tests with every day; it is the default
+ * and is unchanged. `online` is the networked client. A stored seat or a
+ * /join/ABCD link opens straight on `online`, because someone arriving that way
+ * has already made the choice.
+ */
+type Mode = 'local' | 'online';
+
+function initialMode(): Mode {
+  if (typeof window === 'undefined') return 'local';
+  if (new URLSearchParams(window.location.search).has('autostart')) return 'local';
+  return codeFromUrl() !== null || loadSession() !== null ? 'online' : 'local';
+}
+
 export function App() {
   const [settings, setSettings] = useState<Settings | null>(autoStartSettings);
+  const [mode, setMode] = useState<Mode>(initialMode);
 
-  if (!settings) return <Setup onStart={setSettings} />;
+  if (!settings && mode === 'online') return <Online onExit={() => setMode('local')} />;
+
+  if (!settings) return <Setup onStart={setSettings} onGoOnline={() => setMode('online')} />;
 
   const cfg: Partial<LaundromatConfig> = {
     circuitBreak: settings.circuitBreak,
@@ -64,7 +85,13 @@ export function App() {
   return <LaundromatClient />;
 }
 
-function Setup({ onStart }: { onStart: (s: Settings) => void }) {
+function Setup({
+  onStart,
+  onGoOnline,
+}: {
+  onStart: (s: Settings) => void;
+  onGoOnline: () => void;
+}) {
   const [players, setPlayers] = useState(4);
   const [arm, setArm] = useState<CircuitBreakArm>('V3');
   const [eventTiming, setEventTiming] = useState<EventTimingArm>('E1');
@@ -76,6 +103,16 @@ function Setup({ onStart }: { onStart: (s: Settings) => void }) {
   return (
     <div className="app setup">
       <h1 style={{ letterSpacing: '0.14em', textTransform: 'uppercase' }}>Laundromat</h1>
+
+      <div className="mode-choice" role="group" aria-label="How to play">
+        <button className="mode-btn active" aria-pressed="true">
+          Play on this device
+        </button>
+        <button className="mode-btn" aria-pressed="false" onClick={onGoOnline}>
+          Play online
+        </button>
+      </div>
+
       <p className="note">
         Local hot-seat. Every player uses this one screen; hands are hidden between turns.
       </p>

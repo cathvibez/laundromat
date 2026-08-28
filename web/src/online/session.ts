@@ -25,12 +25,21 @@ export interface StoredSession {
 /** A day is long enough for "I locked my phone", short enough to not haunt. */
 export const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * `window.localStorage` being present does not mean it works. Safari's private
+ * mode throws on access, some embedded webviews expose an object with no
+ * methods at all, and this project's own test runner supplies exactly such a
+ * stub. Every path here treats a bad store as no store: the player loses the
+ * rejoin offer and nothing else.
+ */
 function storage(): Storage | null {
   try {
-    if (typeof window === 'undefined' || !window.localStorage) return null;
-    return window.localStorage;
+    if (typeof window === 'undefined') return null;
+    const st = window.localStorage;
+    if (!st || typeof st.getItem !== 'function' || typeof st.setItem !== 'function') return null;
+    return st;
   } catch {
-    return null; // Safari private mode throws on access
+    return null;
   }
 }
 
