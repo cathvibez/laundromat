@@ -7,7 +7,17 @@ app = "play-laundromat"
 primary_region = "sjc"
 
 [build]
-  dockerfile = "Dockerfile"
+  # The Dockerfile lives at the REPOSITORY ROOT, one level up, because Docker
+  # only reads the .dockerignore sitting at the build-context root and the two
+  # have to live together. This path is resolved relative to THIS file, while
+  # the build context is the directory you run from — so deploy from the repo
+  # root, not from web/:
+  #
+  #   fly deploy --config web/fly.toml
+  #
+  # Running it from web/ gives the Dockerfile a context with no web/ directory
+  # in it, and every COPY fails.
+  dockerfile = "../Dockerfile"
 
 [env]
   # The server reads PORT. Fly's proxy forwards to internal_port below, so the

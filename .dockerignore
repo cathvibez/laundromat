@@ -1,0 +1,42 @@
+# Build context is the REPOSITORY ROOT (the Dockerfile lives here), so this
+# has to exclude the three quarters of the repo the image does not need.
+# Without it the context is ~200MB of node_modules and art sheets.
+
+# Never. Huge, and the build runs its own `npm ci` anyway.
+**/node_modules
+.git
+.gitignore
+
+# Build outputs — regenerated inside the image.
+web/dist
+web/server-dist
+
+# Not part of the app: the Python oracle and balance sim, the design record and
+# print rulebook, and the art sheets (23MB).
+sim
+design
+assets
+board-game-research.md
+
+# Not needed to build or run the server.
+web/tests
+web/experiments
+web/fly.toml
+web/render.yaml
+web/DEPLOY.md
+web/README.md
+
+# NOT web/tools/ — the build stage runs `npm run build:server`, which is
+# `node tools/build-server.mjs`. Excluding it breaks the image build with
+# MODULE_NOT_FOUND while the client build still succeeds, so the failure reads
+# like a server bug when it is a build-context bug. It never reaches the
+# runtime image: that stage copies only dist/ and server-dist/.
+
+.DS_Store
+**/.DS_Store
+*.local
+**/__pycache__
+Dockerfile
+.dockerignore
+CLAUDE.md
+README.md

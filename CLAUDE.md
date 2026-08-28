@@ -87,7 +87,14 @@ and does exactly that, silently breaking multiplayer. Run
 `fly machines list -a play-laundromat` after every deploy and
 `fly scale count 1` if there are two.
 
-**`tools/` must stay out of `.dockerignore`.** The Docker build stage runs
+**The Dockerfile and `.dockerignore` are at the repository root, not in
+`web/`** — Docker only reads the ignore file at the build-context root, so the
+two must live together. Consequences: every `COPY` in the Dockerfile is
+`web/`-prefixed, `web/fly.toml` points at `../Dockerfile`, and the deploy runs
+from the root as `fly deploy --config web/fly.toml`. Running it from `web/`
+gives the build a context with no `web/` directory and every `COPY` fails.
+
+**`web/tools/` must stay out of `.dockerignore`.** The Docker build stage runs
 `npm run build:server`, which is `node tools/build-server.mjs`. Excluding
 `tools/` makes every image build die with `MODULE_NOT_FOUND` while the client
 build still succeeds, so the error looks like a server-bundle problem. It never

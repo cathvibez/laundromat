@@ -18,16 +18,21 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# The build context is the REPOSITORY ROOT, not web/, because this file sits at
+# the root — Docker only reads the .dockerignore at the context root, so the two
+# have to live together. Every source path below is therefore `web/`-prefixed.
+#
 # Manifests first, so `npm ci` stays cached when only source changes.
-COPY package.json package-lock.json ./
+COPY web/package.json web/package-lock.json ./
 RUN npm ci
 
-# Everything the two builds need. `.dockerignore` trims this to source +
-# config; note that it must NOT exclude tools/, because build:server IS
-# `node tools/build-server.mjs` and the image build dies with MODULE_NOT_FOUND
-# without it — while the client build still succeeds, so the error reads like a
-# server problem when it is a build-context problem.
-COPY . .
+# web/ becomes /app, so the layout inside the image is what the scripts expect.
+# The root .dockerignore trims this to source + config; note that it must NOT
+# exclude web/tools/, because build:server IS `node tools/build-server.mjs` and
+# the image build dies with MODULE_NOT_FOUND without it — while the client build
+# still succeeds, so the error reads like a server problem when it is a
+# build-context problem.
+COPY web/ ./
 
 # `npm run build` is `tsc -b && vite build`. The typecheck is deliberately part
 # of the build: a type error must not be able to reach a deploy.
@@ -48,7 +53,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Production dependencies only: no vite, no vitest, no typescript.
-COPY package.json package-lock.json ./
+COPY web/package.json web/package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 # Only the two build outputs cross the stage boundary. Source, tests, tools and

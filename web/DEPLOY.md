@@ -78,7 +78,10 @@ everything is same-origin.
 
 ## Fly.io
 
-`fly.toml` is committed. Real commands, from `web/`:
+`fly.toml` is committed, and lives here in `web/`. The Dockerfile does **not** —
+it sits at the repository root alongside `.dockerignore`, because Docker only
+reads the ignore file at the build-context root. So `fly deploy` runs from the
+repository root and is pointed at this config:
 
 ```bash
 # once
@@ -86,8 +89,9 @@ brew install flyctl                 # or: curl -L https://fly.io/install.sh | sh
 fly auth login
 fly launch --no-deploy --copy-config --name play-laundromat --region sjc
 
-# every deploy
-fly deploy
+# every deploy — FROM THE REPO ROOT, not web/. The Dockerfile is at the root
+# (it has to sit with the .dockerignore), so the build context is the root too.
+fly deploy --config web/fly.toml
 
 # check it
 fly status
@@ -163,10 +167,10 @@ Render sets `PORT` itself and the server reads it; do not hardcode one.
 ## Docker (anywhere else)
 
 ```bash
-cd web
+# From the repo root: the Dockerfile is there and expects the root as context.
 docker build -t laundromat .
 docker run --rm -p 8000:8000 -e PORT=8000 laundromat
-npm run smoke -- http://127.0.0.1:8000
+cd web && npm run smoke -- http://127.0.0.1:8000
 ```
 
 Two stages: the first runs `npm ci` and `npm run build:all`, the second installs
