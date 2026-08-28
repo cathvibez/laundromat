@@ -4,7 +4,7 @@
 # edit the name below instead and use `fly deploy`.
 
 app = "play-laundromat"
-primary_region = "lhr"
+primary_region = "sjc"
 
 [build]
   dockerfile = "Dockerfile"
