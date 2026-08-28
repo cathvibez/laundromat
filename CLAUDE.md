@@ -88,6 +88,14 @@ and **asks before deploying while any room is open** — a deploy ends every gam
 in progress, and no green test run can tell you that. Do not bypass that prompt
 to save a minute.
 
+**Fly builds the image, not CI.** `fly deploy --remote-only` uploads the build
+context to a Fly builder and pushes to `registry.fly.io`, so nothing needs a
+local Docker daemon. This is a considered choice, not an oversight — the build
+is ~2.5s and the image 48MB, so building in CI would add registry plumbing and
+a tag-drift failure mode to save nothing. `web/DEPLOY.md` has the full
+reasoning and the conditions under which to revisit it (a second environment,
+or wanting the image as a consumable artifact).
+
 ## Constraints and traps
 
 **Exactly one server instance.** Rooms live in a `Map` in `server/rooms.ts` and

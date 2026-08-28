@@ -184,6 +184,47 @@ Render sets `PORT` itself and the server reads it; do not hardcode one.
 
 ---
 
+## Who builds the image
+
+**Fly builds it.** `fly deploy --remote-only` uploads the build context to a
+Fly builder, builds there, and pushes the result to `registry.fly.io`. Nothing
+is built on your machine or in GitHub Actions, which is why deploying works
+with no local Docker daemon at all.
+
+This was chosen over building in CI and pushing to a registry ourselves. The
+reasoning, so nobody re-opens it without new information:
+
+- **The build is not a bottleneck.** Vite builds the client in about 2.5s and
+  esbuild produces the server bundle in single-digit milliseconds; the finished
+  image is 48MB. Moving that into CI to make it faster would save nothing.
+- **It is one step with no registry plumbing** — no second registry to
+  authenticate to, no image tags to keep in sync with the deploy, and no second
+  failure mode when the tag and the release drift apart.
+- **The remote builder is not costing anything measurable.** It does not appear
+  as a persistent app in `fly apps list`.
+
+### When to revisit
+
+Build in CI and deploy a prebuilt image with `fly deploy -i <ref>` if any of
+these become true:
+
+- You want the image as a **consumable artifact** — so a playtester can
+  `docker run` it without a toolchain, or so it can run somewhere other than
+  Fly.
+- You add a **second environment**. Building once and deploying the identical
+  digest to staging and then production is a real guarantee; rebuilding for
+  each is not.
+- You want **build logs and provenance in GitHub** next to the rest of CI.
+- The build gets slow enough that GitHub Actions layer caching would help.
+
+`ghcr.io` is the natural home if that day comes, and it works here *because
+this repository is public* — the package can be public too, so Fly pulls it
+anonymously. **That is load-bearing:** Fly has no clean way to hold
+private-registry pull credentials, so if the repo is ever made private, a
+ghcr-based deploy stops working until the image moves to `registry.fly.io`.
+
+---
+
 ## Docker (anywhere else)
 
 ```bash
