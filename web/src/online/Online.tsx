@@ -679,6 +679,12 @@ function OnlineGame({ net, seat, onLeave }: { net: NetApi; seat: Seat; onLeave: 
    * wifi dipped would be worse than saying nothing.
    */
   useEffect(() => {
+    // Once the answer is known, stop asking. The early return below renders the
+    // "game over" screen but does NOT unmount this component, so without this
+    // guard the interval keeps polling a room that is gone — one 404 every 20
+    // seconds, forever, from every abandoned tab.
+    if (ended) return;
+
     let live = true;
     const id = setInterval(async () => {
       try {
@@ -693,7 +699,7 @@ function OnlineGame({ net, seat, onLeave }: { net: NetApi; seat: Seat; onLeave: 
       live = false;
       clearInterval(id);
     };
-  }, [net, seat.code]);
+  }, [net, seat.code, ended]);
 
   if (ended) {
     return (
