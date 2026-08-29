@@ -11,7 +11,7 @@ import { newGame } from '../../src/rules/setup';
 import { seededRng } from '../../src/rules/rng';
 import { GreedyPolicy, playGame } from '../../src/rules/driver';
 import { assertInvariants, isFinished } from '../../src/rules/phases';
-import type { CircuitBreakArm, EventTimingArm, GameState } from '../../src/rules/types';
+import type { GameState } from '../../src/rules/types';
 
 function run(players: number, seed: number, over = {}): GameState {
   const cfg = defaultConfig(players, over);
@@ -56,30 +56,13 @@ describe('Integrity', () => {
     }
   });
 
-  test('games terminate under every circuit break arm', () => {
-    for (const arm of ['V1', 'V2', 'V3'] as CircuitBreakArm[]) {
-      for (let seed = 0; seed < 6; seed++) {
-        const st = run(5, seed, { circuitBreak: arm });
-        expect(st.over, `arm ${arm} seed ${seed} did not finish`).toBe(true);
-      }
-    }
-  });
-
-  test('games terminate under every event-timing arm', () => {
-    for (const arm of ['E1', 'E2', 'E3'] as EventTimingArm[]) {
-      for (let seed = 0; seed < 6; seed++) {
-        const st = run(5, seed, { eventTiming: arm });
-        expect(st.over, `arm ${arm} seed ${seed} did not finish`).toBe(true);
-        assertInvariants(st);
-      }
-    }
-  });
-
-  test('E2 defers every event to the event phase, E1 defers none', () => {
-    // A drawn event that has not yet resolved is visible as G.revealedEvent at
-    // the end of the roll phase.  Under E1 that can never outlive the turn.
+  test('no event outlives the turn that drew it', () => {
+    // Every event resolves on draw (v10), so an unresolved one is visible as a
+    // non-null G.revealedEvent once the roll phase is over.  It must never be:
+    // drawEvent only draws while revealedEvent is null, so a survivor would
+    // silently suppress every later event for the rest of the game.
     for (let seed = 0; seed < 8; seed++) {
-      const st = run(4, seed, { eventTiming: 'E1' });
+      const st = run(4, seed);
       expect(st.revealedEvent).toBeNull();
     }
   });

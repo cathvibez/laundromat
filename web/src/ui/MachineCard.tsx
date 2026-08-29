@@ -84,7 +84,9 @@ export function MachineCard({
           const verdict: Verdict = live ? (damp ? 'damp' : wash ? 'wash' : 'back') : null;
           const note = [
             netted ? 'in the bag' : '',
-            item.damp ? 'damp' : '',
+            // Damp is the machine's doing, not the sock's: it stays put while a
+            // blanket is in here, and washes on the first night without one.
+            damp ? 'stays in until the blanket goes' : '',
             ghost ? 'not committed' : '',
           ]
             .filter(Boolean)

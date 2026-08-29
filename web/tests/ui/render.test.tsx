@@ -34,6 +34,15 @@ describe('UI', () => {
     expect(screen.getByText(/FLAT PLACEHOLDER/i)).toBeTruthy();
   });
 
+  test('the setup screen offers no rule switches — only the seat count', () => {
+    render(<App />);
+    // The four A/B and sensitivity controls were resolved and deleted in v10.
+    expect(screen.queryByLabelText(/Circuit break/i)).toBeNull();
+    expect(screen.queryByLabelText(/Event timing/i)).toBeNull();
+    expect(screen.queryByText(/Sensitivity switches/i)).toBeNull();
+    expect(screen.getByText('Players')).toBeTruthy();
+  });
+
   test('the board renders every machine, the key, the day and the hand', () => {
     mountGame(4);
     // Hot-seat privacy screen first.
@@ -45,7 +54,8 @@ describe('UI', () => {
     for (let i = 1; i <= 5; i++) expect(screen.getByText(`M${i}`)).toBeTruthy();
     expect(screen.getAllByText('0/4').length).toBe(5);
     expect(screen.getByText(/Player 1 · hand/)).toBeTruthy();
-    expect(screen.getByText(/Damp zone · public/)).toBeTruthy();
+    // No damp zone: socks stranded by a blanket stay in the machine (v10).
+    expect(screen.queryByText(/Damp zone/)).toBeNull();
     expect(screen.getByText(/Fresh · drawn today/)).toBeTruthy();
     expect(screen.getByText(/Ready · playable/)).toBeTruthy();
   });

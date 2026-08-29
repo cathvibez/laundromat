@@ -31,7 +31,7 @@ export function newGame(cfg: LaundromatConfig, rng: Rng): GameState {
     const deck: ItemCard[] = [];
     for (const type of TYPE_NAMES) {
       for (const shade of SHADES) {
-        deck.push({ id: itemId(pid, type, shade), owner: pid, type, shade, damp: false });
+        deck.push({ id: itemId(pid, type, shade), owner: pid, type, shade });
       }
     }
     for (const card of deck) items[card.id] = card;
@@ -42,7 +42,6 @@ export function newGame(cfg: LaundromatConfig, rng: Rng): GameState {
     players.push({
       id: pid,
       hand,
-      damp: [],
       clean: [],
       mustWash: [...hand],
       fresh: [],
@@ -78,7 +77,6 @@ export function newGame(cfg: LaundromatConfig, rng: Rng): GameState {
     jimothyArrived: null,
     gangUsed: false,
     cbBlackout: false,
-    cbRestoreDay: null,
     over: false,
     winners: [],
     lastEvent: null,

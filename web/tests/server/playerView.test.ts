@@ -2,7 +2,7 @@
  * Hidden information.
  *
  * Laundromat is open information ON PURPOSE.  Every loaded item, every washer's
- * power, every clean pile, every damp sock, every fresh card is public, and the
+ * power, every clean pile, every stranded sock, every fresh card is public, and the
  * UI is allowed to show all of it.  The single exception is the contents of a
  * hand — plus `ready`, which is the physical game's hidden hand of playable
  * specials.
@@ -123,7 +123,6 @@ describe('playerView', () => {
 
     // Every public zone is byte-identical for a player who is not in it.
     for (const other of [0, 2, 3]) {
-      expect(G.players[other].damp).toEqual(truth.players[other].damp);
       expect(G.players[other].clean).toEqual(truth.players[other].clean);
       expect(G.players[other].mustWash).toEqual(truth.players[other].mustWash);
       expect(G.players[other].fresh).toEqual(truth.players[other].fresh);
@@ -150,11 +149,11 @@ describe('what the hidden hand does NOT protect (known, documented)', () => {
   /**
    * `mustWash` is a PUBLIC copy of the starting hand ([A-02]; rules-v0.4 §126
    * calls the must-wash set canonical and fixed for the game), and every route
-   * out of a hand — into a machine, into `clean`, into `damp` — is public too.
+   * out of a hand — into a machine, or into `clean` — is public too.
    *
    * So an opponent can compute a hand exactly:
    *
-   *     hand = mustWash \ (clean u damp u everything loaded in a machine)
+   *     hand = mustWash \ (clean u everything loaded in a machine)
    *
    * The `hidden` masking above is therefore honest about the WIRE FORMAT and
    * nothing more: the identities are absent from the payload, but they are
@@ -172,9 +171,12 @@ describe('what the hidden hand does NOT protect (known, documented)', () => {
     const target = 2;
 
     const loaded = new Set(G.machines.flatMap((m) => m.items));
+    /*
+     * Socks stranded by a blanket are inside `loaded` — they never leave the
+     * machine now, so there is no separate damp zone term in this deduction.
+     */
     const gone = new Set([
       ...G.players[target].clean,
-      ...G.players[target].damp,
       ...[...loaded].filter((id) => id.startsWith(`${target}-`)),
     ]);
     const derived = G.players[target].mustWash.filter((id) => !gone.has(id));

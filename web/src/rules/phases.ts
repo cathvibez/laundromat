@@ -43,7 +43,13 @@ export function log(st: GameState, text: string): void {
 export function opts(st: GameState): ReckoningOpts {
   return {
     bleachKillsDark: st.cfg.bleachKillsDark,
-    sanitizerOwnerOnly: st.cfg.sanitizerOwnerOnly,
+    /*
+     * Always false, and there is no config field to make it true. Sanitizer is
+     * machine-wide (v10). The option survives on ReckoningOpts only because the
+     * parity fixtures and the Python oracle both exercise the owner-only
+     * reading; see the note on LaundromatConfig in types.ts.
+     */
+    sanitizerOwnerOnly: false,
     crowdThreshold: st.cfg.crowdThreshold,
     meshBag: st.cfg.meshBagRule,
     ownItemsDontTaint: st.cfg.ownItemsDontTaint,
@@ -84,21 +90,22 @@ export function currentTier(st: GameState, m: Machine) {
   return tierOf(machineContents(st, m), cardsKeyOf(m), opts(st));
 }
 
-/** Where a returned item goes: the public damp zone if it is damp, else the hand. */
+/**
+ * Where a returned item goes: the owner's hand, always.
+ *
+ * There used to be a second destination, a public damp zone. v10 removed it:
+ * damp socks no longer come home at all, they stay in the machine, so the only
+ * items that travel are ones the verdict sent back — and those are ordinary.
+ */
 function returnToOwner(st: GameState, id: ItemId): void {
   const item = st.items[id];
   const p = st.players[item.owner];
-  if (item.damp && st.cfg.publicDampZone) {
-    if (!p.damp.includes(id)) p.damp.push(id);
-  } else if (!p.hand.includes(id)) {
-    p.hand.push(id);
-  }
+  if (!p.hand.includes(id)) p.hand.push(id);
 }
 
 function removeFromZones(st: GameState, pid: PlayerId, id: ItemId): void {
   const p = st.players[pid];
   p.hand = p.hand.filter((x) => x !== id);
-  p.damp = p.damp.filter((x) => x !== id);
 }
 
 function recycleCards(st: GameState, m: Machine, rng: Rng): void {
@@ -299,9 +306,15 @@ export function loadItem(st: GameState, pid: PlayerId, id: ItemId, mi: number, r
   advanceIfDone(st, rng);
 }
 
+/*
+ * No "(damp)" suffix any more.  Damp is a fact about a machine that contains a
+ * blanket, not about the sock, so it cannot be read off an item in isolation —
+ * `selectors.willBeDamp()` needs the machine.  The UI labels the sock where it
+ * sits instead.
+ */
 export function describe(item: ItemCard): string {
   const shade = item.shade === 'D' ? 'dark' : 'light';
-  return `${shade} ${item.type}${item.damp ? ' (damp)' : ''}`;
+  return `${shade} ${item.type}`;
 }
 
 /** Face 4.  The move is optional; hostages are frozen; dead machines are out. */
@@ -353,28 +366,16 @@ export function keepSpecial(st: GameState, keep: SpecialName, rng: Rng): void {
 }
 
 /**
- * EXPERIMENT B: does this event resolve the moment it is drawn?
- *   E1 always; E2 never; E3 only when nobody has to choose a washer, i.e. the
- *   untargeted events (Circuit break, Animal control).
- */
-export function resolvesOnDraw(st: GameState): boolean {
-  switch (st.cfg.eventTiming) {
-    case 'E1':
-      return true;
-    case 'E3':
-      return !eventNeedsChoice(st);
-    default:
-      return false;
-  }
-}
-
-/**
- * Face 6: only the FIRST 6 of the day draws.  Revealed the moment it is drawn
- * in every arm.
+ * Face 6: only the FIRST 6 of the day draws.
  *
- * If the arm resolves it now and it needs a washer chosen (Gang, Jimothy), the
- * turn parks until the drawer chooses; otherwise it fires on the spot and the
- * turn continues.  Otherwise it waits for the event phase.
+ * RESOLVED v10: every event resolves the moment its card is drawn, mid-turn.
+ * There is no deferred path any more — the arms that waited until everyone had
+ * loaded are gone.  What this buys is that a counter-card played later the same
+ * day can still answer the event, which is the whole reason the arm was chosen.
+ *
+ * Gang and Jimothy need a washer chosen, and the DRAWER chooses it.  The turn
+ * parks (`pendingEvent`) until they do; `resolveEventNow` below is their answer.
+ * Everything else fires on the spot and the turn carries on.
  */
 export function drawEvent(st: GameState, rng: Rng): void {
   const t = st.turn!;
@@ -384,13 +385,11 @@ export function drawEvent(st: GameState, rng: Rng): void {
     st.eventDrawer = t.player;
     log(st, `Player ${t.player + 1} drew an event: ${st.revealedEvent}.`);
 
-    if (resolvesOnDraw(st)) {
-      if (eventNeedsChoice(st)) {
-        t.pendingEvent = true; // wait for the drawer's choice
-        return;
-      }
-      phaseEvent(st, {}, rng);
+    if (eventNeedsChoice(st)) {
+      t.pendingEvent = true; // wait for the drawer's choice
+      return;
     }
+    phaseEvent(st, {}, rng);
   } else {
     log(st, `Player ${t.player + 1} rolled a 6, but an event has already happened today.`);
   }
@@ -595,25 +594,18 @@ function resolveGang(st: GameState, choice: EventChoice, rng: Rng): void {
   // never returns to the deck
 }
 
+/*
+ * RESOLVED v10.  The night is cancelled and nothing else happens.
+ *
+ * Note what is deliberately absent: no machine's power is touched.  Two of the
+ * three arms this replaces switched every washer OFF and then argued about how
+ * they came back on; this one leaves the board exactly as it found it, so the
+ * cost of a Circuit break is precisely one night's washing and tomorrow needs
+ * no recovery at all.  Contents stay in their machines, as they always did.
+ */
 function resolveCircuitBreak(st: GameState, rng: Rng): void {
-  const arm = st.cfg.circuitBreak;
-  if (arm === 'V1') {
-    st.cbBlackout = true;
-    log(st, 'CIRCUIT BREAK (V1 blackout): tonight nothing reckons. Power is untouched.');
-  } else {
-    for (const m of st.machines) {
-      if (!m.dead) m.on = false;
-    }
-    if (arm === 'V3') {
-      st.cbRestoreDay = st.day + 1;
-      log(
-        st,
-        'CIRCUIT BREAK (V3 auto-restore): every washer is off. They all come back on at the end of tomorrow.',
-      );
-    } else {
-      log(st, 'CIRCUIT BREAK (V2): every washer is off. The keyholder restores one per day.');
-    }
-  }
+  st.cbBlackout = true;
+  log(st, 'CIRCUIT BREAK: tonight nothing reckons. The power itself is untouched.');
   st.eventDeck.push('Circuit break');
   st.eventDeck = rng.shuffle(st.eventDeck);
 }
@@ -703,27 +695,50 @@ export function phaseReckon(st: GameState, rng: Rng): MachineResult[] {
     // washing.  Keying on another item's verdict would break commutativity.
     const machineHadBlanket = contents.some((x) => x.type === 'blanket');
 
+    /*
+     * REVISED v10.  Socks that would have washed beside a blanket do not wash
+     * and DO NOT LEAVE.  They stay in this machine, as ordinary dirty socks,
+     * for as long as it takes: a later night with no blanket in here washes
+     * them normally, and a blanket returning makes them damp again.
+     *
+     * Note the interaction with the verdict, which is the part that is easy to
+     * get wrong.  A sock the verdict SENT BACK is not damp and is not stuck —
+     * it goes home like any other rejected item.  Only a sock that earned its
+     * wash and was denied it by the blanket stays behind.  So "sent back" keeps
+     * meaning exactly one thing.
+     */
+    const stuck: ItemId[] = [];
+
     const outcomes: MachineResult['outcomes'] = [];
     contents.forEach((item, i) => {
       const p = st.players[item.owner];
       if (!verdicts[i]) {
-        returnToOwner(st, item.id); // damp socks stay damp
+        returnToOwner(st, item.id);
         outcomes.push({ item: item.id, outcome: 'sentBack' });
         return;
       }
-      if (st.cfg.socksBlanketExtraWash && item.type === 'socks' && machineHadBlanket && !item.damp) {
-        item.damp = true;
-        returnToOwner(st, item.id);
+      if (st.cfg.socksBlanketExtraWash && item.type === 'socks' && machineHadBlanket) {
+        stuck.push(item.id);
         outcomes.push({ item: item.id, outcome: 'damp' });
         return;
       }
-      item.damp = false;
       if (!p.clean.includes(item.id)) p.clean.push(item.id);
       outcomes.push({ item: item.id, outcome: 'washed' });
     });
 
-    m.items = [];
-    m.netProtected = [];
+    // Post-condition of the rule above: nothing but socks can be left behind.
+    for (const id of stuck) {
+      if (st.items[id].type !== 'socks') throw new Error('I-5: only socks stay in a machine');
+    }
+    m.items = stuck;
+    /*
+     * Filtered, not cleared.  A bag protects what its owner loaded on the turn
+     * it was played; the card itself is recycled below, so an id left in here
+     * would silently guarantee a wash on some future night when no bag is in
+     * play.  In practice `stuck` holds socks and bagged socks are rare, but the
+     * cheap filter is worth more than the reasoning about when it cannot happen.
+     */
+    m.netProtected = m.netProtected.filter((id) => stuck.includes(id));
     recycleCards(st, m, rng);
     results.push({ machine: m.id, skipped: null, tier, outcomes });
   }
@@ -741,12 +756,7 @@ export function phaseReckon(st: GameState, rng: Rng): MachineResult[] {
 // ---------------------------------------------------------------------------
 
 export function phaseEndOfDay(st: GameState): void {
-  // Circuit break arm V3: everything comes back on after the following reckoning.
-  if (st.cbRestoreDay === st.day) {
-    for (const m of st.machines) if (!m.dead) m.on = true;
-    st.cbRestoreDay = null;
-    log(st, 'The power is restored: every surviving washer is back on.');
-  }
+  // Nothing to restore: a Circuit break never switched anything off (v10).
 
   // 1. Victory check, AFTER the full reckoning [A-W14], section 8.6.
   for (const p of st.players) {
@@ -799,17 +809,21 @@ export function assertInvariants(st: GameState): void {
     if (contents.length > st.cfg.capacity) throw new Error('I-3: over capacity');
     if (m.dead && m.items.length > 0) throw new Error('dead machines hold nothing');
   }
-  for (const item of Object.values(st.items)) {
-    if (item.damp && item.type !== 'socks') throw new Error('I-5: only socks are damp');
-  }
+  /*
+   * I-5 is gone with the field it guarded ("only socks are ever damp").  Damp is
+   * no longer stored on an item, so there is nothing here to check: a machine
+   * legitimately holds any mix of items all day long, and the fact that only
+   * socks SURVIVE a reckoning is a post-condition of phaseReckon, asserted there
+   * rather than at arbitrary moments by this function.
+   */
   for (const p of st.players) {
     const loaded = st.machines.flatMap((m) => m.items).filter((id) => st.items[id].owner === p.id);
-    const seen = new Set([...p.hand, ...p.damp, ...loaded, ...p.clean]);
+    const seen = new Set([...p.hand, ...loaded, ...p.clean]);
     if (seen.size !== p.mustWash.length || !p.mustWash.every((id) => seen.has(id))) {
       throw new Error(`I-1/I-9 conservation broken for player ${p.id}`);
     }
     const cleanSet = new Set(p.clean);
-    if ([...p.hand, ...p.damp].some((id) => cleanSet.has(id))) {
+    if (p.hand.some((id) => cleanSet.has(id))) {
       throw new Error('I-1: an item is both clean and in hand');
     }
   }

@@ -34,7 +34,7 @@ function fixedDie(face: number, base: Rng = seededRng(7)): Rng {
   return { ...base, die: () => face };
 }
 
-describe('SocksAndBlankets (placement and damp)', () => {
+describe('SocksAndBlankets (placement, and socks stranded by a blanket)', () => {
   test('S1 socks may join a blanket machine', () => {
     const rg = rig();
     put(rg, 0, it_('A-D-blanket'));
@@ -59,23 +59,34 @@ describe('SocksAndBlankets (placement and damp)', () => {
     expect(machineAccepts(rg2.st, 0, '1-blanket-D')).toBe(false);
   });
 
-  test('S4 socks beside a blanket need one more wash', () => {
+  /*
+   * S4-S12 pin the v10 socks rule.  It replaced "washed beside a blanket, comes
+   * out damp, needs a second wash somewhere" with "does not wash beside a
+   * blanket, and stays in the machine until a night without one".  The ids are
+   * kept because this suite is name-matched to sim/test_rules.py.
+   */
+  test('S4 socks beside a blanket do not wash and stay in the machine', () => {
     const rg = rig();
     const b = put(rg, 0, it_('A-D-blanket'));
     const s = put(rg, 0, it_('B-D-socks'));
     phaseReckon(rg.st, rg.rng);
     expect(cleanOf(rg, 0).has(b.id)).toBe(true);
-    expect(rg.st.items[s.id].damp).toBe(true);
+    // The socks went nowhere: not clean, not in a hand, still in the drum.
     expect(cleanOf(rg, 1).has(s.id)).toBe(false);
-    expect(handOf(rg, 1).has(s.id)).toBe(true);
+    expect(handOf(rg, 1).has(s.id)).toBe(false);
+    expect(rg.st.machines[0].items).toEqual([s.id]);
   });
 
-  test('S5 the additional wash may be an ordinary one', () => {
+  test('S5 socks left behind wash on a later night with no blanket', () => {
     const rg = rig();
-    const s = put(rg, 0, it_('B-D-socks', true));
-    phaseReckon(rg.st, rg.rng);
+    put(rg, 0, it_('A-D-blanket'));
+    const s = put(rg, 0, it_('B-D-socks'));
+    phaseReckon(rg.st, rg.rng); // blanket washes away, socks stay
+    expect(rg.st.machines[0].items).toEqual([s.id]);
+
+    phaseReckon(rg.st, rg.rng); // same machine, no blanket in it now
     expect(cleanOf(rg, 1).has(s.id)).toBe(true);
-    expect(rg.st.items[s.id].damp).toBe(false);
+    expect(rg.st.machines[0].items).toEqual([]);
   });
 
   test('S6 socks without a blanket are clean in one wash', () => {
@@ -85,12 +96,61 @@ describe('SocksAndBlankets (placement and damp)', () => {
     expect(cleanOf(rg, 1).has(s.id)).toBe(true);
   });
 
-  test('S9 damp socks complete even in a second blanket machine', () => {
+  test('S9 a blanket loaded in again strands the same socks again', () => {
     const rg = rig();
     put(rg, 0, it_('A-D-blanket'));
-    const s = put(rg, 0, it_('A-D-socks', true));
+    const s = put(rg, 0, it_('B-D-socks'));
     phaseReckon(rg.st, rg.rng);
-    expect(cleanOf(rg, 0).has(s.id)).toBe(true);
+    expect(rg.st.machines[0].items).toEqual([s.id]);
+
+    const b2 = put(rg, 0, it_('C-D-blanket'));
+    phaseReckon(rg.st, rg.rng);
+    expect(cleanOf(rg, 2).has(b2.id)).toBe(true);
+    expect(rg.st.machines[0].items).toEqual([s.id]);
+    expect(cleanOf(rg, 1).has(s.id)).toBe(false);
+  });
+
+  test('S10 stranded socks are ordinary contents: they take up room and crowd', () => {
+    const rg = rig();
+    put(rg, 0, it_('A-D-blanket'));
+    const s = put(rg, 0, it_('B-D-socks'));
+    phaseReckon(rg.st, rg.rng);
+    expect(rg.st.machines[0].items).toEqual([s.id]);
+
+    // They occupy a slot like anything else.
+    expect(rg.st.machines[0].items.length).toBe(1);
+
+    // And they count for crowding: a third pair sends all three back.
+    put(rg, 0, it_('A-D-socks'));
+    put(rg, 0, it_('C-D-socks'));
+    phaseReckon(rg.st, rg.rng);
+    expect(cleanOf(rg, 1).has(s.id)).toBe(false);
+    expect(handOf(rg, 1).has(s.id)).toBe(true);
+  });
+
+  test('S11 socks the verdict SENDS BACK are not stranded — they go home', () => {
+    const rg = rig();
+    // A dark blanket beats light socks on the ladder, so the socks lose the
+    // verdict.  Losing the verdict is not the same as being held by the
+    // blanket, and only the latter keeps an item in the drum.
+    put(rg, 0, it_('A-D-blanket'));
+    const s = put(rg, 0, it_('B-L-socks'));
+    phaseReckon(rg.st, rg.rng);
+    expect(handOf(rg, 1).has(s.id)).toBe(true);
+    expect(rg.st.machines[0].items).toEqual([]);
+  });
+
+  test('S12 the Gang frees socks stranded in the machine it destroys', () => {
+    const rg = rig();
+    put(rg, 0, it_('A-D-blanket'));
+    const s = put(rg, 0, it_('B-D-socks'));
+    phaseReckon(rg.st, rg.rng);
+    expect(rg.st.machines[0].items).toEqual([s.id]);
+
+    fire(rg, 'Gang', { machine: 0 });
+    expect(handOf(rg, 1).has(s.id)).toBe(true);
+    expect(rg.st.machines[0].dead).toBe(true);
+    expect(rg.st.machines[0].items).toEqual([]);
   });
 });
 
@@ -155,26 +215,22 @@ describe('Gang', () => {
 });
 
 describe('CircuitBreak', () => {
-  test('C1 every machine switches off and keeps its contents (V2)', () => {
-    const rg = rig(3, { circuitBreak: 'V2' });
-    const x = put(rg, 0, it_('C-D-hats'));
+  /*
+   * C1/C2/C6 tested arms V2 and V3, which v10 deleted.  What replaced them is
+   * one rule, and C5 below is now the whole of it: the night is cancelled and
+   * NOTHING ELSE HAPPENS.  The property worth pinning hardest is the negative
+   * one — no machine changes power — because that is exactly what the two
+   * deleted arms did do, and it is the thing a future "fix" would reintroduce.
+   */
+  test('C1 a circuit break changes no machine\'s power, on or off', () => {
+    const rg = rig();
+    // One machine deliberately already off: it must still be off afterwards,
+    // and must not be switched on by any restore logic either.
+    setPower(rg.st, 1, false);
     fire(rg, 'Circuit break');
-    expect(rg.st.machines.every((m) => !m.on)).toBe(true);
-    phaseReckon(rg.st, rg.rng);
-    expect(rg.st.machines[0].items.length).toBe(1);
-    expect(cleanOf(rg, 2).has(x.id)).toBe(false);
-  });
-
-  test('C2 recovery is one machine per day (V2)', () => {
-    const rg = rig(6, { circuitBreak: 'V2' });
-    fire(rg, 'Circuit break');
-    let days = 0;
-    while (rg.st.machines.some((m) => !m.on) && days < 30) {
-      const off = rg.st.machines.find((m) => !m.dead && !m.on)!;
-      setPower(rg.st, off.id, true);
-      days += 1;
-    }
-    expect(days).toBe(7);
+    expect(rg.st.machines[0].on).toBe(true);
+    expect(rg.st.machines[1].on).toBe(false);
+    expect(rg.st.machines.slice(2).every((m) => m.on)).toBe(true);
   });
 
   test('C3 circuit break returns to the deck', () => {
@@ -191,8 +247,8 @@ describe('CircuitBreak', () => {
     expect(rg.st.jimothyAt).toBe(0);
   });
 
-  test('C5 V1 blackout cancels tonight only, power untouched', () => {
-    const rg = rig(3, { circuitBreak: 'V1' });
+  test('C5 the blackout cancels tonight only, and tomorrow is normal', () => {
+    const rg = rig();
     const x = put(rg, 0, it_('C-D-hats'));
     fire(rg, 'Circuit break');
     expect(rg.st.machines.every((m) => m.on)).toBe(true);
@@ -204,16 +260,16 @@ describe('CircuitBreak', () => {
     expect(cleanOf(rg, 2).has(x.id)).toBe(true);
   });
 
-  test('C6 V3 auto-restore brings everything back the following day', () => {
-    const rg = rig(3, { circuitBreak: 'V3' });
+  test('C6 contents are kept, and there is nothing to restore afterwards', () => {
+    const rg = rig();
+    const x = put(rg, 0, it_('C-D-hats'));
     rg.st.day = 5;
     fire(rg, 'Circuit break');
-    expect(rg.st.machines.every((m) => !m.on)).toBe(true);
-    expect(rg.st.cbRestoreDay).toBe(6);
-    phaseEndOfDay(rg.st); // end of day 5: not yet
-    expect(rg.st.machines.every((m) => !m.on)).toBe(true);
-    rg.st.day = 6;
-    phaseEndOfDay(rg.st); // end of the following day: all back on
+    phaseReckon(rg.st, rg.rng);
+    expect(rg.st.machines[0].items).toContain(x.id);
+    // phaseEndOfDay used to restore power here under V3.  Nothing was ever
+    // switched off, so there is nothing for it to do and the board is unchanged.
+    phaseEndOfDay(rg.st);
     expect(rg.st.machines.every((m) => m.on)).toBe(true);
   });
 });

@@ -1,11 +1,17 @@
-# Laundromat — Design Brief v9
+# Laundromat — Design Brief v10
 
-Ground truth for all design work. Supersedes v0–v8.
+Ground truth for all design work. Supersedes v0–v9.
 **Status: physically playtested many times with paper cards. The core loop is confirmed fun.**
 
 **OPEN** = unresolved. Propose a default and flag it; do not invent silently.
 
-> **v9 brings this document in line with the web prototype**, which the designer has been
+> **v10 closes three long-open questions and changes one rule.** Event timing, the circuit
+> break arm and Sanitizer scope are all resolved, and their alternatives are deleted rather
+> than left as switches — the app no longer offers them at setup. The damp-socks rule is
+> replaced outright: socks beside a blanket now stay in the washer instead of coming back
+> damp. See §4, §5, §6 and §7.
+>
+> **v9 brought this document in line with the web prototype**, which the designer has been
 > playing and steering directly. The Python simulation (`sim/rules.py`) is **behind** on
 > several of these rules and has not been updated. Before trusting any balance number,
 > read `design/implementation-status.md` — it lists, rule by rule, where the brief, the
@@ -59,7 +65,7 @@ Each player draws **10 of their 14 items at random.** Only those 10 must be wash
 
 ### Card sort order — NEW v9
 
-Hands, damp zones and clean piles are displayed in one fixed order, by how much the item
+Hands, washer contents and clean piles are displayed in one fixed order, by how much the item
 dominates a reckoning:
 
 > **dark shoes → light shoes → dark clothing and dark blanket → light clothing and light
@@ -152,33 +158,30 @@ shade** — all of them are sent back during reckoning (if the machine is on).
 4. **Reckoning** — each ON machine resolves.
 5. **End of day** — fresh cards promote to ready; the key passes to the next player.
 
-### Event timing — OPEN, NEW A/B in v9
+### Event timing — RESOLVED v10
 
-The event card is **revealed the instant it is drawn** under every arm. That is settled and
-is not what is being tested. What is being tested is the gap between reveal and resolution.
+An event card is **revealed and resolved the instant it is drawn**, mid-turn. Players who
+have not yet acted play into the changed board.
 
-| Arm | Rule |
-|---|---|
-| **E1 "immediate"** | The event fires the moment it is drawn, mid-turn. The drawer names Gang's or Jimothy's washer there and then, and players who have not yet acted play into the changed board. |
-| **E2 "deferred"** | The event fires after every player has taken their turn, immediately before the keyholder acts. **This is v8 as written, and the only arm `sim/rules.py` implements.** |
-| **E3 "split"** | Circuit break and Animal control fire on draw; Gang and Jimothy wait until everyone has loaded. |
+**The drawer chooses the washer** for the Gang and for Jimothy, on the spot.
 
-> **OPEN — event timing.** All three arms are implemented and playable in the app and are
-> selectable at setup. **The app's default is E1**, at the designer's instruction. Nothing
-> has been simulated; the write-up in `web/experiments/experiment-B-event-timing.md` is
-> reasoning, not measurement.
+> **RESOLVED v10.** This was arm E1 of a three-way A/B (immediate / deferred / split). E2
+> and E3 are deleted from the app; git history keeps them.
 >
-> The case for **E1** is that it is the only arm under which a special item can answer an
-> event at all: under E2 no Coin can restore power after a Circuit break and no Snacc can
-> move Jimothy on the day he lands. The case for **E2** is fairness and dread — the event
-> lands after everyone has had the same chance to load, and a revealed-but-unresolved event
-> makes people load under real uncertainty.
+> The case that won: this is the only reading under which a special item can answer an
+> event at all. Under the deferred arms no Coin could restore power after a Circuit break
+> and no Snacc could move Jimothy on the day he landed, which made two cards dead against
+> the events they most obviously address.
 >
-> **E1's known cost is a seat-order asymmetry** — players who have already acted lose their
-> loading with no recourse. The mitigation — **keyholder-first acting order** — is now a
-> settled rule rather than a switch (see §4), so this objection is largely answered.
-> *The app currently runs E1 with fixed seat order,
-> i.e. the unmitigated combination.* That pairing is itself an open decision.
+> **The known cost is a seat-order asymmetry** — players who have already acted lose their
+> loading with no recourse. The mitigation, **keyholder-first acting order**, is a settled
+> rule (§4) and is what the app ships, so the unmitigated pairing the v9 brief worried
+> about no longer exists.
+>
+> **Nothing here was simulated.** `sim/rules.py` still implements only the deferred arm, so
+> every day-level number in `sim/out/` still describes a different game. The write-up in
+> `web/experiments/experiment-B-event-timing.md` is reasoning, not measurement, and is kept
+> for its argument rather than its conclusions.
 
 ---
 
@@ -208,18 +211,34 @@ regardless of any of the above.
 holding a blanket, and a blanket may be added to a machine already holding socks. This is
 the only exception to blanket exclusivity.
 
-**Socks washed alongside a blanket require one additional wash.** After the blanket washes,
-those socks are not yet clean — they need one more wash to finish. The rule keys on the
-machine **containing** a blanket, not on the blanket itself washing.
+**Socks do not wash in a machine containing a blanket — REVISED v10.** They are damp, and
+they **stay in the washer**. They do not come back to their owner and they do not go to the
+clean pile; they simply remain in the drum. The rule keys on the machine **containing** a
+blanket, not on the blanket itself washing.
 
-**Damp socks sit in a face-up damp zone — NEW v9.** They are loadable exactly like the hand,
-but they are public. Damp is the only persistent per-item state in the game, and keeping it
-public is what makes the physical version enforceable. No reckoning outcome changes either
-way; the app can be switched back to keeping them hidden in hand.
+They sit there as ordinary dirty socks. The first night that washer runs **without** a
+blanket in it, they wash normally. If a blanket is loaded in again first, they are damp
+again that night and stay again.
+
+> **This replaces v9's "one additional wash" plus a face-up damp zone.** Damp is no longer
+> a property of a sock that travels with it — there is nothing to mark and nothing to
+> track between zones. It is a property of the situation: socks, in that washer, with a
+> blanket. At the table you can read it off the board, which is what the damp zone was
+> trying to buy and now costs nothing.
+>
+> **Consequence worth playing before signing off:** stranded socks occupy a slot and count
+> for crowding, and a player who keeps loading blankets into the same washer keeps someone
+> else's socks hostage in it. Bot games terminate normally, but whether this is a good
+> pattern is a table question, not a code one.
+
+**Socks that the reckoning SENDS BACK are not stranded.** Losing the verdict and being held
+by a blanket are different things: a sock the ladder rejects returns to its owner's hand
+like any other rejected item.
 
 Sent-back items return **straight to the owner's hand with no penalty.**
 
-**Invariant:** every ON machine is empty after reckoning.
+**Invariant:** every ON machine is empty after reckoning, **except for socks a blanket has
+stranded in it.**
 
 ---
 
@@ -259,22 +278,23 @@ and the app now disagree about this card's **name** as well as its **effect**.
 > everyone else's laundry back. The alternative is that bagged items are lifted out of
 > consideration entirely, so the rest of the machine resolves as if they were not there.
 
-> **OPEN — do bagged socks beside a blanket still come out damp?** Currently **yes**: damp
-> is treated as "needs two washes" rather than as a taint, so the bag does not override it.
+> **RESOLVED v10 — a Mesh bag does not save socks from a blanket.** It is structural rather
+> than a ruling: the bag guarantees a **verdict**, and being stranded by a blanket happens
+> after the verdict, to items that passed it. Bagged socks beside a blanket stay in the
+> washer like any others.
 
 > **[!] BALANCE FLAG — the Mesh bag is now comfortably the strongest card in the game.**
 > Roll a 3, play the bag, load three items: three of the ten washes you need, guaranteed,
 > with no counterplay — against a baseline of roughly **1.5 loads per player-day**, only
-> some of which wash. It is also the only way to wash underwear, blankets and damp socks on
-> demand. At the placeholder 3-of-20 it is expected to dominate.
+> some of which wash. It is also the only way to wash underwear and blankets on demand. At the placeholder 3-of-20 it is expected to dominate.
 > **This is the web agent's judgement, not a measurement.** Note the precedent: the Handwash
 > basket was deleted in v8 for exactly this failure mode, measured at 10–28 plays per game
 > supplying 33–47% of all washing. The Mesh bag washes *three* items per play, not one.
 
-> **OPEN — Sanitizer scope.** Does it suppress tiers 1–2 so the machine resolves on
-> dark/light alone (machine-wide), or does it protect only the player who played it
-> (like Color catcher)? Default implemented: **machine-wide**, tiers 1–2 suppressed,
-> resolution proceeds at tier 3.
+> **RESOLVED v10 — Sanitizer is machine-wide.** It suppresses tiers 1–2 for **everything
+> in that washer, whoever owns it**, and resolution proceeds at tier 3. The owner-only
+> reading is rejected: as `rules-v0.4 [OQ-01]` argued, it puts two tiers in one machine,
+> which is exactly the property that lets a table resolve a wash by eye.
 
 > **RESOLVED v8 — Coin is a one-shot.** Played on the owner's turn as they load, resolved
 > immediately, returned to the deck. It is not held or reusable. This avoids creating a
@@ -298,37 +318,29 @@ immediately; resolves in phase 2. Event cards shuffle back into the deck after r
 | Card | Effect |
 |---|---|
 | **Gang** | The drawer picks one washer for the gang to hide behind. It is shot and **out of the game permanently.** Its contents return to their owners. The Gang card stays on that washer. Gang happens **only once** and never returns to the deck. |
-| **Circuit break** | *(replaces Electricity)* Every washer switches **OFF.** Machines retain their contents. **Under A/B test — see below.** |
+| **Circuit break** | *(replaces Electricity)* **The night is cancelled: nothing reckons.** No washer changes power and every machine keeps its contents. The next day is normal. **REVISED v10 — see below.** |
 | **Jimothy** | Jimothy occupies a machine. See below. |
 | **Animal control** | Removes Jimothy outright; hostage items return to their owners' hands, unwashed. |
 
-> **OPEN — Circuit break is under A/B test.** All three arms are implemented in both the app
-> and the simulation, and are selectable at setup. Contents are retained under every arm.
-> **V1 "blackout"** — only that night's reckoning is cancelled; machine power states are
-> untouched and everything resumes normally the next day.
-> **V2 "all off"** — every washer switches OFF and the keyholder restores one per day.
-> This is the rule as the card text below still reads, and it is the **simulation's**
-> default.
-> **V3 "auto-restore"** — all off, but every surviving washer comes back on at the end of
-> the following day's reckoning.
+> **RESOLVED v10 — Circuit break cancels the night and nothing else.** Nothing washes that
+> night. **No machine's power state changes**, so there is nothing to restore and the next
+> day runs exactly as it would have. Contents stay in their machines.
 >
-> **The app defaults to V3**, following the smoke test in
-> `sim/out/experiment-A-circuit-break.txt`. That run confirmed V2 degrades sharply and
-> monotonically with player count — availability falls to 62% of live machines at 6 players
-> versus 93% under V1, and V2 adds +2.18 days there — while V3 roughly halves the damage and
-> keeps the card threatening. **That was a smoke test, not a decision run**: no V0 control,
-> 500 games per cell, one bot policy, no confidence intervals. The designer has not
-> committed, and the app and the simulation currently default to different arms.
-
-> **RESOLVED v8 — Gang destroying Jimothy's machine.** The washer is destroyed, hostage
-> items are released to their owners, and **Jimothy relocates** to another washer. The
-> player who drew Gang chooses both the washer to destroy and the washer Jimothy moves to.
-
-Because there is exactly one Jimothy card and it sits on the board while he is in play, he
-can never be drawn while already present — that ambiguity is closed by deck composition.
-
-> **OPEN — Animal control can be a blank.** As an event it fires automatically on reveal;
-> if Jimothy is not in play it does nothing.
+> This was arm V1 of a three-way A/B. The alternatives — **V2 "all off"** (every washer
+> off, keyholder restores one per day, which is what the card text below still described)
+> and **V3 "auto-restore"** (all off, all back at the end of the following day) — are
+> deleted from the app.
+>
+> **The old recommendation was V3 and it should not be re-cited.**
+> `sim/out/experiment-A-circuit-break.txt` is void twice over: it had no valid control
+> (500 games per cell, one bot policy, no confidence intervals), and it measured the
+> deferred event timing that v10 also replaced. Its central subject — whether a Coin can
+> undo a Circuit break — is a question about the arm that lost.
+>
+> **What changed in the card's value:** a Circuit break now costs exactly one night's
+> washing, where V2 and V3 cost a night plus a recovery. It is a cheaper card than the
+> simulation ever modelled, which makes any prior intuition about Coin and Snacc stale
+> rather than merely unmeasured.
 
 ### Jimothy
 
@@ -408,8 +420,7 @@ machine is not protected." This is still the wording the simulation implements.)
 
 > **Gang** — Pick a washer. The gang hides behind it and shoots it. That washer is out of the game. Leave this card on it. Gang happens only once.
 
-> **Circuit break** — The power trips. Every washer switches off. Machines keep whatever is inside them.
-> *(Final wording waits on the arm. This text is V2; under V1 it reads "nothing washes tonight", under V3 it gains "the power comes back at the end of tomorrow".)*
+> **Circuit break** — The power trips. Nothing washes tonight. Every washer keeps whatever is inside it, and tomorrow is normal.
 
 > **Jimothy** — Jimothy settles into a washer. It cannot run and cannot be loaded. Anything inside is stuck with him until he leaves. Only Snacc or Animal Control move him.
 

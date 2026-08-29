@@ -192,6 +192,13 @@ with `ownItemsDontTaint: false` and `meshBagRule: 'v8net'`, i.e. brief v8's
 reckoning, which is no longer the reckoning the app plays by default. Porting a
 rule into the oracle and regenerating fixtures should happen in one change.
 
+733 of them also set `sanitizerOwnerOnly: true`, a reading v10 removed from the
+GAME but deliberately kept in `ReckoningOpts` and `reckoning.ts`. Deleting that
+branch would fail those fixtures, and the only ways out would be regenerating
+with less coverage or editing the oracle. It is unreachable from play —
+`opts()` hardcodes `false` — and exists solely to keep comparing against
+`sim/rules.py`. Leave it.
+
 **The two `tests/server/` suites bind an ephemeral TCP port.** In a sandbox that
 blocks `listen`, they skip and the run reports 2 failed files with `EPERM` —
 that is the environment, not the code. The other 15 files pass regardless.
@@ -202,14 +209,19 @@ rules, not the same game generator. Never claim a specific simulated game can be
 reproduced in the app or vice versa.
 
 **Simulation numbers are mostly stale.** `sim/rules.py` is behind the brief and
-the app on event timing, the Mesh bag rule, own-items-don't-taint, the 20-card
-deck and keyholder-first order. `design/implementation-status.md` is the
+the app on six rules: event timing, the v10 damp-socks rule (the first that
+changes item flow rather than verdicts — a machine is no longer empty after a
+reckoning), the Mesh bag rule, own-items-don't-taint, the 20-card deck and
+keyholder-first order. `design/implementation-status.md` is the
 rule-by-rule divergence register; read it before quoting any balance figure from
 `sim/out/`.
 
 **Rule changes belong in `web/src/rules/config.ts`.** Anything the designer has
 not committed to is a config flag with a documented default, not a hardcoded
-branch. The special deck must total exactly 20 cards (a manufacturing
+branch. The converse is also true and is what v10 did: when a question is
+CLOSED, the flag and the losing branches go, rather than lingering as switches
+nobody selects. `circuitBreak`, `eventTiming`, `sanitizerOwnerOnly` and
+`publicDampZone` were all deleted this way. The special deck must total exactly 20 cards (a manufacturing
 constraint, asserted at setup).
 
 ## Conventions

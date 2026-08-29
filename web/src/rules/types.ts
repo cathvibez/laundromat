@@ -60,14 +60,22 @@ export interface ItemCard {
   owner: PlayerId;
   type: ItemType;
   shade: Shade;
-  /**
-   * Socks that took a wash event in a machine containing a blanket are damp:
-   * sent back, needing one further wash event anywhere (rules-v0.4 6.9, [A-27]).
-   * Python models this as `wash_count`; a boolean is sufficient and is what
-   * rules-v0.4 specifies.  Invariant I-5: only socks are ever damp.
-   */
-  damp: boolean;
 }
+
+/*
+ * THERE IS NO `damp` FIELD, and that is the v10 rule rather than an omission.
+ *
+ * Damp used to be a property of a sock: it took a wash beside a blanket, came
+ * out damp, went back to its owner, and needed a second wash anywhere. v10
+ * makes it a property of a SITUATION instead — socks that would have washed
+ * beside a blanket simply do not, and stay in the machine. They are ordinary
+ * dirty socks sitting in a washer until a blanket turns up again, at which
+ * point they are damp again for that night.
+ *
+ * So "is this sock damp" is not stored and must not be: it is derived, once,
+ * by `selectors.willBeDamp()` — socks in a machine that currently contains a
+ * blanket. Storing it as well would let the two disagree.
+ */
 
 // ---------------------------------------------------------------------------
 // Cards
@@ -150,13 +158,12 @@ export interface Machine {
 export interface PlayerState {
   id: PlayerId;
   hand: ItemId[];
-  /**
-   * Public damp zone [A-28].  Loadable exactly like the hand.  This is a
-   * partition of what Python keeps in `hand`, so no reckoning outcome changes;
-   * it exists so the only persistent per-item state in the game stays public.
-   * Set cfg.publicDampZone = false to keep damp socks in hand, Python-style.
+  /*
+   * The public damp zone is GONE in v10. Damp socks no longer come back to
+   * their owner at all — they stay in the machine — so there is nothing for a
+   * zone to hold. A sock leaves a machine only by washing (to `clean`) or by
+   * being sent back on the verdict (to `hand`, like any other rejected item).
    */
-  damp: ItemId[];
   clean: ItemId[];
   /** The 10 of 14 drawn at setup.  Only these must be washed. */
   mustWash: ItemId[];
@@ -209,10 +216,15 @@ export interface GameState {
   jimothySince: number | null;
   jimothyArrived: number | null;
   gangUsed: boolean;
-  /** Circuit break arm V1: tonight's reckoning is cancelled. */
+  /**
+   * Circuit break: tonight's reckoning is cancelled and nothing else changes.
+   *
+   * One-shot, whole-board, and deliberately NOT modelled as `Machine.on`. The
+   * power is untouched — every washer keeps the on/off state it had, so the
+   * next night runs exactly as it would have. Set when the card resolves, read
+   * and cleared by the next `phaseReckon`.
+   */
   cbBlackout: boolean;
-  /** Circuit break arm V3: the day at whose end everything comes back ON. */
-  cbRestoreDay: number | null;
   over: boolean;
   winners: PlayerId[];
   /** The event that most recently RESOLVED, so the UI can report what happened. */
@@ -225,10 +237,23 @@ export interface GameState {
 // Configuration
 // ---------------------------------------------------------------------------
 
-export type CircuitBreakArm = 'V1' | 'V2' | 'V3';
-
-/** Experiment B: when a drawn event RESOLVES.  See web/experiments/. */
-export type EventTimingArm = 'E1' | 'E2' | 'E3';
+/*
+ * RESOLVED v10 — two A/B experiments closed, and their arms deleted rather than
+ * left as switches.
+ *
+ * Circuit break was V1/V2/V3 and is now only what V1 did: the night's reckoning
+ * is cancelled, no washer changes power state, the next day is normal. There is
+ * no `circuitBreak` config field any more; `GameState.cbBlackout` is the whole
+ * mechanism.
+ *
+ * Event timing was E1/E2/E3 and is now only E1: every event resolves the moment
+ * its card is drawn. There is no `eventTiming` field and no deferred path. The
+ * drawer chooses the target washer for Gang and Jimothy, which is what the code
+ * already did in every arm.
+ *
+ * Both are recorded in design/game-brief.md v10. The arms live in git history
+ * if an ablation ever needs them back.
+ */
 
 // Type-only, so this does not create a runtime cycle with reckoning.ts.
 import type { MeshBagRule } from './reckoning';
@@ -242,29 +267,32 @@ export interface LaundromatConfig {
   handSize: number;
   crowdThreshold: number;
 
-  circuitBreak: CircuitBreakArm;
   turnOrder: TurnOrder;
-  /**
-   * EXPERIMENT B — when a drawn event RESOLVES.  Under test; not settled.
-   * The card is REVEALED the instant it is drawn in every arm; only the moment
-   * of resolution differs.  At most one event happens per day in every arm.
-   *
-   *   E1 "immediate"  every event fires on draw, mid-roll-phase.
-   *   E2 "deferred"   every event fires after all turns, before the keyholder.
-   *                   This is brief v8 section 4, and what sim/rules.py does.
-   *   E3 "split"      untargeted events (Circuit break, Animal control) fire on
-   *                   draw; targeted ones (Gang, Jimothy) are deferred.
-   *
-   * See web/experiments/experiment-B-event-timing.md.
-   */
-  eventTiming: EventTimingArm;
 
   specialDeck: Record<SpecialName, number>;
   eventDeck: Record<EventName, number>;
 
   keyholderFirst: boolean;
-  sanitizerOwnerOnly: boolean;
+  /*
+   * No `sanitizerOwnerOnly` here. Sanitizer is always machine-wide: it stops
+   * shoes dominating for EVERY item in the washer, whoever owns them.
+   *
+   * `ReckoningOpts` in reckoning.ts still carries the flag and still implements
+   * the owner-only reading. That is not a leftover — 733 of the 17,434 parity
+   * fixtures exercise it, and the oracle in sim/rules.py implements it, so
+   * deleting the branch would either cost us those fixtures or require editing
+   * the oracle to match the app. The game simply never sets it.
+   */
   bleachKillsDark: boolean;
+  /**
+   * Socks do not wash beside a blanket.
+   *
+   * REVISED v10.  It used to mean "socks washed beside a blanket come out damp
+   * and need a second wash somewhere".  It now means "socks that would have
+   * washed beside a blanket do not, and stay in the machine" — no second wash,
+   * no journey home, they simply sit there until a night with no blanket in
+   * that washer.  The switch survives for ablation, as it always has.
+   */
   socksBlanketExtraWash: boolean;
   /**
    * DESIGNER REVISION.  Diverges from brief v8 and from sim/rules.py.
@@ -289,7 +317,6 @@ export interface LaundromatConfig {
    * Other players still taint you exactly as before.
    */
   ownItemsDontTaint: boolean;
-  publicDampZone: boolean;
 
   dayCap: number;
 }

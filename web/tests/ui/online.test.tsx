@@ -37,7 +37,7 @@ function fakeNet(opts: FakeOpts = {}) {
   const room: RoomInfo = {
     code: 'ABCD',
     started: false,
-    settings: { circuitBreak: 'V3', eventTiming: 'E1' },
+    settings: {},
     players: [player(0, 'Nina')],
     ...opts.room,
   };
@@ -357,7 +357,7 @@ describe('the waiting lobby, for everyone who is not the host', () => {
         code: 'ABCD',
         playerID: '1',
         credentials: 'cred-1',
-        settings: { circuitBreak: 'V1', eventTiming: 'E2' },
+        settings: {},
       }),
       ...extra,
     });
@@ -371,14 +371,20 @@ describe('the waiting lobby, for everyone who is not the host', () => {
   test('no start button, no settings controls, and a clear statement of who you wait for', async () => {
     await joinAsSecondSeat();
     expect(screen.queryByText(/^Start the day with/)).toBeNull();
-    expect(screen.queryByLabelText('Circuit break variant')).toBeNull();
+    expect(document.querySelector('.settings-form')).toBeNull();
     await waitFor(() => expect(screen.getByText(/Waiting for Nina to start/)).toBeTruthy());
   });
 
-  test('non-admins still see what the host has configured', async () => {
+  /*
+   * There is nothing for the host to configure any more — every rule the lobby
+   * used to offer was resolved in v10 — so what everyone needs from this panel
+   * changed from "what did they pick" to "what am I about to play".
+   */
+  test('everyone sees the rules the game runs on', async () => {
     await joinAsSecondSeat();
-    await waitFor(() => expect(screen.getByText(/^V3 —/)).toBeTruthy());
-    expect(screen.getByText(/The host chooses these/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/Circuit break/)).toBeTruthy());
+    expect(screen.getByText(/do not wash/)).toBeTruthy();
+    expect(screen.getByText(/Nothing to choose/)).toBeTruthy();
   });
 
   test('when the host drops out, the room says so instead of looking idle', async () => {
@@ -428,33 +434,12 @@ describe('the waiting lobby, for everyone who is not the host', () => {
   });
 });
 
-describe('the host changing the rules', () => {
-  test('a rule change is sent to the server', async () => {
-    const { calls } = fakeNet();
-    await goOnline();
-    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Nina' } });
-    fireEvent.click(screen.getByText('Create a room'));
-    const select = (await screen.findByLabelText('Circuit break variant')) as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: 'V1' } });
-    await waitFor(() => expect(calls.updateSettings).toEqual([{ circuitBreak: 'V1' }]));
-  });
-
-  test('a rejected change is rolled back on screen, not left showing a lie', async () => {
-    fakeNet({
-      updateSettings: async () => {
-        throw Object.assign(new Error('game already started'), { status: 410 });
-      },
-    });
-    await goOnline();
-    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Nina' } });
-    fireEvent.click(screen.getByText('Create a room'));
-    const select = (await screen.findByLabelText('Circuit break variant')) as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: 'V1' } });
-
-    expect(await screen.findByText('Setting not saved')).toBeTruthy();
-    await waitFor(() => expect(select.value).toBe('V3'));
-  });
-});
+/*
+ * `describe('the host changing the rules')` lived here.  Both of its tests —
+ * a change reaching the server, and a rejected change being rolled back rather
+ * than left showing a lie — tested a settings form that no longer exists.  The
+ * rollback logic went with it; there is nothing left to roll back.
+ */
 
 describe('reconnection', () => {
   function storeSeat(extra: Record<string, unknown> = {}) {

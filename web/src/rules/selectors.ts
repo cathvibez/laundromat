@@ -68,7 +68,17 @@ export function tonight(st: GameState, m: Machine): TonightSummary {
 
   const verdicts = machineVerdicts(contents, cardsKeyOf(m), opts(st));
   const tier = currentTier(st, m);
-  const lines = contents.map((item, i) => ({ item, willWash: verdicts[i] }));
+  /*
+   * A sock the blanket strands passes the VERDICT and still does not wash, so
+   * the headline has to subtract it.  Promising "2 of 3 wash" and then handing
+   * back one clean item is the sort of thing that makes people distrust the
+   * whole panel, and this is the panel the reckoning has to keep faith with.
+   */
+  const lines = contents.map((item, i) => ({
+    item,
+    willWash: verdicts[i] && !willBeDamp(st, m, item),
+  }));
+  const stayCount = contents.filter((item, i) => verdicts[i] && willBeDamp(st, m, item)).length;
   const washCount = lines.filter((l) => l.willWash).length;
   // With ownItemsDontTaint the machine no longer resolves at one tier: the
   // ladder below is what OTHER players' items impose on you. The per-item
@@ -81,15 +91,27 @@ export function tonight(st: GameState, m: Machine): TonightSummary {
         : TIER_TEXT[tier];
   const headline =
     washCount === 0
-      ? 'Tonight: nothing washes. Everything goes back.'
-      : `Tonight: ${washCount} of ${contents.length} wash.`;
+      ? stayCount > 0
+        ? `Tonight: nothing washes. ${stayCount} sock(s) stay in the drum; everything else goes back.`
+        : 'Tonight: nothing washes. Everything goes back.'
+      : stayCount > 0
+        ? `Tonight: ${washCount} of ${contents.length} wash · ${stayCount} sock(s) stay in the drum.`
+        : `Tonight: ${washCount} of ${contents.length} wash.`;
   return { status, headline, tierText: tierLabel, lines };
 }
 
-/** Will these socks come out damp rather than clean?  [A-24] keyed on contents. */
+/**
+ * Are these socks damp — i.e. will the blanket in here stop them washing?
+ *
+ * THE single source of truth for damp, v10.  Damp is not stored on the item any
+ * more; it is this question, asked of the machine the sock is sitting in, and
+ * the answer changes the moment a blanket is loaded or removed.  [A-24] keys on
+ * the machine's CONTENTS, never on the blanket's own verdict, which is what
+ * keeps the reckoning commutative.
+ */
 export function willBeDamp(st: GameState, m: Machine, item: ItemCard): boolean {
   if (!st.cfg.socksBlanketExtraWash) return false;
-  if (item.type !== 'socks' || item.damp) return false;
+  if (item.type !== 'socks') return false;
   return machineContents(st, m).some((x) => x.type === 'blanket');
 }
 
@@ -238,7 +260,7 @@ export const RULES_SUMMARY: { heading: string; lines: string[] }[] = [
       'Crowding — 3 or more of the same garment type, any colour: all of them go back.',
       'Underwear washes only among underwear (unless a Wash net covers it).',
       'A blanket must be alone, except that socks may share with it.',
-      'Socks washed beside a blanket come out DAMP: they need one more wash anywhere.',
+      'Socks in a washer with a blanket do not wash. They stay in it until it runs without one.',
     ],
   },
   {

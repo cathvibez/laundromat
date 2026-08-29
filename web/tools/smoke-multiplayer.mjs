@@ -104,14 +104,17 @@ async function main() {
   const patched = await api(`/api/rooms/${code}/settings`, {
     method: 'PATCH',
     auth: admin,
-    body: { circuitBreak: 'V2', eventTiming: 'E2' },
+    // Any key the lobby still accepts. circuitBreak/eventTiming used to live
+    // here and were removed with their rules in v10 — patching a deleted key
+    // now returns 400 and would fail this check against a live server.
+    body: { dayCap: 300 },
   });
   check('admin changed the rules', patched.status === 200, JSON.stringify(patched.body?.settings));
 
   const badPatch = await api(`/api/rooms/${code}/settings`, {
     method: 'PATCH',
     auth: { playerID: seats[1].playerID, credentials: seats[1].credentials },
-    body: { circuitBreak: 'V1' },
+    body: { dayCap: 250 },
   });
   check('non-admin refused', badPatch.status === 403);
 
@@ -134,8 +137,8 @@ async function main() {
   );
   check(
     'the admin’s ruleset reached setup',
-    before[0].G.cfg.circuitBreak === 'V2',
-    before[0].G.cfg.circuitBreak,
+    before[0].G.cfg.dayCap === 300,
+    String(before[0].G.cfg.dayCap),
   );
 
   // ---- the actual claim ---------------------------------------------------

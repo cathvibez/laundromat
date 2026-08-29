@@ -1,9 +1,11 @@
 # Laundromat — Implementation Status
 
-**Three-way divergence register.** Brief `design/game-brief.md` **v9** · oracle
+**Three-way divergence register.** Brief `design/game-brief.md` **v10** · oracle
 `sim/rules.py` · prototype `web/`.
 
-Written 2026-08-05. Regenerate this whenever any of the three moves.
+Written 2026-08-05. Last revised 2026-08-29 for v10, which CLOSED three of the
+decisions below (event timing, circuit break, Sanitizer scope) and changed the
+damp-socks rule outright. Regenerate this whenever any of the three moves.
 
 The three artefacts do not agree. This file exists so that nobody has to reverse-engineer
 how far apart they are, and — more urgently — so that nobody quotes a simulation number at
@@ -40,9 +42,11 @@ and the code it gates disagree, that is called out explicitly.
 
 ### Prerequisite before any of it can be trusted again
 
-`sim/rules.py` needs five ports, in this order of impact: **event timing arms**, the
-**Mesh bag** rule, **"own items don't taint own items"**, the **20-card deck constraint**, and
-**keyholder-first acting order**. Until then the simulation and the prototype are not even the same
+`sim/rules.py` needs **six** ports, in this order of impact: **event timing** (now fixed
+at resolve-on-draw, not an arm), the **new damp-socks rule** (the first port that changes
+item flow rather than verdicts — a machine is no longer empty after a reckoning), the
+**Mesh bag** rule, **"own items don't taint own items"**, the **20-card deck constraint**,
+and **keyholder-first acting order**. Until then the simulation and the prototype are not even the same
 *reckoning* — the own-items rule changes verdicts — let alone the same *game*.
 
 > **Note added 2026-08-06.** The own-items rule is the one that hurts. Every fixture in the parity
@@ -58,21 +62,21 @@ Legend: **=** agrees · **≠** diverges · **—** not modelled.
 
 | Rule | Brief v9 | `sim/rules.py` | web app | Canonical? | Notes |
 |---|---|---|---|---|---|
-| **Event timing** | Records all three arms, E1 = app default, marked OPEN | **E2 only. No switch.** | E1 / E2 / E3 all implemented; **default E1**, selectable at setup | **web** (designer instruction) | The biggest divergence in the project. Verified in `phases.ts:resolvesOnDraw` + `drawEvent`. Brief v8 said E2; v9 records the fork without resolving it. **OPEN.** |
+| **Event timing** | **RESOLVED v10: every event resolves on draw. No arms.** | **E2 only. No switch.** | Resolves on draw, always; E2/E3 and `cfg.eventTiming` deleted | **brief + web** | **CLOSED 2026-08-29.** The drawer picks the washer for Gang and Jimothy, which every arm always did. The oracle is still E2, so every day-level number it produces still describes a different game — this row stops being a fork and becomes a straight **port owed**. |
 | **Mesh bag** (internal id `Wash net`) | New v9 text: everything you load that turn washes, any type | **v8 Wash net: same-turn underwear only, waives underwear isolation only** | Both. `cfg.meshBagRule = 'guaranteed'` is the default; `'v8net'` restores v8 exactly | **web** | Verified in `reckoning.ts:133-152` and `phases.ts:loadItem`. A bagged item's verdict is unconditionally `true`. Bag membership set at load time, per-item; items already in the machine excluded. |
 | — *card display name* | "Mesh bag" | **"Wash net"** | id `'Wash net'`, displayed "Mesh bag" via `SPECIAL_DISPLAY` | **web** | Deliberate: keeps the deck vocabulary matching the oracle so the constants parity check stays honest. **Rename both sides together, or not at all.** Easy to trip over — the two implementations disagree on the card's *name* as well as its *effect*. |
 | — *do bagged items still set the tier / count for crowding?* | OPEN, currently yes | n/a | **Yes** — the bag protects its contents, it does not remove them from the wash | **OPEN** | Tests `M3`, `M7` pin the current behaviour. Alternative: lift bagged items out of consideration entirely. Not ruled on. |
-| — *are bagged socks beside a blanket still damp?* | OPEN, currently yes | n/a | **Yes** — the damp transform runs after the verdict, in `phaseReckon` S8 | **OPEN** | Damp is modelled as "needs two washes", not as a taint, so the bag does not override it. Not ruled on. |
-| **Circuit break arm** | All three recorded, OPEN | **default V2** | **default V3**, all three implemented, selectable | **OPEN** | Both implement all three arms identically; only the *default* differs. `sim/out/experiment-A` recommends V3 but is a smoke test with an invalid V0 control. |
+| — *does a Mesh bag save socks from a blanket?* | **No (v10, by construction)** | n/a | **No** — the bag decides the verdict; being stranded happens after it | settled by the v10 rule | Was OPEN as "are bagged socks still damp". The new rule makes it structural rather than a judgement call: the bag guarantees a *verdict*, and stranding is not a verdict. |
+| **Circuit break** | **RESOLVED v10: the night is cancelled, power untouched. No arms.** | **V2** | Cancels the night only; V2/V3 and `cfg.circuitBreak` deleted | **brief + web** | **CLOSED 2026-08-29** in favour of what was arm V1. `sim/out/experiment-A-circuit-break.txt` recommended V3, but it is void twice over: an invalid V0 control, and it measured E2. Do not re-cite it. |
 | **Special deck size** | OPEN (P0); records the 20-card manufacturing constraint | **14 cards** (2 of each); no constraint | **20 cards**, flat 3/3/3/3/3/3/2, **asserted at setup** (`assertDeckSize`) | **web** for the total, **nobody** for the split | The 20-card constraint comes from `publishing-research.md:187` and is real. The split is explicitly labelled arbitrary in `config.ts` and is not a recommendation. **OPEN (P0).** |
 | **Turn order within a turn** | roll → card → load → extra | roll → card → load → extra `[A-W03]` | roll → card → load → extra (`cfg.turnOrder = 'cardLoadExtra'`) | **all three agree** | Included because it was contested: **`rules-v0.4.md §3.1` still says roll → extra → load → card** and is stale. The app keeps that reading as a dead ablation switch. |
 | **Acting order** | **RESOLVED v9 §4: keyholder acts first, always. No longer a switch.** | `keyholder_first = False` | **`keyholderFirst = true`** | **brief + web** | **Corrected 2026-08-06** — this row previously recorded all three as fixed seat order and marked it OPEN. Verified in `config.ts:119` (`keyholderFirst: true`, commented "RESOLVED v9") and `setup.ts:actingOrder`. This is the mitigation `experiment-B` recommends pairing with E1, so the app is **no longer** shipping the unmitigated combination. `sim/rules.py` is now the only artefact on fixed seat order and needs the port. `web/README.md`'s config table was stale on this and has been corrected. |
-| **Damp socks zone** | Public face-up damp zone (new v9) | Kept in `hand`; `wash_count` int on the item | `players[x].damp`, public, loadable like the hand (`cfg.publicDampZone = true`) | **web** (cosmetic) | Verified in `placement.ts:loadableItems` and `phases.ts:returnToOwner`. A partition of what Python keeps in `hand`; **no reckoning outcome changes.** Safe. |
+| **Damp socks** | **REVISED v10: socks beside a blanket do not wash and STAY IN THE MACHINE.** | `wash_count` int on the item, kept in `hand` | Socks that pass the verdict beside a blanket stay in `m.items`; no damp zone, no `Item.damp`, no `PlayerState.damp` | **web** | **The newest divergence, and the first that changes ITEM FLOW rather than verdicts.** A machine is no longer empty after a reckoning. Verified in `phases.ts:phaseReckon` (`m.items = stuck`). Damp is now derived by `selectors.willBeDamp()` — socks in a machine containing a blanket — and stored nowhere. |
 | **Card sort order** | Documented in v9 §1 | — | `selectors.ts:sortRank` + `SORT_EXPLAINER`, used by the hand/damp/clean zones | **web** | Was documented *nowhere but the code* until v9. dark shoes → light shoes → dark clothing+blanket → light clothing+blanket → dark underwear → light underwear. Cosmetic, but should match on printed cards. |
-| **Sanitizer scope** | OPEN, default machine-wide | `sanitizer_owner_only = False` | `sanitizerOwnerOnly = false` | agrees | Both default machine-wide, tiers 1–2 suppressed. `rules-v0.4 [OQ-01]` argues owner-only is disqualifying. Still nominally **OPEN** but both implementations and the brief concur. |
+| **Sanitizer scope** | **RESOLVED v10: machine-wide, always.** | `sanitizer_owner_only = False` (still switchable) | `LaundromatConfig.sanitizerOwnerOnly` deleted; the game always passes `false` | agrees | **CLOSED 2026-08-29**, as `rules-v0.4 [OQ-01]` argued. NOTE: `ReckoningOpts.sanitizerOwnerOnly` and the owner-only branch in `reckoning.ts` SURVIVE deliberately — 733 parity fixtures set the flag and the oracle implements it, so deleting the branch would cost coverage or force an oracle edit. Unreachable from play, exercised by parity. |
 | **Coin** | One-shot, resolved immediately, returns to deck | one-shot `[A-W06]` | one-shot (`applySpecial`, `IMMEDIATE` set) | agrees | RESOLVED v8, no drift. |
 | **Gang on Jimothy's machine** | Machine destroyed, hostages released, Jimothy relocates; drawer picks both | `[A-W07]` same | `resolveGang` same | agrees | RESOLVED v8, no drift. |
-| **Socks/blanket damp rule** | Keys on the machine *containing* a blanket | same `[A-W12]` | same, `phaseReckon` S8, `cfg.socksBlanketExtraWash` | agrees | Included because `rules-v0.4 [OQ-04]` contested it. Both key on contents, not on the blanket washing — the reading that preserves commutativity. |
+| **Socks/blanket keying** | Keys on the machine *containing* a blanket | same `[A-W12]` | same, `phaseReckon` S8, `cfg.socksBlanketExtraWash` | agrees on the KEY, diverges on the EFFECT | The trigger is unchanged and still keys on contents rather than the blanket's verdict, which is what preserves commutativity. What the trigger now *does* is the row above. |
 | **Mandatory loading when nothing is placeable** | "load fewer only if their hand holds fewer" | loads as many as it can, silently | **stays on the load stage and makes the player skip explicitly** (`loadBlocked` / `skipBlockedLoad`) | **web** (UX only) | Same outcome, different presentation. The app refuses to move on silently because the situation is confusing. No rules impact. |
 | **Blanket + socks placement** | Blanket alone except socks | `[A-W11]` same | `placement.ts:refusalReason`, both directions | agrees | No drift. |
 | **Victory** | First to wash all 10, immediate, simultaneous allowed | `[A-W14]` same | `phaseEndOfDay`, checked after the full reckoning | agrees | No drift. |
@@ -92,10 +96,12 @@ These are not divergences. They are things that will confuse the next person.
   currently unreachable as a bug, because the `'guaranteed'` path clears `netKeys` before
   calling `core()`, so the two modes cannot produce colliding keys. It is fragile rather
   than wrong. Worth a defensive fix if that path is ever touched.
-- **`sanitizerOwnerOnly` short-circuits before the Mesh bag branch** (`reckoning.ts:124`).
-  With `sanitizerOwnerOnly: true` *and* a bag in play, bagged items get no protection. Both
-  are non-default (owner-only Sanitizer is a sensitivity switch only), so this is not
-  currently reachable in play — but it is a real hole in a non-default combination.
+- **`sanitizerOwnerOnly` short-circuits before the Mesh bag branch** (`reckoning.ts:124`),
+  so with both set, bagged items get no protection. **v10 made this unreachable from play
+  rather than fixing it**: there is no config field any longer and the game always passes
+  `false`. The hole still exists for a direct `machineVerdicts` caller that sets the opt,
+  which is exactly what the parity fixtures do — harmless, because the oracle has the same
+  behaviour, which is the point of comparing them.
 - **`sim/rules.py` must not be edited to chase the app.** It is the oracle; the parity suite
   is only meaningful because it is independent. Port rules into it deliberately, with the
   fixtures regenerated in the same change.
@@ -109,18 +115,19 @@ These are not divergences. They are things that will confuse the next person.
 
 Ordered by how much downstream work each one unblocks.
 
-1. **Event timing arm — E1, E2 or E3.** Unblocks the most: every day-level simulation
-   number in the project is void until this is fixed, and re-running them requires porting
-   the arm into `sim/rules.py` first. It also gates the circuit-break re-run, because E1's
-   central claim is about circuit-break recovery. Currently E1 by instruction, unmeasured.
+1. ~~**Event timing arm — E1, E2 or E3.**~~ **CLOSED v10 (2026-08-29):** every event
+   resolves on draw; the arms are deleted. This does NOT un-void the simulation numbers —
+   the oracle is still E2, so the port is still owed and every day-level figure still
+   describes a different game. It was closed by instruction, unmeasured.
 2. **Mesh bag — keep, weaken, or revert to v8's Wash net.** It is judged the strongest card
    in the game and the deck sweep cannot be meaningfully run around a card whose power is
    unsettled. Includes the two sub-questions: do bagged items still set the tier for
    everyone else, and do bagged socks beside a blanket still come out damp.
-3. **Circuit break arm — V1, V2 or V3.** The app and the simulation currently default to
-   different arms. The existing recommendation (V3) rests on a smoke test with an invalid
-   control. Deck composition sweeps should not run until this is locked, because blackout
-   frequency sets the value of Coin and Snacc.
+3. ~~**Circuit break arm — V1, V2 or V3.**~~ **CLOSED v10 (2026-08-29):** the night is
+   cancelled and no washer changes power. This unblocks the deck sweep, which was waiting
+   on blackout frequency to price Coin and Snacc — but note the new rule makes a Circuit
+   break *cheaper* than V2 or V3 did, so any prior intuition about Coin's value is stale
+   rather than merely unmeasured.
 4. **Special item deck composition (P0).** Exactly 20 cards, split unset. Blocked behind
    decisions 2 and 3. This is the last big balance lever.
 5. ~~**Acting order — fixed seat or keyholder-first.**~~ **CLOSED** (brief v9 §4, and the app now
@@ -145,6 +152,12 @@ Ordered by how much downstream work each one unblocks.
    **What is actually outstanding is documentation, not code:** brief v9 does not mention this
    rule at all, and it is the central mechanic of the rulebook in `design/strings/`. Promote it
    into the brief (v10) or rule it out.
-8. **Sanitizer scope.** Nominally open, but the brief, the simulation and the app all
-   default to machine-wide and `rules-v0.4 [OQ-01]` argues the alternative is disqualifying.
-   Closing this is bookkeeping.
+8. ~~**Sanitizer scope.**~~ **CLOSED v10 (2026-08-29):** machine-wide, always. The config
+   field is gone. The owner-only code path stays in `reckoning.ts` for the parity fixtures
+   only — see the register row.
+
+9. **NEW — does a machine ever silt up?** Stranded socks are the first mechanic that can
+   hold an item in a machine indefinitely: a player who keeps loading blankets into the
+   same washer keeps someone else's socks hostage there. 200 bot games across 3–6 players
+   terminate well inside the day cap, so it is not a livelock, but nobody has judged
+   whether it is a good *play* pattern. Watch it at the table before the deck sweep.

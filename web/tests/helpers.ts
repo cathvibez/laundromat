@@ -23,13 +23,20 @@ import type {
 
 export const OWNERS: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
 
-/** 'A-D-shoes' -> ItemCard, exactly like test_rules.py's `it()`. */
-export function card(spec: string, damp = false): ItemCard {
+/**
+ * 'A-D-shoes' -> ItemCard, exactly like test_rules.py's `it()`.
+ *
+ * The second parameter used to be `damp`. v10 removed damp from the item: it is
+ * a fact about the machine a sock is sitting in, so a "damp card" cannot be
+ * constructed in isolation any more. Tests that want damp socks must put socks
+ * in a machine with a blanket and reckon.
+ */
+export function card(spec: string): ItemCard {
   const [who, sh, typ] = spec.split('-');
   const owner = OWNERS[who];
   const shade = (sh === 'D' ? 'D' : 'L') as Shade;
   const type = typ as ItemType;
-  return { id: `${owner}-${type}-${shade}`, owner, type, shade, damp };
+  return { id: `${owner}-${type}-${shade}`, owner, type, shade };
 }
 
 export function id(spec: string): ItemId {
@@ -105,7 +112,6 @@ export function rig(players = 3, over: Partial<LaundromatConfig> = {}): Rig {
   }
   for (const p of st.players) {
     p.hand = [];
-    p.damp = [];
     p.clean = [];
     p.mustWash = [`${p.id}-pants-D`];
   }
@@ -119,7 +125,6 @@ export function put(rg: Rig, mi: number, c: ItemCard): ItemCard {
   st.machines[mi].items.push(c.id);
   const p = st.players[c.owner];
   p.hand = p.hand.filter((x) => x !== c.id);
-  p.damp = p.damp.filter((x) => x !== c.id);
   if (!p.mustWash.includes(c.id)) p.mustWash.push(c.id);
   return c;
 }
@@ -149,7 +154,7 @@ export function fire(
 }
 
 export function handOf(rg: Rig, pid: number): Set<string> {
-  return new Set([...rg.st.players[pid].hand, ...rg.st.players[pid].damp]);
+  return new Set(rg.st.players[pid].hand);
 }
 
 export function cleanOf(rg: Rig, pid: number): Set<string> {

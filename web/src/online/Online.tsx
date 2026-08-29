@@ -18,7 +18,7 @@ import {
   loadNet,
   normaliseCode,
 } from './api';
-import type { NetApi, OnlineSettings, RoomInfo, Seat } from './api';
+import type { NetApi, RoomInfo, Seat } from './api';
 import {
   clearJoinUrl,
   clearSession,
@@ -30,8 +30,6 @@ import {
   shareLink,
 } from './session';
 import type { StoredSession } from './session';
-import { CIRCUIT_BREAK_ARMS, EVENT_TIMING_ARMS } from '../rules/config';
-import type { CircuitBreakArm, EventTimingArm } from '../rules/types';
 
 export const ADMIN_SEAT = '0';
 export const MIN_PLAYERS = 3;
@@ -361,18 +359,9 @@ function Lobby({
 }) {
   const { room, trouble } = useRoom(net, seat.code, true);
   const isAdmin = seat.playerID === ADMIN_SEAT;
-  const [settings, setSettings] = useState<OnlineSettings>(seat.settings ?? {});
-  const [settingsError, setSettingsError] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  // The server is the authority on settings; keep the local copy in step
-  // except while a write of ours is in flight.
-  const inflight = useRef(0);
-  useEffect(() => {
-    if (room?.settings && inflight.current === 0) setSettings(room.settings);
-  }, [room?.settings]);
 
   useEffect(() => {
     if (room?.started) onStarted();
@@ -385,26 +374,6 @@ function Lobby({
   const enough = count >= MIN_PLAYERS;
   const adminSeat = players.find((p) => p.playerID === ADMIN_SEAT);
   const adminAway = adminSeat !== undefined && !adminSeat.connected;
-
-  async function change(partial: OnlineSettings) {
-    const before = settings;
-    setSettings({ ...settings, ...partial });
-    setSettingsError(null);
-    inflight.current += 1;
-    try {
-      const res = await net.updateSettings(
-        seat.code,
-        { playerID: seat.playerID, credentials: seat.credentials },
-        partial,
-      );
-      if (res?.settings) setSettings(res.settings);
-    } catch (e) {
-      setSettings(before); // never leave a lie on screen
-      setSettingsError(humanNetError(e, 'settings'));
-    } finally {
-      inflight.current -= 1;
-    }
-  }
 
   async function start() {
     setStartError(null);
@@ -495,17 +464,7 @@ function Lobby({
       )}
 
       <div className="section-title">Rules for this game</div>
-      {isAdmin ? (
-        <SettingsForm settings={settings} onChange={change} />
-      ) : (
-        <SettingsSummary settings={settings} />
-      )}
-      {settingsError && (
-        <div className="banner error" role="alert">
-          <h3>Setting not saved</h3>
-          <div>{settingsError}</div>
-        </div>
-      )}
+      <SettingsSummary />
 
       {isAdmin ? (
         <div className="start-block">
@@ -551,94 +510,43 @@ function Lobby({
 // picked and what you are told they picked can never drift apart.
 // ---------------------------------------------------------------------------
 
-function SettingsForm({
-  settings,
-  onChange,
-}: {
-  settings: OnlineSettings;
-  onChange: (partial: OnlineSettings) => void;
-}) {
-  const cb = (settings.circuitBreak ?? 'V3') as CircuitBreakArm;
-  const et = (settings.eventTiming ?? 'E1') as EventTimingArm;
-  return (
-    <div className="settings-form">
-      <label htmlFor="cb">Circuit break variant</label>
-      <select
-        id="cb"
-        value={cb}
-        onChange={(e) => onChange({ circuitBreak: e.target.value as CircuitBreakArm })}
-      >
-        {(Object.keys(CIRCUIT_BREAK_ARMS) as CircuitBreakArm[]).map((k) => (
-          <option key={k} value={k}>
-            {k} - {CIRCUIT_BREAK_ARMS[k]}
-          </option>
-        ))}
-      </select>
-
-      <label htmlFor="et">Event timing</label>
-      <select
-        id="et"
-        value={et}
-        onChange={(e) => onChange({ eventTiming: e.target.value as EventTimingArm })}
-      >
-        {(Object.keys(EVENT_TIMING_ARMS) as EventTimingArm[]).map((k) => (
-          <option key={k} value={k}>
-            {k} - {EVENT_TIMING_ARMS[k]}
-          </option>
-        ))}
-      </select>
-
-      <label style={{ textTransform: 'none', letterSpacing: 0, display: 'flex', gap: 8 }}>
-        <input
-          type="checkbox"
-          style={{ width: 'auto' }}
-          checked={settings.sanitizerOwnerOnly === true}
-          onChange={(e) => onChange({ sanitizerOwnerOnly: e.target.checked })}
-        />
-        Sanitizer protects only its owner
-      </label>
-      <label style={{ textTransform: 'none', letterSpacing: 0, display: 'flex', gap: 8 }}>
-        <input
-          type="checkbox"
-          style={{ width: 'auto' }}
-          checked={settings.publicDampZone !== false}
-          onChange={(e) => onChange({ publicDampZone: e.target.checked })}
-        />
-        Damp socks sit in a public zone
-      </label>
-      <div className="note">
-        Changes are saved for everyone as you make them. They lock when the game starts.
-      </div>
-    </div>
-  );
-}
-
-function SettingsSummary({ settings }: { settings: OnlineSettings }) {
-  const cb = (settings.circuitBreak ?? 'V3') as CircuitBreakArm;
-  const et = (settings.eventTiming ?? 'E1') as EventTimingArm;
+/*
+ * A statement of the rules, not a form.
+ *
+ * The host used to choose four of these. All four were resolved in v10 and
+ * deleted from the config, so there is nothing to set — but everyone sitting
+ * down still deserves to know what they are about to play, and the four rules
+ * below are the ones most likely to surprise someone who last played v8.
+ *
+ * Shown to EVERYONE now, host included, because it is no longer "what the host
+ * picked" but simply what the game is.
+ */
+function SettingsSummary() {
   return (
     <div className="settings-summary">
       <div className="summary-row">
         <span className="summary-key">Circuit break</span>
-        <span>
-          {cb} — {CIRCUIT_BREAK_ARMS[cb]}
-        </span>
+        <span>Cancels the night. Nothing washes, and no washer changes power.</span>
       </div>
       <div className="summary-row">
-        <span className="summary-key">Event timing</span>
+        <span className="summary-key">Events</span>
         <span>
-          {et} — {EVENT_TIMING_ARMS[et]}
+          Take effect the moment the card is drawn. Whoever drew it picks the washer for the
+          Gang and for Jimothy.
         </span>
       </div>
       <div className="summary-row">
         <span className="summary-key">Sanitizer</span>
-        <span>{settings.sanitizerOwnerOnly ? 'protects its owner only' : 'protects the whole machine'}</span>
+        <span>Stops shoes dominating everything in that washer, whoever owns them.</span>
       </div>
       <div className="summary-row">
-        <span className="summary-key">Damp socks</span>
-        <span>{settings.publicDampZone === false ? 'return to your hand' : 'sit in a public zone'}</span>
+        <span className="summary-key">Socks and blankets</span>
+        <span>
+          Socks beside a blanket do not wash. They stay in the washer until a night without
+          one.
+        </span>
       </div>
-      <div className="note">The host chooses these. They lock when the game starts.</div>
+      <div className="note">The same rules for every game. Nothing to choose.</div>
     </div>
   );
 }

@@ -12,7 +12,7 @@ import type { LaundromatG } from '../../src/game/Laundromat';
 import { anyLegalLoad } from '../../src/rules/driver';
 import { canPlaySpecial } from '../../src/rules/phases';
 import { assertInvariants } from '../../src/rules/phases';
-import type { CircuitBreakArm, EventTimingArm, LaundromatConfig } from '../../src/rules/types';
+import type { LaundromatConfig } from '../../src/rules/types';
 
 interface Played {
   days: number;
@@ -141,20 +141,11 @@ describe('boardgame.io adapter', () => {
     }
   });
 
-  test('every circuit break arm finishes through the client', () => {
-    for (const arm of ['V1', 'V2', 'V3'] as CircuitBreakArm[]) {
-      const r = playThrough(5, { circuitBreak: arm });
-      expect(r.winners.length, `arm ${arm}`).toBeGreaterThanOrEqual(1);
-    }
-  });
-
-  test('every event-timing arm finishes through the client', () => {
-    for (const arm of ['E1', 'E2', 'E3'] as EventTimingArm[]) {
-      const r = playThrough(4, { eventTiming: arm });
-      expect(r.winners.length, `arm ${arm}`).toBeGreaterThanOrEqual(1);
-      assertInvariants(r.G);
-    }
-  });
+  /*
+   * The two "every arm finishes" sweeps are gone with the arms.  There is one
+   * circuit break and one event timing now, and the games-terminate tests above
+   * already exercise both on every seat count and seed.
+   */
 
   test('the key rotates one seat per day', () => {
     const client = Client<LaundromatG>({ game: makeLaundromat(), numPlayers: 4, debug: false });

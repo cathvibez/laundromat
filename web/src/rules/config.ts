@@ -3,13 +3,7 @@
  * nowhere else.  Nothing in src/rules/ may hardcode any of these values.
  */
 
-import type {
-  CircuitBreakArm,
-  EventName,
-  EventTimingArm,
-  LaundromatConfig,
-  SpecialName,
-} from './types';
+import type { EventName, LaundromatConfig, SpecialName } from './types';
 import { FIXED_EVENT_DECK } from './types';
 
 /** Brief v8 section 1: machine count = P + 1, capacity flat 4. */
@@ -49,33 +43,12 @@ export const SPECIAL_DECK_TOTAL = 20;
 
 export const SPECIAL_DECK_IS_PROVISIONAL = true;
 
-/**
- * Circuit break A/B arms.  The designer has not committed.
- *   V1 "blackout"      only tonight's reckoning is cancelled; power untouched.
- *   V2 "all off"       every live washer OFF, keyholder restores one per day.
- *                      This is what brief v8 currently says.
- *   V3 "auto-restore"  every live washer OFF, all back ON at the end of the
- *                      FOLLOWING day's reckoning.
- *                      This is what sim/out/experiment-A-circuit-break.txt
- *                      recommends, and is the default here.
- * Contents are retained in every arm.
+/*
+ * The circuit-break and event-timing A/B tables used to live here. Both closed
+ * in v10 and their arms are deleted, not defaulted — see the note in types.ts.
+ * Circuit break is "the night is cancelled, power untouched"; every event
+ * resolves the moment it is drawn.
  */
-export const CIRCUIT_BREAK_ARMS: Readonly<Record<CircuitBreakArm, string>> = {
-  V1: 'Blackout - only tonight’s reckoning is cancelled. Power is untouched.',
-  V2: 'All off - every washer switches off. The keyholder restores one per day. (Brief as written.)',
-  V3: 'Auto-restore - every washer switches off, all return at the end of the following day. (Experiment recommendation.)',
-};
-
-/**
- * EXPERIMENT B — event timing arms.  The card is revealed on draw in every arm;
- * only the moment of RESOLUTION differs.  Write-up and reasoning live in
- * web/experiments/experiment-B-event-timing.md.
- */
-export const EVENT_TIMING_ARMS: Readonly<Record<EventTimingArm, string>> = {
-  E1: 'Immediate - the event fires the moment it is drawn, mid-turn. Counter-cards can answer it the same day.',
-  E2: 'Deferred - the event fires after everyone has loaded, before the keyholder acts. (Brief v8 as written, and what the simulation assumes.)',
-  E3: 'Split - Circuit break and Animal control fire on draw; Gang and Jimothy wait until everyone has loaded.',
-};
 
 export function defaultConfig(
   players: number,
@@ -92,11 +65,7 @@ export function defaultConfig(
     handSize: 10,
     crowdThreshold: 3, // >= N of a garment type sends them all back [A-22]
 
-    circuitBreak: 'V3',
     turnOrder: 'cardLoadExtra', // designer-confirmed: card -> load -> extra [A-W03]
-    // EXPERIMENT B, unresolved. E1 diverges from brief v8 and from sim/rules.py,
-    // both of which are E2. See web/experiments/experiment-B-event-timing.md.
-    eventTiming: 'E1',
 
     specialDeck: { ...PLACEHOLDER_SPECIAL_DECK },
     eventDeck: { ...FIXED_EVENT_DECK } as Record<EventName, number>,
@@ -117,14 +86,13 @@ export function defaultConfig(
      * The false path is retained for ablation only and is not offered in the UI.
      */
     keyholderFirst: true,
-    sanitizerOwnerOnly: false, // [A-W05] default is machine-wide
     bleachKillsDark: false, // rules-v0.2 [OQ-05] alternative reading
-    socksBlanketExtraWash: true, // v8 core rule; switch exists for ablation
+    // RESOLVED v10: socks beside a blanket do not wash and stay in the machine.
+    socksBlanketExtraWash: true,
     // Designer revision. 'v8net' restores brief v8's Wash net exactly.
     meshBagRule: 'guaranteed',
     // Designer revision. false restores brief v8's machine-wide shade ladder.
     ownItemsDontTaint: true,
-    publicDampZone: true, // [A-28]
 
     dayCap: 400,
     ...overrides,

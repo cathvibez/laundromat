@@ -230,17 +230,16 @@ describe('PATCH /api/rooms/:code/settings', () => {
         method: 'PATCH',
         playerID: admin.playerID,
         credentials: admin.credentials,
-        body: { circuitBreak: 'V1', eventTiming: 'E2', publicDampZone: false },
+        body: { dayCap: 300, keyholderFirst: true },
       },
     );
     expect(status).toBe(200);
-    expect(body.settings.circuitBreak).toBe('V1');
-    expect(body.settings.eventTiming).toBe('E2');
-    expect(body.settings.publicDampZone).toBe(false);
+    expect(body.settings.dayCap).toBe(300);
+    expect(body.settings.keyholderFirst).toBe(true);
 
     // and it is visible to everyone
     const room = await h.api<{ settings: Record<string, unknown> }>(`/api/rooms/${admin.code}`);
-    expect(room.body.settings.circuitBreak).toBe('V1');
+    expect(room.body.settings.dayCap).toBe(300);
   });
 
   it('403s a non-admin', async () => {
@@ -252,7 +251,7 @@ describe('PATCH /api/rooms/:code/settings', () => {
         method: 'PATCH',
         playerID: notAdmin.playerID,
         credentials: notAdmin.credentials,
-        body: { circuitBreak: 'V1' },
+        body: { dayCap: 300 },
       },
     );
     expect(status).toBe(403);
@@ -263,7 +262,7 @@ describe('PATCH /api/rooms/:code/settings', () => {
     const seats = await seatRoom(h, 3);
     const { status } = await h.api(`/api/rooms/${seats[0].code}/settings`, {
       method: 'PATCH',
-      body: { circuitBreak: 'V1' },
+      body: { dayCap: 300 },
     });
     expect(status).toBe(403);
   });
@@ -274,7 +273,7 @@ describe('PATCH /api/rooms/:code/settings', () => {
       method: 'PATCH',
       playerID: '1',
       credentials: seats[0].credentials,
-      body: { circuitBreak: 'V1' },
+      body: { dayCap: 300 },
     });
     expect(status).toBe(403);
   });
@@ -291,7 +290,7 @@ describe('PATCH /api/rooms/:code/settings', () => {
       method: 'PATCH',
       playerID: admin.playerID,
       credentials: admin.credentials,
-      body: { circuitBreak: 'V1' },
+      body: { dayCap: 300 },
     });
     expect(status).toBe(409);
     expect(body.error).toBe('started');
@@ -308,12 +307,16 @@ describe('PATCH /api/rooms/:code/settings', () => {
       ['an event deck that is not exactly 4 cards', {
         eventDeck: { Gang: 2, 'Circuit break': 1, Jimothy: 1, 'Animal control': 1 },
       }],
-      ['an unknown circuit break arm', { circuitBreak: 'V9' }],
-      ['an unknown event timing arm', { eventTiming: 'E4' }],
+      ['an unknown mesh bag rule', { meshBagRule: 'v9bag' }],
+      ['an unknown turn order', { turnOrder: 'loadCardExtra' }],
+      // The rules these selected between were resolved in v10 and the fields
+      // deleted, so the lobby must now refuse them like any other unknown key.
+      ['a setting that was removed along with its rule', { circuitBreak: 'V1' }],
+      ['another setting removed with its rule', { publicDampZone: true }],
       ['fewer than three seats', { players: 2 }],
       ['more than six seats', { players: 7 }],
       ['a non-integer capacity', { capacity: 2.5 }],
-      ['a string where a boolean belongs', { publicDampZone: 'yes' }],
+      ['a string where a boolean belongs', { keyholderFirst: 'yes' }],
       ['a setting that is not the lobby’s to change', { machines: 9 }],
       ['a setting that does not exist', { nonsense: true }],
       ['a special deck missing a card', { specialDeck: { Coloring: 20 } }],

@@ -113,21 +113,23 @@ export class LobbyError extends Error {
  * `machines` is absent on purpose: it is a function of the seat count
  * (MACHINES_BY_PLAYERS) and letting a lobby override it would put the board out
  * of step with the rulebook.  Everything else in config.ts is here.
+ *
+ * Four keys left this list in v10 — circuitBreak, eventTiming,
+ * sanitizerOwnerOnly and publicDampZone.  They are not missing: the rules they
+ * selected between no longer have alternatives, so the fields are gone from
+ * LaundromatConfig entirely.  Do not add them back to "restore symmetry"; the
+ * final gate below would reject them anyway, since it builds a real config.
  */
 const BOOLEAN_KEYS = [
   'keyholderFirst',
-  'sanitizerOwnerOnly',
   'bleachKillsDark',
   'socksBlanketExtraWash',
   'ownItemsDontTaint',
-  'publicDampZone',
 ] as const;
 
 const POSITIVE_INT_KEYS = ['capacity', 'handSize', 'crowdThreshold', 'dayCap'] as const;
 
 const ENUM_KEYS = {
-  circuitBreak: ['V1', 'V2', 'V3'],
-  eventTiming: ['E1', 'E2', 'E3'],
   turnOrder: ['cardLoadExtra', 'extraLoadCard'],
   meshBagRule: ['guaranteed', 'v8net'],
 } as const;

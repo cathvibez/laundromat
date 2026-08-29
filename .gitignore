@@ -1,2 +1,5 @@
 .DS_Store
 **/.DS_Store
+
+# Browser automation scratch output.
+.playwright-mcp/

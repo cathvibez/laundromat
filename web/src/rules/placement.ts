@@ -64,10 +64,15 @@ export function liveMachines(st: GameState): number[] {
   return st.machines.filter((m) => !m.dead).map((m) => m.id);
 }
 
-/** Every item the player may load right now: hand plus the public damp zone. */
+/**
+ * Every item the player may load right now: the hand, and only the hand.
+ *
+ * There used to be a second source, the public damp zone.  v10 deleted it —
+ * damp socks stay in the machine they are in, so they are never in a player's
+ * possession to re-load.
+ */
 export function loadableItems(st: GameState, pid: number): ItemId[] {
-  const p = st.players[pid];
-  return st.cfg.publicDampZone ? [...p.hand, ...p.damp] : [...p.hand];
+  return [...st.players[pid].hand];
 }
 
 /** Does any machine accept any item this player can load? */

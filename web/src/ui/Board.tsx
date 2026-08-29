@@ -700,9 +700,7 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
               Drawn by Player {(G.eventDrawer ?? 0) + 1} and revealed at once.{' '}
               {turn?.pendingEvent
                 ? 'You drew it, so you choose where it lands. Close this and pick a washer — the day cannot go on until you do.'
-                : G.cfg.eventTiming === 'E1'
-                  ? 'It takes effect immediately, before anyone else takes their turn.'
-                  : 'It resolves after every player has taken their turn — so everyone acting after this knows it is coming.'}
+                : 'It takes effect immediately, before anyone else takes their turn.'}
             </p>
             <div className="row">
               <button className="primary" onClick={() => setBriefedReveal(G.day)}>
@@ -1379,7 +1377,6 @@ function ProgressRail({
                 }
               >
                 hand {p.hand.length}
-                {p.damp.length > 0 ? ` · damp ${p.damp.length}` : ''}
               </span>
             </div>
           </div>
@@ -1457,23 +1454,6 @@ function Zones({
             );
           })}
           {p.hand.length === 0 && <span className="rules-help">empty</span>}
-        </div>
-
-        <div className="zone-label">Damp zone · public ({p.damp.length})</div>
-        <div className="items scroll">
-          {sortItems(G, p.damp).filter((id) => !stagedItems.has(id)).map((id) => (
-            <GarmentCard
-              key={id}
-              item={G.items[id]}
-              size="md"
-              verdict="damp"
-              note="needs one more wash"
-              selected={selectedItem === id}
-              className="item-btn damp"
-              onClick={canLoad ? () => setSelectedItem(selectedItem === id ? null : id) : undefined}
-            />
-          ))}
-          {p.damp.length === 0 && <span className="rules-help">nothing damp</span>}
         </div>
 
         <div className="zone-label">
