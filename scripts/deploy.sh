@@ -123,6 +123,10 @@ if [ "$MODE" = "local" ]; then
   flyctl deploy --config web/fly.toml
 else
   step "Promoting main -> prod"
+  # Read the current release BEFORE pushing. CI finishes in well under two
+  # minutes, so capturing this afterwards can miss the change entirely and then
+  # sit through the whole timeout waiting for something that already happened.
+  before=$(flyctl releases -a "$APP" --json | jq '.[0].version')
   git checkout prod --quiet
   git merge --ff-only main --quiet
   git push origin prod
@@ -134,7 +138,6 @@ else
   # Wait for the release to land before verifying, otherwise the smoke test
   # races the rollout and fails against the old machine.
   step "Waiting for the rollout"
-  before=$(flyctl releases -a "$APP" --json | jq '.[0].version')
   for _ in $(seq 1 60); do
     sleep 10
     now=$(flyctl releases -a "$APP" --json | jq '.[0].version')

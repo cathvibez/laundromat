@@ -47,9 +47,17 @@ done
 command -v flyctl > /dev/null 2>&1 || { echo "flyctl not installed" >&2; exit 1; }
 command -v jq     > /dev/null 2>&1 || { echo "jq not installed (brew install jq)" >&2; exit 1; }
 
-# Build a jq filter from the flags. Fly wraps each app line in its own envelope
-# and also emits proxy/health lines that are not ours, so `fromjson? // empty`
-# quietly drops everything that is not one of our JSON objects.
+# Build a jq filter from the flags.
+#
+# Fly PREFIXES every line with its own timestamp, instance and region before our
+# JSON starts, e.g.
+#     2026-08-29T04:31:23Z app[2869...] sjc [info]{"level":"info",...}
+# so the line is not bare JSON and `fromjson` on it yields nothing at all — the
+# whole script silently printed zero lines until this was found. STRIP.CMD below
+# removes everything up to the first brace. Fly also emits proxy and health
+# lines that are not ours; `fromjson? // empty` drops those quietly.
+# Everything before the first `{` is Fly's envelope, not ours.
+STRIP="sed 's/^[^{]*//'"
 FILTER='fromjson? // empty'
 [ -n "$ROOM" ]        && FILTER="$FILTER | select(.room == \"$ROOM\")"
 [ -n "$USER_FP" ]     && FILTER="$FILTER | select(.user == \"$USER_FP\")"
@@ -77,7 +85,7 @@ FLAGS=(-a "$APP")
 [ "$NO_TAIL" = 1 ] && FLAGS+=(--no-tail)
 
 if [ "$RAW" = 1 ]; then
-  flyctl logs "${FLAGS[@]}" | jq -R "$FILTER | $RENDER"
+  flyctl logs "${FLAGS[@]}" | sed 's/^[^{]*//' | jq -R "$FILTER | $RENDER"
 else
-  flyctl logs "${FLAGS[@]}" | jq -Rr "$FILTER | $RENDER"
+  flyctl logs "${FLAGS[@]}" | sed 's/^[^{]*//' | jq -Rr "$FILTER | $RENDER"
 fi
