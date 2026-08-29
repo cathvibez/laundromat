@@ -1,0 +1,21 @@
+- generic [ref=e29]:
+  - banner [ref=e30]:
+    - heading "Laundromat" [level=1] [ref=e31]
+    - generic [ref=e32]: Play online
+  - generic [ref=e33]: Your name
+  - textbox "Your name" [ref=e34]:
+    - /placeholder: Nina
+  - generic [ref=e35]: Everyone in the room sees this. Sixteen characters at most.
+  - generic [ref=e36]:
+    - generic [ref=e37]:
+      - heading "Start a room" [level=3] [ref=e38]
+      - paragraph [ref=e39]: "You become the host: you set the rules and press start. Three players minimum, six maximum."
+      - button "Create a room" [ref=e40] [cursor=pointer]
+    - generic [ref=e41]:
+      - heading "Join a room" [level=3] [ref=e42]
+      - generic [ref=e43]: Room code
+      - textbox "Room code" [ref=e44]:
+        - /placeholder: ABCD
+      - generic [ref=e45]: Four characters. Upper or lower case, it does not matter — there is no I, O, 0 or 1 in a code.
+      - button "Join" [disabled] [ref=e46]
+  - button "Back" [ref=e48] [cursor=pointer]

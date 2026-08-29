@@ -126,7 +126,7 @@ else
   # Read the current release BEFORE pushing. CI finishes in well under two
   # minutes, so capturing this afterwards can miss the change entirely and then
   # sit through the whole timeout waiting for something that already happened.
-  before=$(flyctl releases -a "$APP" --json | jq '.[0].version')
+  before=$(flyctl releases -a "$APP" --json | jq '.[0].Version')
   git checkout prod --quiet
   git merge --ff-only main --quiet
   git push origin prod
@@ -140,7 +140,7 @@ else
   step "Waiting for the rollout"
   for _ in $(seq 1 60); do
     sleep 10
-    now=$(flyctl releases -a "$APP" --json | jq '.[0].version')
+    now=$(flyctl releases -a "$APP" --json | jq '.[0].Version')
     [ "$now" != "$before" ] && { ok "release $now is live"; break; }
     printf '.'
   done

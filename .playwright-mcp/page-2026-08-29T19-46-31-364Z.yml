@@ -1,0 +1,37 @@
+- generic [ref=e3]:
+  - heading "Laundromat" [level=1] [ref=e4]
+  - group "How to play" [ref=e5]:
+    - button "Play on this device" [pressed] [ref=e6]
+    - button "Play online" [ref=e7] [cursor=pointer]
+  - paragraph [ref=e8]: Local hot-seat. Every player uses this one screen; hands are hidden between turns.
+  - generic [ref=e9]: Players
+  - combobox [ref=e10]:
+    - option "3 players - 4 machines"
+    - option "4 players - 5 machines" [selected]
+    - option "5 players - 6 machines"
+    - option "6 players - 7 machines"
+  - generic [ref=e11]: Circuit break variant (under A/B test)
+  - combobox [ref=e12]:
+    - option "V1 - Blackout - only tonight’s reckoning is cancelled. Power is untouched."
+    - option "V2 - All off - every washer switches off. The keyholder restores one per day. (Brief as written.)"
+    - option "V3 - Auto-restore - every washer switches off, all return at the end of the following day. (Experiment recommendation.)" [selected]
+  - generic [ref=e13]: V2 is what the brief currently says. V3 is what the simulation experiment recommends and is the default here. The designer has not committed.
+  - generic [ref=e14]: Event timing (experiment B, under test)
+  - combobox [ref=e15]:
+    - option "E1 - Immediate - the event fires the moment it is drawn, mid-turn. Counter-cards can answer it the same day." [selected]
+    - option "E2 - Deferred - the event fires after everyone has loaded, before the keyholder acts. (Brief v8 as written, and what the simulation assumes.)"
+    - option "E3 - Split - Circuit break and Animal control fire on draw; Gang and Jimothy wait until everyone has loaded."
+  - generic [ref=e16]: The event card is revealed the instant it is drawn in every arm; only the moment it RESOLVES differs. E2 is the brief as written and what the simulation assumes. E1 is the only arm in which a Coin can answer a Circuit break, or a Snacc move Jimothy, on the day it happens — but it lands unevenly on players who have already taken their turn, so it pairs well with the keyholder-first switch below. Full write-up in web/experiments/experiment-B-event-timing.md.
+  - generic [ref=e17]: Sensitivity switches
+  - generic [ref=e18]:
+    - generic [ref=e19]:
+      - checkbox "Sanitizer protects only its owner (default is machine-wide)" [ref=e20]
+      - text: Sanitizer protects only its owner (default is machine-wide)
+    - generic [ref=e21]:
+      - checkbox "Damp socks sit in a public zone (default; the alternative hides them in hand)" [checked] [ref=e22]
+      - text: Damp socks sit in a public zone (default; the alternative hides them in hand)
+  - generic [ref=e23]:
+    - heading "Special item deck is provisional" [level=3] [ref=e24]
+    - generic [ref=e25]: The 20-card composition below is a FLAT PLACEHOLDER, not a design decision. Copy counts are still open and are being decided by simulation. Do not form an opinion about card balance from this deck.
+    - generic [ref=e26]: Coloring x3 · Color catcher x3 · Bleach x3 · Wash net x3 · Snacc x3 · Sanitizer x3 · Coin x2
+  - button "Start the day" [ref=e28] [cursor=pointer]
