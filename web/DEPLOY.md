@@ -246,6 +246,56 @@ first line at run time.
 
 ---
 
+## Reading the logs
+
+The server writes one JSON object per line to stdout, which is what `fly logs`
+captures. Every line caused by a game carries `room`; every line caused by a
+person carries `user`, a hashed anonymous id their browser sends as
+`x-fingerprint`. Filter on those rather than scrolling:
+
+```bash
+scripts/logs.sh                    # live tail, readable
+scripts/logs.sh --room 8U3W        # one game, start to finish
+scripts/logs.sh --user a1b2c3d4e5f6  # one person across rooms and reconnects
+scripts/logs.sh --errors           # warn and above
+scripts/logs.sh --recent           # last chunk, then exit
+scripts/logs.sh --raw | jq 'select(.ms > 500)'   # untouched JSON
+```
+
+`--room` and `--user` combine with `--errors`.
+
+### What to look for
+
+| Symptom | Line to search for |
+|---|---|
+| "we all got dropped" | `shutting down` — a deploy or restart; every in-memory game ends there |
+| "my friend's code doesn't work" | `room created` on one machine and `refused` with `not-found` on another means two instances; check `fly machines list` |
+| "it won't let me in" | `refused`, with `err` naming which rule (`full`, `started`, `nickname-taken`) |
+| the server is misbehaving | `staying up, but this is a bug` — a caught crash that would previously have killed the process |
+| a slow request | `--raw` and filter on `.ms` |
+
+Set `LOG_LEVEL=debug` on Fly to include every request, then put it back:
+clients poll the lobby constantly and debug drowns everything else.
+
+```bash
+fly secrets set LOG_LEVEL=debug -a play-laundromat    # NOTE: restarts the app
+fly secrets unset LOG_LEVEL -a play-laundromat
+```
+
+**Both of those restart the machine, which ends every game in progress.** Do not
+turn on debug logging to investigate a live complaint — you will destroy the
+thing you are investigating.
+
+### The limit worth knowing
+
+Logs are a live stream from the running machine. There is no history: after a
+restart, the games AND their logs are gone. If you need to keep evidence of an
+incident, capture it while the machine is still up (`scripts/logs.sh --recent >
+incident.txt`). Persisting logs off-box would need a drain, which is a scoped
+decision nobody has made yet.
+
+---
+
 ## State and restarts
 
 **Rooms and games live in memory.** There is no database, deliberately (v1

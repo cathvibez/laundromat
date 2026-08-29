@@ -20,6 +20,7 @@ import { SocketIO } from 'boardgame.io/multiplayer';
 import { Laundromat } from '../game/Laundromat';
 import { Board } from '../ui/Board';
 import type { Auth, GameClient, OnlineSettings, RoomInfo, Seat } from '../online/api';
+import { getFingerprint } from '../online/session';
 
 /** '' in production: the client is served by the game server itself. */
 export const SERVER_URL: string =
@@ -71,6 +72,10 @@ async function request<T>(
 ): Promise<T> {
   const headers: Record<string, string> = {};
   if (init.body !== undefined) headers['Content-Type'] = 'application/json';
+  // Anonymous and stable per browser: it ties this request to the rest of this
+  // person's session in the server logs. Never sent to anywhere but our own
+  // origin, and it identifies a browser, not a person.
+  headers['x-fingerprint'] = getFingerprint();
   if (init.auth) {
     headers['x-player-id'] = init.auth.playerID;
     headers['x-credentials'] = init.auth.credentials;

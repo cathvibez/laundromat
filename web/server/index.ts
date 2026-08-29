@@ -17,6 +17,7 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildServer } from './app';
+import { log } from './log';
 
 const PORT = Number(process.env.PORT ?? 8000);
 
@@ -33,9 +34,9 @@ const origins = (process.env.ORIGINS ?? '')
 
 const haveClient = existsSync(resolve(clientDir, 'index.html'));
 if (!haveClient) {
-  console.warn(
-    `[laundromat] No built client at ${clientDir} — serving the API only. ` +
-      `Run \`npm run build\` first, or set CLIENT_DIR.`,
+  log.warn(
+    { clientDir },
+    'no built client found — serving the API only; run `npm run build` or set CLIENT_DIR',
   );
 }
 
@@ -50,7 +51,7 @@ const { server, rooms } = buildServer({
 const reaper = setInterval(
   () => {
     const n = rooms.sweep();
-    if (n > 0) console.log(`[laundromat] swept ${n} expired room(s)`);
+    if (n > 0) log.info({ swept: n, remaining: rooms.size() }, 'swept expired rooms');
   },
   15 * 60 * 1000,
 );
@@ -77,21 +78,37 @@ reaper.unref?.();
  * that took six people's game with it. Anything logged here is a real bug and
  * should be fixed at its source, not left to this net.
  */
-for (const event of ['unhandledRejection', 'uncaughtException'] as const) {
-  process.on(event, (err: unknown) => {
-    console.error(`[laundromat] ${event} — staying up, but this is a bug:`, err);
-  });
+function stayUpOnErrors(): void {
+  for (const event of ['unhandledRejection', 'uncaughtException'] as const) {
+    process.on(event, (err: unknown) => {
+      log.error({ err, event }, 'staying up, but this is a bug');
+    });
+  }
 }
 
 async function main(): Promise<void> {
   const servers = await server.run(PORT, () => {
-    console.log(`[laundromat] listening on :${PORT}`);
-    console.log(`[laundromat] client: ${haveClient ? clientDir : '(none)'}`);
+    log.info(
+      { port: PORT, client: haveClient ? clientDir : null, logLevel: log.level },
+      'listening',
+    );
   });
+
+  /*
+   * ONLY NOW. Arming this before the port is bound turns a failure to start
+   * into a zombie: `listen EPERM` arrives as an uncaughtException, the handler
+   * swallows it, and the process sits there alive and serving nothing while
+   * the platform waits for a health check that can never pass. A server that
+   * cannot start must still die loudly — it is a server that has already
+   * started, holding games in memory, that must not.
+   */
+  stayUpOnErrors();
 
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.on(signal, () => {
-      console.log(`[laundromat] ${signal}, shutting down`);
+      // Worth a line of its own: this is the moment every in-memory game ends,
+      // so it is the first thing to look for when players report being dropped.
+      log.info({ signal, rooms: rooms.size() }, 'shutting down — every live game ends here');
       server.kill(servers);
       process.exit(0);
     });
@@ -99,6 +116,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  console.error('[laundromat] failed to start', e);
+  log.fatal({ err: e }, 'failed to start');
   process.exit(1);
 });

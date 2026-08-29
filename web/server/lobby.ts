@@ -15,6 +15,7 @@ import type Router from '@koa/router';
 import type { Context } from 'koa';
 import koaBody from 'koa-body';
 import { createMatch } from 'boardgame.io/internal';
+import { logOf } from './log';
 import type { Game, Server as ServerTypes, StorageAPI } from 'boardgame.io';
 import {
   configForStart,
@@ -86,10 +87,18 @@ async function handled(ctx: Context, fn: () => Promise<void> | void): Promise<vo
     await fn();
   } catch (e) {
     if (e instanceof LobbyError) {
+      // Expected refusals — a full room, a stale code, a non-admin pressing
+      // start. `warn` because each one is a player being told no, which is the
+      // thing you go looking for when someone says "it wouldn't let me in".
+      logOf(ctx).warn({ err: e.code, status: e.status, detail: e.message }, 'refused');
       ctx.status = e.status;
       ctx.body = { error: e.code, message: e.message };
       return;
     }
+    // Anything else is a bug. Log it HERE, with the room and user attached,
+    // because by the time it reaches Koa's default handler that context is
+    // gone and all you get is a stack.
+    logOf(ctx).error({ err: e }, 'unhandled error in a lobby route');
     throw e;
   }
 }
@@ -102,6 +111,7 @@ export function mountLobby(router: Router<unknown, ServerTypes.AppCtx>, deps: Lo
     await handled(ctx, () => {
       const { nickname } = requestBody(ctx);
       const room = rooms.create(nickname as string);
+      logOf(ctx).info({ room: room.code, nickname, seats: 1 }, 'room created');
       ctx.status = 200;
       ctx.body = seatPayload(room, room.seats[0]);
     });
@@ -113,6 +123,10 @@ export function mountLobby(router: Router<unknown, ServerTypes.AppCtx>, deps: Lo
       const room = rooms.require(normaliseCode(ctx.params.code));
       const { nickname } = requestBody(ctx);
       const seat = rooms.join(room, nickname as string, authFrom(ctx));
+      logOf(ctx).info(
+        { nickname, playerID: seat.playerID, seats: room.seats.length },
+        'seat taken',
+      );
       ctx.status = 200;
       ctx.body = seatPayload(room, seat);
     });
@@ -158,6 +172,7 @@ export function mountLobby(router: Router<unknown, ServerTypes.AppCtx>, deps: Lo
         );
       }
       room.settings = next;
+      logOf(ctx).info({ settings: next }, 'settings changed');
       ctx.status = 200;
       ctx.body = { settings: room.settings };
     });
@@ -205,6 +220,10 @@ export function mountLobby(router: Router<unknown, ServerTypes.AppCtx>, deps: Lo
       await db.createMatch(room.code, match);
       room.matchID = room.code;
       room.started = true;
+      logOf(ctx).info(
+        { numPlayers, matchID: room.matchID, settings: room.settings },
+        'game started',
+      );
 
       ctx.status = 200;
       ctx.body = { started: true };

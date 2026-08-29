@@ -88,6 +88,47 @@ export function clearSession(): void {
 }
 
 /** Remembered between visits so nobody types their name twice. */
+/*
+ * A stable, anonymous id for this browser, sent with every lobby request so the
+ * server can group log lines by person (see server/log.ts).
+ *
+ * Random, generated once, and stored like everything else here. It is NOT a
+ * device fingerprint: nothing about the browser, screen or network goes into
+ * it, so it cannot follow anyone to another site and clearing site data throws
+ * it away. It exists so that "it keeps dropping me" becomes one grep instead of
+ * a guess about which of six players was affected.
+ *
+ * If storage is unavailable the id is regenerated per call, which is useless
+ * for correlation but harmless — the same policy the rest of this file takes
+ * with a broken store.
+ */
+const FINGERPRINT_KEY = 'laundromat.fingerprint.v1';
+
+function randomId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch {
+    /* fall through */
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+export function getFingerprint(): string {
+  const st = storage();
+  if (!st) return randomId();
+  try {
+    const existing = st.getItem(FINGERPRINT_KEY);
+    if (existing) return existing;
+    const made = randomId();
+    st.setItem(FINGERPRINT_KEY, made);
+    return made;
+  } catch {
+    return randomId();
+  }
+}
+
 const NICK_KEY = 'laundromat.nickname.v1';
 
 export function rememberNickname(n: string): void {

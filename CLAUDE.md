@@ -21,7 +21,7 @@ All of these run from `web/`:
 
 ```bash
 npm install
-npm test                     # vitest, 291 tests across 16 files
+npm test                     # vitest, 302 tests across 17 files
 npm run dev                  # Vite dev server on :5173 (hot-seat)
 npm run build                # tsc -b && vite build  -> dist/
 npm run build:server         # esbuild -> server-dist/index.cjs (+ smoke.cjs)
@@ -96,6 +96,38 @@ a tag-drift failure mode to save nothing. `web/DEPLOY.md` has the full
 reasoning and the conditions under which to revisit it (a second environment,
 or wanting the image as a consumable artifact).
 
+## Logging
+
+Structured JSON on stdout via pino (`web/server/log.ts`). Every line caused by a
+game carries `room`; every line caused by a person carries `user`, a hashed,
+anonymous per-browser id the client sends as `x-fingerprint`. Those two fields
+are the whole point — a bug report is "room 8U3W broke" or "it keeps dropping
+me", and each becomes one filter.
+
+```bash
+scripts/logs.sh                  # live tail, readable
+scripts/logs.sh --room 8U3W      # one game
+scripts/logs.sh --user a1b2c3d4  # one person
+scripts/logs.sh --errors         # warn and above
+scripts/logs.sh --raw | jq ...   # untouched JSON
+```
+
+Traps worth knowing:
+
+- **No pino transports.** The pretty/file transports run in worker threads and
+  pull `thread-stream` through a `require` esbuild cannot see, which builds fine
+  and dies at run time — the same shape as the CJS trap below. Production writes
+  JSON to stdout and nothing else; pipe through `npx pino-pretty` locally.
+- **Never log a credential.** They are bearer tokens for a seat. `REDACT_PATHS`
+  in `log.ts` censors them and `tests/server/log.test.ts` asserts it against the
+  real config.
+- **Do not use pino's reserved keys as fields.** `level`, `msg` and `time` as
+  your own field names produce duplicate JSON keys; `jq` silently takes the last
+  one, so a filter reads the wrong value. Use `logLevel`, `detail`, and so on.
+- **The crash guard arms only after the port is bound.** Arming it earlier turns
+  a failure to start into a zombie that serves nothing while the platform waits
+  on a health check that can never pass.
+
 ## Constraints and traps
 
 **Exactly one server instance.** Rooms live in a `Map` in `server/rooms.ts` and
@@ -162,7 +194,7 @@ rule into the oracle and regenerating fixtures should happen in one change.
 
 **The two `tests/server/` suites bind an ephemeral TCP port.** In a sandbox that
 blocks `listen`, they skip and the run reports 2 failed files with `EPERM` —
-that is the environment, not the code. The other 14 files pass regardless.
+that is the environment, not the code. The other 15 files pass regardless.
 
 **There is no seed-for-seed parity between `web/` and `sim/`.** Python's
 Mersenne Twister and boardgame.io's RNG are different streams. They are the same
