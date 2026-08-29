@@ -186,6 +186,36 @@ export const Laundromat: Game<LaundromatG> = {
   minPlayers: 3,
   maxPlayers: 6,
 
+  /*
+   * This is not decoration, and removing it takes the whole server down.
+   *
+   * boardgame.io's `Master.onSync` creates a match ON DEMAND when a client
+   * syncs to a matchID the server does not have (its own comment reads "If the
+   * game doesn't exist, then create one on demand. TODO: Move this out of the
+   * sync call."). It builds that match with the numPlayers the CLIENT sent,
+   * and `createMatch` silently defaults that to 2.
+   *
+   * Our state is in memory, so every restart empties it while browser tabs are
+   * still holding a session in localStorage and reconnecting. Each of those
+   * reconnects hit the on-demand path with numPlayers = 2, `setup` called
+   * `defaultConfig(2)`, and that threw — inside an async socket handler, which
+   * Node turns into an unhandled rejection and exits the process. The client
+   * then reconnected and killed it again; Fly reported "machine has reached
+   * its max restart count of 10". Any single stale tab could hold the server
+   * down indefinitely.
+   *
+   * `minPlayers`/`maxPlayers` above do NOT prevent this: nothing on the sync
+   * path consults them. `validateSetupData` is the one hook `createMatch` does
+   * call, and it runs BEFORE `InitializeGame`, so returning a string here
+   * turns a fatal throw into an error the client is handed politely.
+   */
+  validateSetupData: (_setupData, numPlayers) => {
+    if (!Number.isInteger(numPlayers) || numPlayers < 3 || numPlayers > 6) {
+      return `Laundromat seats 3-6 players, not ${numPlayers}`;
+    }
+    return undefined;
+  },
+
   setup: makeSetup(),
 
   phases: {

@@ -21,7 +21,7 @@ All of these run from `web/`:
 
 ```bash
 npm install
-npm test                     # vitest, 276 tests across 15 files
+npm test                     # vitest, 291 tests across 16 files
 npm run dev                  # Vite dev server on :5173 (hot-seat)
 npm run build                # tsc -b && vite build  -> dist/
 npm run build:server         # esbuild -> server-dist/index.cjs (+ smoke.cjs)
@@ -162,7 +162,7 @@ rule into the oracle and regenerating fixtures should happen in one change.
 
 **The two `tests/server/` suites bind an ephemeral TCP port.** In a sandbox that
 blocks `listen`, they skip and the run reports 2 failed files with `EPERM` —
-that is the environment, not the code. The other 13 files pass regardless.
+that is the environment, not the code. The other 14 files pass regardless.
 
 **There is no seed-for-seed parity between `web/` and `sim/`.** Python's
 Mersenne Twister and boardgame.io's RNG are different streams. They are the same

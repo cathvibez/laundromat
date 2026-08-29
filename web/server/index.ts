@@ -56,6 +56,33 @@ const reaper = setInterval(
 );
 reaper.unref?.();
 
+/*
+ * Stay up.
+ *
+ * Normally letting the process die on an unhandled rejection is right: the
+ * state is suspect, and a supervisor restarts you clean. Here the calculus is
+ * inverted, because THE STATE IS THE PRODUCT. Every room and every game in
+ * progress lives in this process's memory, so an exit is not a clean restart —
+ * it ends every game being played, and the players cannot reconnect to
+ * anything.
+ *
+ * That is not hypothetical. A throw inside boardgame.io's async socket handler
+ * (a stale client syncing to a match that no longer existed) became an
+ * unhandled rejection, exited the process, and took every live game with it.
+ * The reconnecting client then did it again, ten times, until Fly gave up.
+ * `validateSetupData` in src/game/Laundromat.ts fixes that specific throw;
+ * this makes the NEXT one an incident report instead of an outage.
+ *
+ * The trade is deliberate: a wedged server that logs loudly beats a dead one
+ * that took six people's game with it. Anything logged here is a real bug and
+ * should be fixed at its source, not left to this net.
+ */
+for (const event of ['unhandledRejection', 'uncaughtException'] as const) {
+  process.on(event, (err: unknown) => {
+    console.error(`[laundromat] ${event} — staying up, but this is a bug:`, err);
+  });
+}
+
 async function main(): Promise<void> {
   const servers = await server.run(PORT, () => {
     console.log(`[laundromat] listening on :${PORT}`);

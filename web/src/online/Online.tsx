@@ -657,10 +657,64 @@ function OnlineGame({ net, seat, onLeave }: { net: NetApi; seat: Seat; onLeave: 
     }),
   );
   const [crashed, setCrashed] = useState<string | null>(null);
+  const [ended, setEnded] = useState(false);
 
   useEffect(() => {
     if (typeof Client !== 'function') setCrashed('The game client could not be created.');
   }, [Client]);
+
+  /*
+   * Notice when the server no longer has this room, and say so.
+   *
+   * State is in memory, so a restart or redeploy erases every room while this
+   * tab is still open. boardgame.io's client does not surface that: it just
+   * retries the socket forever, leaving the player staring at a board that will
+   * never move again. Worse, those retries used to CRASH the server — see
+   * validateSetupData in src/game/Laundromat.ts — so a tab left open was an
+   * outage, not just a bad experience.
+   *
+   * The lobby API is ours and answers honestly, so poll that rather than trying
+   * to read the socket's internals. ONLY a real not-found counts: a flaky
+   * network throws too, and telling someone their game is over because their
+   * wifi dipped would be worse than saying nothing.
+   */
+  useEffect(() => {
+    let live = true;
+    const id = setInterval(async () => {
+      try {
+        await net.getRoom(seat.code);
+      } catch (e) {
+        const status = Number((e as { status?: unknown })?.status ?? NaN);
+        const code = String((e as { code?: unknown })?.code ?? '');
+        if (live && (status === 404 || code === 'not-found')) setEnded(true);
+      }
+    }, 20_000);
+    return () => {
+      live = false;
+      clearInterval(id);
+    };
+  }, [net, seat.code]);
+
+  if (ended) {
+    return (
+      <div className="app setup">
+        <LobbyMasthead title="Game over" />
+        <div className="banner error" role="alert">
+          <h3>This game has ended</h3>
+          <div>
+            The server restarted, and games are not saved between restarts — so there is nothing
+            left to rejoin. Nobody did anything wrong, and the room code is gone rather than
+            broken.
+          </div>
+        </div>
+        <div className="row" style={{ marginTop: 16 }}>
+          <button className="primary" onClick={onLeave}>
+            Back to the start
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (crashed) {
     return (
