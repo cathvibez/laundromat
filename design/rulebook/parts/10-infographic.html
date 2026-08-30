@@ -147,7 +147,7 @@
       You will see these three stamps all game.<br>
       <b>WASHED</b> — into your clean pile, for good.<br>
       <b>BACK</b> — to your hand, unharmed.<br>
-      <b>DAMP</b> — socks only. Needs one more wash.
+      <b>DAMP</b> — socks only. They stay in the washer.
     </div>
   </div>
 
@@ -237,17 +237,15 @@
         <tr><td>Key token</td><td style="text-align:right">1</td><td class="dimtext"></td></tr>
         <tr><td>Jimothy</td><td style="text-align:right">1</td><td class="dimtext">a raccoon</td></tr>
         <tr><td>Die</td><td style="text-align:right">1</td><td class="dimtext">six-sided</td></tr>
-        <tr><td>Damp markers <span class="prov">provisional</span></td><td style="text-align:right">?</td><td class="dimtext">see last page</td></tr>
       </table>
     </div>
   </div>
 
   <div class="provbox">
-    <div class="hd">Provisional — damp markers</div>
-    Damp is the only lasting per-item state in the game and the component list has no token for it.
-    <span class="dflt">Current default: the face-up damp zone alone.</span> The problem this leaves
-    open: a damp sock sitting in a washer looks exactly like a dry one, and that is precisely when it
-    matters.
+    <div class="hd">Settled — damp needs no component</div>
+    There is nothing to mark. Socks in a washer with a blanket do not wash and stay in that washer,
+    so damp is something you read off the board rather than a state that travels with a card.
+    <span class="dflt">No token, no zone, no player mat.</span>
   </div>
 
   <div class="folio"><b>Your fourteen cards</b><span class="sp"></span><span class="pgno"></span></div>
@@ -370,11 +368,6 @@
       <p class="small dimtext" style="margin:0">The only private thing in the game.</p>
     </div>
     <div class="panel soft" style="flex:1">
-      <h3 style="color:var(--ink)">Your damp zone</h3>
-      <p class="small dimtext" style="margin:0">Face up, public. Damp socks live here. Load from it
-      exactly as if it were your hand.</p>
-    </div>
-    <div class="panel soft" style="flex:1">
       <h3 style="color:var(--ink)">Your clean pile</h3>
       <p class="small dimtext" style="margin:0">Face up. Washed items go here and never come back
       out. Ten ends the game.</p>
@@ -422,19 +415,19 @@
       <div class="panel" style="flex:1; padding:4px 6px 5px; background:var(--card); border-color:var(--rule-2); box-shadow:none">
         <div class="row c" style="gap:4px"><span style="width:9px;height:9px;border-radius:50%;background:var(--p0)"></span>
         <b style="font-size:8px">Purple</b><span class="chip key" style="font-size:6px; padding:0 5px 1px; margin-left:auto">🔑 key</span></div>
-        <div class="small dimtext" style="font-size:6.5px; margin-top:3px">hand 10 · damp — · clean —</div>
+        <div class="small dimtext" style="font-size:6.5px; margin-top:3px">hand 10 · clean —</div>
       </div>
       <div class="panel" style="flex:1; padding:4px 6px 5px; background:var(--card); border-color:var(--rule-2); box-shadow:none">
         <div class="row c" style="gap:4px"><span style="width:9px;height:9px;border-radius:50%;background:var(--p1)"></span><b style="font-size:8px">Tan</b></div>
-        <div class="small dimtext" style="font-size:6.5px; margin-top:3px">hand 10 · damp — · clean —</div>
+        <div class="small dimtext" style="font-size:6.5px; margin-top:3px">hand 10 · clean —</div>
       </div>
       <div class="panel" style="flex:1; padding:4px 6px 5px; background:var(--card); border-color:var(--rule-2); box-shadow:none">
         <div class="row c" style="gap:4px"><span style="width:9px;height:9px;border-radius:50%;background:var(--p2)"></span><b style="font-size:8px">Blue</b></div>
-        <div class="small dimtext" style="font-size:6.5px; margin-top:3px">hand 10 · damp — · clean —</div>
+        <div class="small dimtext" style="font-size:6.5px; margin-top:3px">hand 10 · clean —</div>
       </div>
       <div class="panel" style="flex:1; padding:4px 6px 5px; background:var(--card); border-color:var(--rule-2); box-shadow:none">
         <div class="row c" style="gap:4px"><span style="width:9px;height:9px;border-radius:50%;background:var(--p3)"></span><b style="font-size:8px">Orange</b></div>
-        <div class="small dimtext" style="font-size:6.5px; margin-top:3px">hand 10 · damp — · clean —</div>
+        <div class="small dimtext" style="font-size:6.5px; margin-top:3px">hand 10 · clean —</div>
       </div>
     </div>
   </div>
@@ -545,17 +538,10 @@
   </div>
 
   <div class="provbox" style="margin-top:7px">
-    <div class="hd">Provisional — when a drawn event actually happens</div>
-    Revealed on draw is settled. <em>Resolved</em> on draw is not. Three arms are live; the sequence
-    above is written for the first.
-    <ul>
-      <li><span class="dflt">E1 — immediate (as printed above).</span> Fires mid-turn. Players yet
-      to go play into the changed board. Only arm where a Coin or Snacc can answer it the same day.
-      Cost: seat-order asymmetry.</li>
-      <li><b>E2 — deferred.</b> Fires at day step 2, after everyone has loaded. Nothing can answer it.</li>
-      <li><b>E3 — split.</b> Circuit break and Animal control on draw; Gang and Jimothy deferred.</li>
-    </ul>
-    This changes the numbered list above and nothing else in the booklet.
+    <div class="hd">Settled — when a drawn event happens</div>
+    <span class="dflt">The moment it is drawn</span>, in the middle of the drawer's turn. Players
+    yet to go play into the changed board; a Coin or a Snacc played later the same day can answer
+    it. Where a washer must be named — the Gang, Jimothy — the player who drew the card names it.
   </div>
 
   <div class="folio"><b>A day</b><span class="sp"></span><span class="pgno"></span></div>
@@ -700,22 +686,23 @@
       <div class="verdictline dimtext">A shirt cannot go in beside a blanket. Nothing but socks ever can.</div>
     </div>
     <div class="callout" style="flex:1.1; margin:0; align-self:stretch">
-      <b>Socks that wash beside a blanket come out DAMP.</b> Not clean — one more wash, anywhere,
-      finishes them. The rule keys on the blanket <em>being in there</em>, not on the blanket
-      itself washing. See page 12.
+      <b>Socks do not wash in a washer holding a blanket. They stay in it.</b> Not clean, not
+      back to you — they sit in the drum as ordinary dirty socks and wash on the first night
+      that washer runs without a blanket. The rule keys on the blanket <em>being in there</em>,
+      not on the blanket itself washing. See page 12.
     </div>
   </div>
 
   <div class="callout" style="margin-top:9px">
     <b>A washer that is switched OFF can still be loaded.</b> It just will not run, and it carries
-    everything inside into tomorrow. This matters enormously after a Circuit break.
+    everything inside into tomorrow.
   </div>
 
   <div class="panel soft" style="margin-top:7px">
     <h3>When you cannot load</h3>
     <p class="small" style="margin:0 0 3px">You load fewer than you rolled only when:</p>
     <ul class="tight" style="font-size:8.5px; margin:0 0 4px">
-      <li>your hand and damp zone together hold fewer items than that, or</li>
+      <li>your hand holds fewer items than that, or</li>
       <li>no washer on the board will accept anything you hold.</li>
     </ul>
     <p class="small" style="margin:0">Then you load as many as you legally can, <b>which may be

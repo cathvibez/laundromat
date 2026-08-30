@@ -4,13 +4,15 @@ Every place where the card text or the rulebook had to be written around a rule 
 settled. **Nothing in this list may go to print as it stands.** Ordered by how much text each one
 changes.
 
-Sources: `design/game-brief.md` v9, `design/implementation-status.md`, `design/rules-v0.4.md`,
+Sources: `design/game-brief.md` v10, `design/implementation-status.md`, `design/rules-v0.4.md`,
 `design/publishing-research.md` §6, and `web/src/rules/`.
 
-**Four of the twelve are already closed.** Items 7, 9(b), 11 and 12 were documentation errors and
-staleness rather than open design questions, and have been **fixed in place** — see each entry for
-what changed and where. They are left in the list rather than deleted so the record of what was
-wrong survives. **Items 1–6, 8 and 10 still need a decision from the designer.**
+**Seven of the twelve are closed.** Items 7, 9(b), 11 and 12 were documentation errors and
+staleness rather than open design questions, and were **fixed in place**. Items **2, 3 and 8** were
+real design questions and were **decided in v10 (2026-08-29)** — event timing, Circuit break, and
+whether damp socks need a component (they do not; there is nothing left to mark). Item 5 lost one
+of its three sub-questions to the same change. All are left in the list rather than deleted so the
+record survives. **Items 1, 4, 5, 6 and 10 still need a decision from the designer.**
 
 ---
 
@@ -29,45 +31,45 @@ money is spent.**
 
 ---
 
-## 2. Event timing — E1 / E2 / E3 (P0)
+## 2. Event timing — ✅ RESOLVED v10 (2026-08-29)
 
-Revealed on draw is settled under all three arms. *Resolved* on draw is not.
+**An event resolves the moment its card is drawn**, mid-turn, and the drawer names the washer for
+the Gang and for Jimothy. This was arm E1; E2 (deferred until everyone had loaded) and E3 (split)
+are deleted from the app.
 
-- **E1 immediate** — fires mid-turn. App default, at the designer's instruction. Only arm where a
-  Coin or Snacc can answer an event the same day. Cost: seat-order asymmetry.
-- **E2 deferred** — fires after everyone has loaded. Brief v8 as written, and the only arm
-  `sim/rules.py` implements.
-- **E3 split** — Circuit break and Animal control on draw; Gang and Jimothy deferred.
+The case that won: it is the only reading under which a special item can answer an event at all.
+Under the deferred arms no Coin could restore power after a Circuit break and no Snacc could move
+Jimothy on the day he landed — two cards dead against the events they most obviously address.
 
-**Written around it by:** `rulebook.md` §4 day sequence is written for **E1**, with an [UNRESOLVED]
-box giving all three. §4.3, §9 and the worked turn in §12 carry the same flag. Card faces are
-written to be true under all three arms, so no card art is at risk.
+The known cost is a seat-order asymmetry: players who have already acted lose their loading with
+no recourse. The mitigation, **keyholder-first acting order**, is a settled rule and is what the
+app ships, so the unmitigated pairing is not what anybody plays.
 
-**Nothing has been simulated.** `web/experiments/experiment-B-event-timing.md` is reasoning, not
-measurement, and `implementation-status.md` voids every day-level simulation number until this is
-fixed. This decision unblocks the most downstream work of any on this list.
+**Nothing here was simulated.** `sim/rules.py` still implements the deferred arm only, so every
+day-level figure in `sim/out/` still describes a different game.
 
-**Pairs with:** acting order. The brief's stated mitigation for E1's seat-order harm is
-keyholder-first play. See §9 below — the artefacts do not agree on whether that is in force.
+**What this unblocks for print:** `rulebook.md` §4.3 and §4's day sequence are now final.
 
 ---
 
-## 3. Circuit break — V1 / V2 / V3
+## 3. Circuit break — ✅ RESOLVED v10 (2026-08-29)
 
-All three arms are implemented in both codebases; contents are retained under all of them.
+**The night is cancelled and nothing else happens.** No washer changes power, every washer keeps
+its contents, and the following night runs exactly as it would have. This was arm V1; V2 (all off,
+keyholder restores one per day — which was the printed card text) and V3 (all off, all back at the
+end of the following day) are deleted.
 
-- **V1 blackout** — tonight's reckoning is cancelled; power untouched.
-- **V2 all off** — every washer off, keyholder restores one per day. **Brief v9's card text.**
-  Simulation default.
-- **V3 auto-restore** — all off, all back on at the end of the following day. **App default.**
+**The old recommendation was V3 and must not be re-cited.**
+`sim/out/experiment-A-circuit-break.txt` is void twice over: no valid control, and it measured the
+event timing that v10 also replaced. Its central subject — whether a Coin can undo a Circuit
+break — is a question about an arm that lost.
 
-**Written around it by:** `card-text.md` gives three complete card faces, one per arm — **print
-one**. `rulebook.md` §9 is written for V2 with a flag.
+**A Circuit break is now a cheaper card than anything the simulation modelled**: one night's
+washing, with no recovery to manage. Any prior intuition about what that makes Coin and Snacc
+worth is stale rather than merely unmeasured.
 
-The existing V3 recommendation rests on `sim/out/experiment-A-circuit-break.txt`, which
-`implementation-status.md` records as a smoke test with an invalid control — and which measured a
-world where a Coin cannot answer the event, so it must be re-run under whichever event-timing arm is
-adopted (§2). **Decide §2 first.**
+**What this unblocks for print:** the card face in `card-text.md` is final, and `rulebook.md` §9
+no longer carries three variants.
 
 ---
 
@@ -99,7 +101,9 @@ Three separate decisions:
   `card-text.md`.
 - **(b) Do bagged items still set the ladder and count for crowding for everyone else?** Currently
   **yes**. Alternative: lift them out of consideration entirely.
-- **(c) Do bagged socks beside a blanket still come out damp?** Currently **yes**.
+- ~~**(c) Do bagged socks beside a blanket still come out damp?**~~ **Closed by v10**, and
+  structurally rather than by ruling: the bag guarantees a *verdict*, and a blanket stranding socks
+  happens after the verdict, to items that passed it. Bagged socks stay in the washer like any others.
 
 **Written around it by:** `card-text.md` Mesh bag entry (all three flagged); `rulebook.md` §6.4 line
 7, §8, and worked examples 11 and 12 in §13.
@@ -132,18 +136,21 @@ whether you like the sentence.**
 
 ---
 
-## 8. Damp socks have no component
+## 8. Damp socks have no component — ✅ CLOSED v10 (2026-08-29), none needed
 
-Damp is the only lasting per-item state in the game, and brief v9 makes the damp zone **public**
-specifically so the physical version is enforceable. The component manifest in
-`publishing-research.md` has **no damp marker**.
+The question was which component marks a damp sock. **There is nothing to mark.**
 
-Options: a punchboard token per player; rely on the face-up damp zone alone (a zone is enough if
-socks never leave it except to be loaded — but a damp sock in a washer is indistinguishable from a
-dry one, and that is exactly when it matters); or print the zone on a player mat, which adds a
-component the manifest does not have.
+v10 changed the rule: socks in a washer with a blanket simply do not wash, and they stay in that
+washer. Damp stopped being a lasting property that travels with a sock and became a fact about a
+situation — these socks, in this washer, with that blanket — which is readable straight off the
+board by anybody at the table.
 
-`rulebook.md` §2 lists the count as `?`.
+The old worry is gone with it. It was that "a damp sock in a washer is indistinguishable from a
+dry one, and that is exactly when it matters"; under the new rule a sock in a washer holding a
+blanket *is* the damp case, and there is no other kind.
+
+**Consequences:** no punchboard token, no player mat, no damp zone at all. `rulebook.md` §2 loses
+the `Damp markers | ?` row, and the manifest in `publishing-research.md` needs nothing added.
 
 ---
 

@@ -44,7 +44,6 @@ Section 6 turns that line into the full rule. Read sections 1 to 5 first; they t
 | Key token | 1 | |
 | Jimothy | 1 | A raccoon. |
 | Die | 1 | Six-sided. |
-| Damp markers | ? | **[UNRESOLVED]** — see `open-questions-for-print.md` §8. |
 
 ### Your 14 item cards
 
@@ -89,14 +88,13 @@ about how dirty the wash gets; your colour is about who the card belongs to.
 
 [DIAGRAM: a 4-player setup from above — five numbered washer tiles in a row with ON markers, the
 special and event decks beside them, four player areas each showing a hand of ten cards, an empty
-clean pile and an empty damp zone, and the key in front of the first player.]
+clean pile, and the key in front of the first player.]
 
 ### Your play area
 
 Three places, all in front of you:
 
 - **Your hand** — the only private thing in the game.
-- **Your damp zone** — face up, public. Damp socks live here (section 7.4). You may load from it
   exactly as if it were your hand.
 - **Your clean pile** — face up. Washed items go here and never come back out. Ten cards here ends
   the game.
@@ -175,19 +173,12 @@ the other on the **bottom** of the deck. Place the card you kept **face up** in 
 just loads an item. The card is turned **face up the instant it is drawn** — everyone sees what is
 coming.
 
-> **[UNRESOLVED — when the event actually happens.]** Three versions are live, and the day sequence
-> in this rulebook is written for the first of them:
-> - **E1 — immediate.** The event happens the moment it is drawn, in the middle of the drawer's
->   turn. Players who have not gone yet play into the changed board; players who have already gone
->   have no recourse. A Coin or a Snacc played later that same day can answer it.
-> - **E2 — deferred.** The event is revealed on draw but does not happen until everybody has taken a
->   turn — step 2 of the day. Everyone loads under the same known threat. Nothing can answer it that
->   day.
-> - **E3 — split.** Circuit break and Animal control happen on draw; Gang and Jimothy wait until
->   everyone has loaded.
->
-> **This changes section 4's numbered list and nothing else.** Under E2 and E3 the deferred events
-> resolve at day step 2, before the keyholder acts.
+The event **happens the moment it is drawn**, in the middle of the drawer's turn. Players who
+have not gone yet play into the changed board; players who have already gone have no recourse.
+A Coin or a Snacc played later that same day can answer it.
+
+Where the event needs a washer named — the Gang, Jimothy — **the player who drew the card
+chooses it**, there and then.
 
 ---
 
@@ -214,13 +205,13 @@ A blanket needs a washer to itself — with one exception. **Socks may share wit
 both directions: socks may be put into a washer holding a blanket, and a blanket may be put into a
 washer holding nothing but socks. Nothing else may share with a blanket, ever.
 
-Socks that wash beside a blanket come out **damp**. See section 7.4.
+Socks in a washer with a blanket do not wash, and stay in it. See section 7.4.
 
 ### 5.3 When you cannot load
 
 You must load exactly the number you rolled. You load fewer only when you cannot:
 
-- your hand and damp zone together hold fewer items than that, or
+- your hand holds fewer items than that, or
 - no washer on the board will accept anything you hold.
 
 Then you load as many as you legally can, **which may be none**. There is no penalty, no re-roll and
@@ -361,19 +352,24 @@ An OFF washer carries its contents into tomorrow untouched. Everything loaded in
 Items that do not wash go straight back to their owner's hand. Nothing is discarded and nothing is
 locked out. The only thing you lose is the day.
 
-### 7.4 Damp socks
+### 7.4 Socks and blankets: damp socks
 
-**Socks that wash in a washer that contained a blanket come out damp instead of clean.** Put them in
-your damp zone, face up. They are not clean yet.
+**Socks do not wash in a washer that holds a blanket. They stay in the washer.**
 
-Damp socks need **one more wash, anywhere** — any washer, any day, with or without a blanket. Load
-them exactly as if they were in your hand. Once they wash again they are clean, even if that second
-wash is also beside a blanket.
+They are damp. They do not come back to you and they do not go to your clean pile — they simply
+stay in the drum, as ordinary dirty socks, and they take up one of that washer's four places.
 
-The rule keys on the washer **containing** a blanket, not on the blanket itself washing. If a blanket
-is in there, socks that wash come out damp — end of story.
+The first night that washer runs **without** a blanket in it, they wash normally. If somebody
+loads a blanket in again first, they are damp again that night, and they stay again.
 
-Socks are the only item that is ever damp.
+The rule keys on the washer **containing** a blanket, not on the blanket itself washing. If a
+blanket is in there, socks do not wash — end of story.
+
+**Socks the wash sends back are a different thing.** If the ladder rejects your socks — because
+somebody's dark items beat your light ones, say — they come back to your hand like any other
+rejected item. Only socks that *would have washed*, and were stopped by the blanket, stay behind.
+
+Socks are the only item that can be left in a washer this way.
 
 ---
 
@@ -421,11 +417,9 @@ owners and it is out of the game, leaving the board one washer smaller for good.
 and never returns to the deck. If the destroyed washer is Jimothy's, the hostages are released and
 Jimothy relocates to another washer, chosen by the same player.
 
-**Circuit break.** [UNRESOLVED — one of three; see section 4.3's box and
-`open-questions-for-print.md` §3.] As written in the brief: every surviving washer switches off and
-keeps its contents. The keyholder can bring one back per day. Off washers can still be loaded, and
-loading is still mandatory, so the board fills up while nothing drains. This is the most dangerous
-card in the game.
+**Circuit break.** The power trips and **nothing washes tonight**. That is the whole of it: no
+washer changes power, every washer keeps its contents, and tomorrow night runs exactly as it
+would have. There is nothing to switch back on. It costs everybody one night.
 
 **Jimothy.** The drawer picks a washer; a raccoon moves in. It cannot run and cannot be loaded, and
 everything already inside is a hostage — frozen, unmovable even by a roll of 4, and released only
@@ -488,8 +482,7 @@ it is turned face up at once. Red loads one item first: a light pants into washe
 Red chooses washer 3, which is holding two of Blue's items. Jimothy settles in. Washer 3 will not run
 tonight and Blue's two items are hostages.
 
-*(That timing is arm E1. Under E2 or E3, Jimothy would not settle until every player had finished
-their turn.)*
+*(Events happen on draw, so Jimothy settles in mid-turn — before Blue has taken theirs.)*
 
 **Blue goes last, having held the key yesterday.** Blue rolls a **4**. Blue loads a dark sock into
 washer 1, then takes the move: Blue would love to pull the hostages out of washer 3, but hostages
@@ -508,8 +501,8 @@ Washer 1 holds: Green's dark shirt, Blue's dark socks, Yellow's light underwear 
 - *Green's dark shirt:* the highest rung any other player occupies is rung 3 — Blue's dark socks, and
   Yellow's underwear is light, rung 4. The shirt is dark, rung 3, so it clears the room. It is
   Green's only item, so it is Green's top category. No blanket, no crowd, no Coloring. **It washes.**
-- *Blue's dark socks:* rung 3 against Green's rung 3. Clears. **They wash.** No blanket in there, so
-  they are clean, not damp.
+- *Blue's dark socks:* rung 3 against Green's rung 3. Clears. **They wash.** No blanket in there,
+  so they come out clean rather than being held in the drum.
 
 Washer 4 holds Red's light pants alone: nobody else is in there and it is Red's only item. **It
 washes.**
@@ -564,9 +557,10 @@ nothing outranks it. Since no socks washed, nobody even gets a damp partial.
 
 **7 — Damp socks, and the reading that surprises people.**
 Washer holds A's light blanket and A's dark socks.
-→ **The blanket washes and the socks come out damp.** Both are A's, both are in A's top category, and
-nobody else is in the washer, so both would have washed — but socks that wash beside a blanket are
-never clean the first time. Put them in the damp zone; one more wash anywhere finishes them.
+→ **The blanket washes and the socks stay in the washer.** Both are A's, both are in A's top
+category, and nobody else is in the washer, so both would have washed — but socks never wash
+beside a blanket. The blanket leaves clean; the socks are still sitting in the drum tomorrow,
+and will wash on the first night nobody puts another blanket in with them.
 Note that this holds even when the blanket does *not* wash: the rule is about the blanket being in
 there, not about the blanket getting clean.
 
@@ -622,7 +616,7 @@ otherwise once.
 
 **A Coin can be overruled.** It resolves during your turn; the keyholder acts later the same day.
 
-**Everything on the floor is public.** Machine contents, damp zones, clean piles, fresh cards, on/off
+**Everything on the floor is public.** Machine contents, clean piles, fresh cards, on/off
 markers, Jimothy, the wreck the Gang left. Only your hand and your ready cards are yours alone.
 
 **Nothing is ever destroyed except washers.** No item card ever leaves the game once it is dealt.
@@ -668,7 +662,7 @@ Load fewer than you rolled only if your hand or the board will not allow it.
 | 6 | **Coloring** | an opponent's Coloring is here and you have no catcher |
 | — | **Mesh bag** | never. Bagged items always wash. |
 
-Socks that wash beside a blanket come out **damp** — one more wash, anywhere, finishes them.
+Socks in a washer with a blanket do not wash. They stay in it until it runs without one.
 
 ### Washer states
 
@@ -694,7 +688,7 @@ First to ten clean items. Checked after the whole reckoning. Ties win together.
 **Crowding** — three or more items of one type in one washer sending them all back. *[UNRESOLVED —
 may be cut.]*
 
-**Damp** — a state only socks can be in, caused by washing beside a blanket. Needs one more wash.
+**Damp** — what socks are while they sit in a washer that also holds a blanket: they will not wash tonight, and they stay where they are. It is not a marker or a lasting property; take the blanket out of the equation and they are ordinary dirty socks.
 
 **Day** — one full round: everyone rolls, the event happens, the key acts, the washers run.
 
@@ -708,7 +702,7 @@ may be cut.]*
 
 **Linen** — underwear and blanket.
 
-**Loading** — putting an item from your hand or damp zone into a washer. Mandatory.
+**Loading** — putting an item from your hand into a washer. Mandatory.
 
 **Ready** — a special item card from a previous day. Playable.
 
@@ -731,12 +725,12 @@ may be cut.]*
 Everything marked [UNRESOLVED] in this rulebook, in one list:
 
 1. **The game's name.** §Title.
-2. **When a drawn event resolves** — E1 / E2 / E3. §4.3, and it changes §4's day sequence.
-3. **What Circuit break does** — V1 / V2 / V3. §9.
-4. **How many of each special item card** is in the 20-card deck. §8.
-5. **Whether the crowding rule survives.** §6.3, §13 examples 5 and 6, §15, §16.
-6. **The Mesh bag** — whether it keeps this power, and its two sub-questions. §8.
-7. **How the first keyholder is chosen.** §3.
-8. **Whether damp socks get a physical marker.** §2.
+2. **How many of each special item card** is in the 20-card deck. §8.
+3. **Whether the crowding rule survives.** §6.3, §13 examples 5 and 6, §15, §16.
+4. **The Mesh bag** — whether it keeps this power, and its remaining sub-question. §8.
+5. **How the first keyholder is chosen.** §3.
+
+*(Four questions closed in v10: when a drawn event resolves, what Circuit break does, Sanitizer's
+scope, and whether damp socks need a physical marker — they do not; there is nothing to mark.)*
 
 Full detail, and what each decision blocks: `open-questions-for-print.md`.

@@ -109,9 +109,14 @@ from an earlier day are **not** bagged, nor is anything you load elsewhere, nor 
 else loads. Bagged items are still in the washer for everyone else's purposes: your bagged dark
 shoes still wreck the wash for the other players.
 
-> **[UNRESOLVED — two sub-questions.]** (a) Do bagged items still set the ladder and count for
-> crowding for everyone else? Currently **yes**. (b) Do bagged socks beside a blanket still come out
-> damp? Currently **yes**. Both must be settled before this card's rulebook entry is final.
+> **[UNRESOLVED — one sub-question.]** Do bagged items still set the ladder and count for
+> crowding for everyone else? Currently **yes**. Must be settled before this card's rulebook
+> entry is final.
+>
+> *(The second sub-question — do bagged socks beside a blanket still come out damp — was settled
+> by v10 and is no longer a judgement call. The bag guarantees a VERDICT; a blanket stranding
+> socks happens after the verdict, to items that passed it. Bagged socks stay in the washer like
+> any others.)*
 
 > **[UNRESOLVED — balance.]** The brief flags the Mesh bag as comfortably the strongest card in the
 > game and notes a predecessor card was cut for exactly this. If it is weakened or reverted to the
@@ -138,10 +143,9 @@ Every other rule is untouched. It affects the whole washer, not just you, so it 
 opponents a wash. A Sanitizer on a washer holding no shoes does nothing.
 *(`reckoning.ts` S2 and `ownCategory`; rules-v0.4 §6.10, worked examples 13 and 24.)*
 
-> **[UNRESOLVED — scope.]** Machine-wide (as written above) is the default in the brief, the
-> simulation and the app, and rules-v0.4 argues the alternative is disqualifying — but it is still
-> nominally open. If it becomes owner-only, the face reads: *"Play on a washer. Shoes stop tainting
-> **your** laundry there."*
+> **RESOLVED v10 — machine-wide.** Shoes stop tainting the wash for everyone in that washer,
+> whoever played the card. The owner-only reading is rejected: it puts two ladders in one washer,
+> which is exactly the property that lets a table resolve a wash by eye.
 
 ---
 
@@ -191,10 +195,10 @@ Rules true of all four, for the rulebook rather than the cards:
 - After resolving, an event card is shuffled back into the event deck — **except Gang, which never
   comes back**, and **Jimothy, whose card stays on the board while he is in play**.
 
-> **[UNRESOLVED — when an event resolves.]** Revealed on draw is settled. *Resolved* on draw is not.
-> Three arms are live (E1 immediate / E2 after everyone has loaded / E3 split). Every event card face
-> below is written to be true under all three, so no card art is at risk — but the rulebook's day
-> sequence is not, and the choice must be made. See `open-questions-for-print.md` §2.
+> **RESOLVED v10 — an event resolves the moment it is drawn**, in the middle of the drawer's
+> turn. Players who have not yet acted play into the changed board. Where a washer must be
+> named — the Gang, Jimothy — **the player who drew the card names it**, there and then.
+> The card faces below were written to be true under every arm, so none of them changes.
 
 ---
 
@@ -219,26 +223,23 @@ washer — the same player chooses where.
 
 ### Circuit break
 
-**Card face — [UNRESOLVED, print one of these three]**
+**Card face — RESOLVED v10**
 
-> **V2, brief v9 as written:**
-> **The power trips.** Every washer switches off. They keep whatever is inside them.
-> *Reminder: the keyholder can switch one back on each day.*
+> **The power trips.** Nothing washes tonight. Every washer keeps what is inside it, and
+> everything is back to normal tomorrow.
 
-> **V1 "blackout":**
-> **The power trips.** Nothing washes tonight. Every washer keeps what is inside it, and the power
-> is back to normal tomorrow.
+**Rulebook entry**
+Circuit break cancels tonight's reckoning and does nothing else. No washer changes power, so
+there is nothing to switch back on and no recovery to manage — the following night runs exactly
+as it would have. Every washer keeps its contents, loading continues as normal, Jimothy is not
+affected, and a destroyed washer stays destroyed.
+*(Brief v10 §7; `phases.ts:resolveCircuitBreak`; rules-v0.4 §8.2, worked examples B3–B4.)*
 
-> **V3 "auto-restore", the app's current default:**
-> **The power trips.** Every washer switches off and keeps what is inside it. They all come back on
-> at the end of tomorrow.
-
-**Rulebook entry (written for V2, the brief's text)**
-Circuit break switches off every washer that has not been destroyed. Nothing is lost: each washer
-holds on to its contents. Off washers **can still be loaded**, and loading is mandatory, so the
-board keeps filling while nothing drains. Recovery is one washer per day via the key, unless someone
-spends a Coin. Jimothy is not affected, and a destroyed washer stays destroyed.
-*(Brief v9 §7; `phases.ts:resolveCircuitBreak`; rules-v0.4 §8.2, worked examples B3–B4.)*
+> **What changed.** This was a three-way choice and the card face used to carry all three.
+> "Every washer switches off" — the V2 text printed above until v10 — is now WRONG, as is the
+> V3 "they all come back on at the end of tomorrow". The keyholder's one-per-day restore is no
+> longer part of this card at all; the key still switches washers on and off, but a Circuit
+> break never gives it anything to undo.
 
 ---
 
@@ -306,7 +307,7 @@ reminder that governs that type.
 
 A card of **Socks** is one pair, and counts as one item.
 
-**Sort rank** is the order hands, damp zones and clean piles are laid out in:
+**Sort rank** is the order hands, washer contents and clean piles are laid out in:
 *dark shoes → light shoes → dark clothing and dark blanket → light clothing and light blanket →
 dark underwear → light underwear.* It is presentation only and changes no outcome, but it is a
 teaching aid and it should be identical on the cards, in the app and in the rulebook. Printing the
@@ -335,7 +336,7 @@ Recommended: it removes the four rules lookups new players actually make.
 | Type | Reminder text |
 |---|---|
 | Shoes | Shoes beat everything else in the washer. Dark shoes beat light shoes. |
-| Socks | Washed beside a blanket? Comes out damp — needs one more wash. |
+| Socks | In a washer with a blanket? They will not wash, and they stay in it. |
 | Pants, Shirt, Hat | *(none needed)* |
 | Blanket | Needs a washer to itself. Socks may share with it. |
 | Underwear | Washes only in a washer holding nothing but underwear. |
@@ -360,6 +361,7 @@ Listed here so nothing is lost between this document and the layout.
 - **Die, 1 six-sided.** A custom-faced die is recommended by the publishing research and solves a
   real teaching problem: print the action on the face. Faces 1/2/3 = "LOAD 1/2/3"; face 4 = "LOAD 1
   + MOVE"; face 5 = "LOAD 1 + CARD"; face 6 = "LOAD 1 + EVENT".
-- **Damp markers.** [DESIGNER DECISION NEEDED] Damp socks are the only lasting per-item state in the
-  game and the component manifest does not include a token for them. See
-  `open-questions-for-print.md` §8.
+- **Damp markers — NOT NEEDED, resolved v10.** There is nothing to mark. Damp is no longer a
+  lasting property of a sock that travels with it; it is simply what is true of socks sitting in
+  a washer that also holds a blanket, which is readable off the board. This closes
+  `open-questions-for-print.md` §8 and removes a component from the manifest.

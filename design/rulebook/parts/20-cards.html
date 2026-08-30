@@ -95,8 +95,6 @@
           among other garments. Underwear already inside is not protected.”</em></li>
           <li><b>(b)</b> Do bagged items still set the ladder and count for crowding for everyone
           else? <span class="dflt">Currently yes.</span></li>
-          <li><b>(c)</b> Do bagged socks beside a blanket still come out damp?
-          <span class="dflt">Currently yes.</span></li>
         </ul>
         The printed name is <b>Mesh bag</b>; both codebases still call it <em>Wash net</em>
         internally.
@@ -165,7 +163,8 @@
     cards are fixed and 108 is the sheet-efficient total. <span class="dflt">The split across the
     seven kinds is unset.</span> The app ships a flat 3/3/3/3/3/3/2 that its own config labels
     arbitrary and explicitly not a recommendation; the simulation still runs 14 cards, two of each.
-    No count appears on any card. This is blocked behind the Circuit break and Mesh bag decisions.
+    No count appears on any card. Circuit break is now settled, so this is blocked behind the Mesh
+    bag decision alone.
   </div>
 
   <div class="callout">
@@ -212,28 +211,21 @@
       <div class="pic pending"><span>Circuit break</span><small>art pending</small></div>
       <div class="nm">Circuit break</div></div>
     <div class="txt">
-      <h3>Circuit break <span class="prov">provisional</span></h3>
-      <p class="face"><b>The power trips.</b> Every washer switches off. They keep whatever is inside
-      them. <em>Reminder: the keyholder can switch one back on each day.</em></p>
-      <p class="body">Circuit break switches off every washer that has not been destroyed. Nothing is
-      lost: each washer holds on to its contents. Off washers <b>can still be loaded</b>, and loading
-      is mandatory, so the board keeps filling while nothing drains. Recovery is one washer per day
-      via the key, unless someone spends a Coin. Jimothy is not affected, and a destroyed washer
-      stays destroyed. <b>This is the most dangerous card in the game.</b></p>
+      <h3>Circuit break</h3>
+      <p class="face"><b>The power trips.</b> Nothing washes tonight. Every washer keeps what is
+      inside it, and everything is back to normal tomorrow.</p>
+      <p class="body">Circuit break cancels tonight's reckoning and does nothing else. No washer
+      changes power, so there is nothing to switch back on and no recovery to manage — the next
+      night runs exactly as it would have. Every washer keeps its contents, loading carries on as
+      normal, Jimothy is untouched, and a destroyed washer stays destroyed. It costs everybody one
+      night.</p>
       <div class="provbox" style="margin:4px 0 0">
-        <div class="hd">Provisional — print one of three card faces</div>
-        <ul>
-          <li><span class="dflt">V2 “all off” — the face printed above.</span> The brief's text and
-          the simulation default.</li>
-          <li><b>V1 “blackout”:</b> <em>The power trips. Nothing washes tonight. Every washer keeps
-          what is inside it, and the power is back to normal tomorrow.</em></li>
-          <li><b>V3 “auto-restore”, the app's current default:</b> <em>The power trips. Every washer
-          switches off and keeps what is inside it. They all come back on at the end of
-          tomorrow.</em></li>
-        </ul>
-        All three retain contents. The existing recommendation rests on a smoke test with an invalid
-        control, run in a world where a Coin could not answer the event — so it must be re-run after
-        the event-timing decision is made.
+        <div class="hd">Settled — this was one of three</div>
+        The deleted faces were <b>V2 “all off”</b> (every washer off, keyholder restores one per
+        day — the face this booklet used to print) and <b>V3 “auto-restore”</b> (all off, all back
+        at the end of tomorrow). <span class="dflt">The old recommendation was V3 and should not be
+        re-cited:</span> its smoke test had an invalid control and measured the event timing that
+        has also been replaced.
       </div>
     </div>
   </div>
@@ -296,7 +288,7 @@
       laundry.</b> Hostages come back unwashed. Every player expects otherwise once.</p></div>
     <div class="panel soft"><p class="small" style="margin:0"><b>A Coin can be overruled.</b> It
       resolves during your turn; the keyholder acts later the same day.</p></div>
-    <div class="panel soft"><p class="small" style="margin:0"><b>Everything on the floor is public.</b> Machine contents, damp zones, clean piles, fresh cards, markers, Jimothy, the wreck. Only your hand and ready cards are yours.</p></div>
+    <div class="panel soft"><p class="small" style="margin:0"><b>Everything on the floor is public.</b> Machine contents, clean piles, fresh cards, markers, Jimothy, the wreck. Only your hand and ready cards are yours.</p></div>
     <div class="panel soft"><p class="small" style="margin:0"><b>Nothing is ever destroyed except
       washers.</b> No item card ever leaves the game once it is dealt.</p></div>
   </div>
@@ -358,10 +350,11 @@
 
     <tr><td><b>7 · Damp socks, and the reading that surprises people.</b><br>
       A's light blanket · A's dark socks</td>
-      <td><b>The blanket washes and the socks come out damp.</b> Both are A's, both in A's top
-      category, nobody else in the washer — but socks that wash beside a blanket are never clean the
-      first time. This holds even when the blanket does <em>not</em> wash: the rule is about the
-      blanket being in there.</td></tr>
+      <td><b>The blanket washes and the socks stay in the washer.</b> Both are A's, both in A's top
+      category, nobody else in the washer — but socks never wash beside a blanket. The blanket
+      leaves clean; the socks are still in the drum tomorrow, and wash on the first night nobody
+      puts another blanket in with them. This holds even when the blanket does <em>not</em> wash:
+      the rule is about the blanket being in there.</td></tr>
 
   </table>
 

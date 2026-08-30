@@ -1,0 +1,56 @@
+# The suite, on every push to main and every pull request.
+#
+# Separate from deploy.yml on purpose. That workflow runs the tests too, but it
+# only runs at all when `prod` moves — so without this, `main` could sit broken
+# for a week and nothing would say so until someone tried to ship.
+#
+# This never touches Fly and needs no secrets.
+
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A superseded run tells you nothing useful, so let a newer push cancel it.
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        working-directory: web
+        run: npm ci
+
+      # Both halves: `npm run build` is `tsc -b && vite build`, so a type error
+      # cannot reach a deploy, and the server bundle has its own failure modes
+      # (it must be CommonJS — see tools/build-server.mjs).
+      - name: Build
+        working-directory: web
+        run: npm run build:all
+
+      # 300+ tests, including the parity suite that replays 17,434 fixtures
+      # generated from the Python oracle in sim/. If that suite ever goes red,
+      # the app and the oracle disagree about the reckoning, which is a bigger
+      # deal than an ordinary test failure.
+      - name: Test
+        working-directory: web
+        run: npm test
+
+      # The oracle has its own suite and nothing else runs it.
+      - name: Python oracle tests
+        run: python3 sim/test_rules.py
