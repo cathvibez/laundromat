@@ -9,7 +9,7 @@ import { describe, expect, test } from 'vitest';
 import { Client } from 'boardgame.io/client';
 import { makeLaundromat } from '../../src/game/Laundromat';
 import type { LaundromatG } from '../../src/game/Laundromat';
-import { anyLegalLoad } from '../../src/rules/driver';
+import { anyLegalLoad, firstBlockedDisplacement } from '../../src/rules/driver';
 import { canPlaySpecial } from '../../src/rules/phases';
 import { assertInvariants } from '../../src/rules/phases';
 import type { LaundromatConfig } from '../../src/rules/types';
@@ -105,9 +105,18 @@ function playThrough(
       }
     } else if (t.stage === 'load') {
       const choice = anyLegalLoad(G, pid);
-      // The board can refuse everything; the player then skips explicitly.
-      if (!choice) m.skipLoad();
-      else m.load(choice.item, choice.machine);
+      if (choice) m.load(choice.item, choice.machine);
+      else {
+        /*
+         * The board can refuse everything. Since v11 the player then MOVES one of
+         * their own items between washers instead, and skipping is legal only when
+         * even that is impossible — skipLoad refuses otherwise, which deadlocks a
+         * harness that has not been told.
+         */
+        const sub = firstBlockedDisplacement(G);
+        if (sub) m.displaceInsteadOfLoad(sub.from, sub.item, sub.to);
+        else m.skipLoad();
+      }
     } else if (t.stage === 'extra') {
       if (t.pendingEvent) {
         // Events resolve the moment they are drawn: name a washer now.
@@ -191,8 +200,12 @@ describe('boardgame.io adapter', () => {
         else if (t.stage === 'card') m.passCard();
         else if (t.stage === 'load') {
           const c = anyLegalLoad(G, t.player);
-          if (!c) m.skipLoad();
-          else m.load(c.item, c.machine);
+          if (c) m.load(c.item, c.machine);
+          else {
+            const sub = firstBlockedDisplacement(G);
+            if (sub) m.displaceInsteadOfLoad(sub.from, sub.item, sub.to);
+            else m.skipLoad();
+          }
         } else if (t.pendingEvent) {
           m.resolveDrawnEvent(G.machines.find((x) => !x.dead)!.id);
         } else if (t.face === 5 && t.pendingDraw?.length) m.keepCard(t.pendingDraw[0]);

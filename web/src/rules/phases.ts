@@ -205,10 +205,74 @@ export function loadBlocked(st: GameState): boolean {
   return loadsOutstanding(st) > 0 && !hasLegalPlacement(st, t.player);
 }
 
-/** Explicitly give up the remaining loads.  Legal only when truly blocked. */
+/**
+ * A player who cannot load moves one of their OWN items between washers instead
+ * [NEW v11].
+ *
+ * The manual is plain about it: "if you have no items in your hands to load, move
+ * 1 of your item from washer to washer".  It is a substitute for the load, not a
+ * bonus — so it is available only while blocked, it costs the whole remaining
+ * load, and it is MANDATORY when it is available, in the same way loading is.
+ * Being stuck should give you something to do, not nothing.
+ *
+ * Note it is restricted to your own items, unlike the roll-4 move which may take
+ * anybody's.  That is the manual's wording and it matters: a blocked player would
+ * otherwise get a free shove at an opponent every time their hand jammed.
+ */
+export function canBlockedDisplace(st: GameState, from: number, id: ItemId, to: number): boolean {
+  const t = st.turn;
+  if (!t || !loadBlocked(st)) return false;
+  if (st.items[id]?.owner !== t.player) return false;
+  return canDisplace(st, from, id, to);
+}
+
+/** Is any such move on the board?  Decides whether skipping is still legal. */
+export function anyBlockedDisplacement(st: GameState): boolean {
+  const t = st.turn;
+  if (!t || !loadBlocked(st)) return false;
+  for (const src of st.machines) {
+    for (const id of src.items) {
+      if (st.items[id].owner !== t.player) continue;
+      for (let to = 0; to < st.machines.length; to++) {
+        if (canDisplace(st, src.id, id, to)) return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function blockedDisplace(
+  st: GameState,
+  from: number,
+  id: ItemId,
+  to: number,
+  rng: Rng,
+): boolean {
+  const t = st.turn;
+  if (!t || !canBlockedDisplace(st, from, id, to)) return false;
+  const src = st.machines[from];
+  src.items = src.items.filter((x) => x !== id);
+  src.netProtected = src.netProtected.filter((x) => x !== id); // I-11
+  st.machines[to].items.push(id);
+  t.loadsRequired = t.loadsDone; // the move is instead of the load, not as well
+  log(
+    st,
+    `Player ${t.player + 1} could not load, so they moved ${describe(st.items[id])} ` +
+      `from M${from + 1} to M${to + 1}.`,
+  );
+  advanceIfDone(st, rng);
+  return true;
+}
+
+/**
+ * Explicitly give up the remaining loads.  Legal only when truly blocked AND
+ * there is no substitute move either — since v11 the move takes precedence, so
+ * this is the genuinely-nothing-to-do case.
+ */
 export function skipBlockedLoad(st: GameState, rng: Rng): boolean {
   const t = st.turn;
   if (!t || !loadBlocked(st)) return false;
+  if (anyBlockedDisplacement(st)) return false;
   const missed = loadsOutstanding(st);
   t.loadsRequired = t.loadsDone;
   log(

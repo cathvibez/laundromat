@@ -35,6 +35,7 @@ import {
   skipExtra,
   log,
   anyPowerChangePossible,
+  blockedDisplace,
 } from '../rules/phases';
 import type { MachineResult, SpecialTarget } from '../rules/phases';
 import type { Rng } from '../rules/rng';
@@ -122,6 +123,17 @@ const rollMoves: MoveMap<LaundromatG> = {
   skipLoad: ({ G, random }: MoveCtx) => {
     if (!G.turn || G.turn.stage !== 'load') return INVALID_MOVE;
     if (!skipBlockedLoad(G, rngFrom(random))) return INVALID_MOVE;
+  },
+
+  /*
+   * NEW v11.  The substitute for a load you cannot make: move one of your OWN
+   * items between washers.  `blockedDisplace` refuses unless the player is really
+   * blocked and really owns the item, so this cannot dodge mandatory loading, and
+   * it consumes the whole remaining load rather than adding to the turn.
+   */
+  displaceInsteadOfLoad: ({ G, random }: MoveCtx, from: number, id: string, to: number) => {
+    if (!G.turn || G.turn.stage !== 'load') return INVALID_MOVE;
+    if (!blockedDisplace(G, from, id, to, rngFrom(random))) return INVALID_MOVE;
   },
 
   /** cfg.resolveEventsImmediately: the drawer names Gang's or Jimothy's washer. */

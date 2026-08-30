@@ -26,6 +26,8 @@ import {
   phaseReckon,
   loadBlocked,
   skipBlockedLoad,
+  blockedDisplace,
+  canBlockedDisplace,
   resolveEventNow,
   playSpecial,
   setPower,
@@ -66,7 +68,15 @@ export function playDay(st: GameState, policy: Policy, rng: Rng): void {
         else skipCard(st, rng);
       } else if (t.stage === 'load') {
         if (loadBlocked(st)) {
-          skipBlockedLoad(st, rng);
+          /*
+           * v11: moving one of your own items is the substitute for a load you
+           * cannot make, and it takes precedence — skipBlockedLoad now refuses
+           * while such a move exists, so the driver would spin forever if it did
+           * not try this first.
+           */
+          const sub = firstBlockedDisplacement(st);
+          if (sub) blockedDisplace(st, sub.from, sub.item, sub.to, rng);
+          else skipBlockedLoad(st, rng);
           continue;
         }
         if (!mustStillLoad(st)) {
@@ -150,6 +160,20 @@ export function playDay(st: GameState, policy: Policy, rng: Rng): void {
   phaseEndOfDay(st);
   st.turn = null;
   assertInvariants(st);
+}
+
+/** The first legal "move instead of loading", or null.  Mirrors anyLegalLoad. */
+export function firstBlockedDisplacement(
+  st: GameState,
+): { from: number; item: ItemId; to: number } | null {
+  for (const src of st.machines) {
+    for (const item of src.items) {
+      for (let to = 0; to < st.machines.length; to++) {
+        if (canBlockedDisplace(st, src.id, item, to)) return { from: src.id, item, to };
+      }
+    }
+  }
+  return null;
 }
 
 export function anyLegalLoad(st: GameState, pid: PlayerId): { item: ItemId; machine: number } | null {

@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, test } from 'vitest';
-import { card as it_, cleanOf, fire, handOf, put, rig, toHand } from '../helpers';
+import { card as it_, cleanOf, fire, handOf, id, put, rig, toHand } from '../helpers';
 import { machineAccepts } from '../../src/rules/placement';
 import {
   applySpecial,
@@ -16,6 +16,9 @@ import {
   loadsOutstanding,
   moveJimothy,
   skipBlockedLoad,
+  blockedDisplace,
+  canBlockedDisplace,
+  anyBlockedDisplacement,
   mustStillLoad,
   phaseEndOfDay,
   phaseReckon,
@@ -175,6 +178,79 @@ describe('SocksAndBlankets (placement, and socks stranded by a blanket)', () => 
     expect(handOf(rg, 1).has(s.id)).toBe(true);
     expect(rg.st.machines[0].dead).toBe(true);
     expect(rg.st.machines[0].items).toEqual([]);
+  });
+});
+
+describe('Blocked loads (NEW v11)', () => {
+  /*
+   * "If you have no items in your hands to load, move 1 of your item from washer
+   * to washer."  It is a substitute for the load, not a bonus, so it is available
+   * only while blocked and it costs the whole remaining load.
+   */
+  function blockedRig() {
+    const rg = rig(3);
+    // Empty hand, one item of the player's own already in a washer, and a second
+    // washer to move it to.
+    rg.st.players[0].hand = [];
+    put(rg, 0, it_('A-D-hats'));
+    beginTurn(rg.st, 0);
+    rg.st.turn!.face = 1;
+    rg.st.turn!.loadsRequired = 1;
+    rg.st.turn!.loadsDone = 0;
+    rg.st.turn!.stage = 'load';
+    return rg;
+  }
+
+  test('B1 an empty-handed player is blocked, and the move is offered', () => {
+    const rg = blockedRig();
+    expect(loadBlocked(rg.st)).toBe(true);
+    expect(anyBlockedDisplacement(rg.st)).toBe(true);
+  });
+
+  test('B2 the move relocates the item and spends the load', () => {
+    const rg = blockedRig();
+    const ok = blockedDisplace(rg.st, 0, id('A-D-hats'), 1, rg.rng);
+    expect(ok).toBe(true);
+    expect(rg.st.machines[0].items).toEqual([]);
+    expect(rg.st.machines[1].items).toEqual([id('A-D-hats')]);
+    expect(loadsOutstanding(rg.st)).toBe(0);
+  });
+
+  test('B3 it is your OWN items only, unlike the roll of 4', () => {
+    const rg = blockedRig();
+    put(rg, 0, it_('B-D-pants'));
+    expect(canBlockedDisplace(rg.st, 0, id('B-D-pants'), 1)).toBe(false);
+    expect(canBlockedDisplace(rg.st, 0, id('A-D-hats'), 1)).toBe(true);
+  });
+
+  test('B4 skipping is refused while the move is available', () => {
+    const rg = blockedRig();
+    expect(skipBlockedLoad(rg.st, rg.rng)).toBe(false);
+    expect(loadsOutstanding(rg.st)).toBe(1);
+  });
+
+  test('B5 skipping is allowed when there is nothing to move either', () => {
+    const rg = rig(3);
+    rg.st.players[0].hand = [];
+    beginTurn(rg.st, 0);
+    rg.st.turn!.face = 1;
+    rg.st.turn!.loadsRequired = 1;
+    rg.st.turn!.loadsDone = 0;
+    rg.st.turn!.stage = 'load';
+    expect(anyBlockedDisplacement(rg.st)).toBe(false);
+    expect(skipBlockedLoad(rg.st, rg.rng)).toBe(true);
+  });
+
+  test('B6 a player who CAN load is not offered the move', () => {
+    const rg = rig(3);
+    toHand(rg, 0, it_('A-D-hats'));
+    beginTurn(rg.st, 0);
+    rg.st.turn!.face = 1;
+    rg.st.turn!.loadsRequired = 1;
+    rg.st.turn!.loadsDone = 0;
+    rg.st.turn!.stage = 'load';
+    expect(loadBlocked(rg.st)).toBe(false);
+    expect(anyBlockedDisplacement(rg.st)).toBe(false);
   });
 });
 

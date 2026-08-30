@@ -4,6 +4,7 @@ import type { LaundromatG } from '../game/Laundromat';
 import { MachineCard, Swatch } from './MachineCard';
 import { GarmentCard, SpecialCard } from './Card';
 import { DICE_TEXT, canPlaySpecial, loadBlocked, loadsOutstanding } from '../rules/phases';
+import { firstBlockedDisplacement } from '../rules/driver';
 import {
   EVENT_TEXT,
   RULES_SUMMARY,
@@ -1065,6 +1066,13 @@ function TurnBar({
   commitStaged: (only?: number) => void;
 }) {
   const stage = turn.stage;
+  /*
+   * The move a blocked player takes instead of loading (v11).  The engine picks
+   * the same first legal move the bots would, so the button can name it concretely
+   * — "move your dark hats to M3" reads far better than "move something somewhere",
+   * and a blocked player is already confused enough.
+   */
+  const substitute = loadBlocked(G) ? firstBlockedDisplacement(G) : null;
   const ready = G.players[current].ready;
 
   return (
@@ -1141,33 +1149,75 @@ function TurnBar({
               <b>No washer will take anything you are holding.</b>
               <div className="sub">
                 Every machine is full, destroyed, occupied by Jimothy, or refuses what you hold
-                (a blanket needs a machine holding nothing but socks). You rolled {turn.face} but
-                may load {turn.loadsDone}. That is allowed — loading is "as many as you can".
+                (a blanket needs a washer holding at most one other item). You rolled {turn.face}{' '}
+                but may load {turn.loadsDone}.
               </div>
-              <button
-                className="primary"
-                onClick={() =>
-                  setConfirm({
-                    title: 'Load nothing this turn?',
-                    body: (
-                      <>
-                        <p>
-                          You rolled {turn.face} and have loaded {turn.loadsDone}. No washer will
-                          accept anything you are holding, so the rest of your loading is skipped.
-                        </p>
-                        <p className="note">
-                          This is legal — loading is "as many as you can" — but it cannot be undone,
-                          and it is a wasted turn. Check the floor once more before you confirm.
-                        </p>
-                      </>
-                    ),
-                    confirmLabel: 'Yes, load nothing',
-                    act: () => moves.skipLoad(),
-                  })
-                }
-              >
-                Load nothing and carry on
-              </button>
+              {/*
+                v11: being stuck gives you something to do rather than nothing —
+                you move one of your OWN items between washers instead. It is the
+                substitute for the load, so it is offered FIRST and skipping is
+                only legal when even this is impossible (the engine refuses
+                skipLoad while a move exists, so offering them the other way round
+                would show a button that cannot work).
+              */}
+              {substitute ? (
+                <>
+                  <div className="sub">
+                    You may move one of your own items from one washer to another instead. Click
+                    the item in the washer it is in, then click where you want it.
+                  </div>
+                  <button
+                    className="primary"
+                    onClick={() =>
+                      setConfirm({
+                        title: 'Move one of your items instead?',
+                        body: (
+                          <p>
+                            Nothing you hold can be loaded, so you move{' '}
+                            {itemLabel(G.items[substitute.item])} from M{substitute.from + 1} to M
+                            {substitute.to + 1}. That is your whole turn's loading spent.
+                          </p>
+                        ),
+                        confirmLabel: 'Move it',
+                        act: () =>
+                          moves.displaceInsteadOfLoad(
+                            substitute.from,
+                            substitute.item,
+                            substitute.to,
+                          ),
+                      })
+                    }
+                  >
+                    Move {itemLabel(G.items[substitute.item])} to M{substitute.to + 1}
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="primary"
+                  onClick={() =>
+                    setConfirm({
+                      title: 'Load nothing this turn?',
+                      body: (
+                        <>
+                          <p>
+                            You rolled {turn.face} and have loaded {turn.loadsDone}. No washer will
+                            accept anything you are holding, and you have nothing in a washer to
+                            move, so the rest of your loading is skipped.
+                          </p>
+                          <p className="note">
+                            This is legal — loading is "as many as you can" — but it cannot be
+                            undone. Check the floor once more before you confirm.
+                          </p>
+                        </>
+                      ),
+                      confirmLabel: 'Yes, load nothing',
+                      act: () => moves.skipLoad(),
+                    })
+                  }
+                >
+                  Load nothing and carry on
+                </button>
+              )}
             </div>
           ) : (
             <>
