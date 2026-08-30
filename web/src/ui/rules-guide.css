@@ -206,20 +206,6 @@
 /* TANGLED, not damp. See the header comment in RulesGuide.tsx: the DAMP stamp in
    Card.tsx is v9 vocabulary for a rule that no longer exists, so the guide draws
    its own tag rather than teaching the wrong word. */
-.rules-guide .rg-tangled {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #9a6b10;
-  background: #fbf2dc;
-  border: 2px solid var(--warn);
-  border-radius: 999px;
-  padding: 1px 7px 2px;
-  transform: rotate(-2deg);
-  white-space: nowrap;
-}
-
 .rules-guide .rg-note {
   margin: 8px 0 0;
   font-size: 12px;

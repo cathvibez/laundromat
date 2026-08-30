@@ -31,14 +31,10 @@
  * If you add a diagram, check it against `machineVerdicts()` in rules/reckoning.ts
  * before you check it against your intuition.
  *
- * ============================== TANGLED, NOT DAMP ==============================
- * `GarmentCard`'s `verdict` prop offers 'wash' | 'back' | 'damp', and the stamp it
- * paints for 'damp' reads DAMP. That word is v9 vocabulary for a rule that no
- * longer exists. The companion of a blanket is TANGLED — it stays in the drum for
- * one more round rather than going home wet — so this file never passes
- * verdict="damp"; it draws its own `.rg-tangled` tag instead. When the stamp in
- * Card.tsx is renamed, delete `.rg-tangled` and pass the verdict through.
- * ===============================================================================
+ * TANGLED, NOT DAMP.  The companion of a blanket does not wash and stays in the
+ * drum for one more round; it does not go home wet.  `GarmentCard` speaks the same
+ * vocabulary — verdict="tangled" paints a TANGLED stamp — so the diagrams below
+ * pass the verdict straight through rather than labelling it themselves.
  */
 
 import { useState } from 'react';
@@ -97,8 +93,7 @@ function Washer({ name, cap, load = [], showEmpty, note }: WasherProps) {
       <div className="rg-drum">
         {load.map(({ item, verdict, tangled }) => (
           <div className="rg-held" key={item.id}>
-            <GarmentCard item={item} size="xs" verdict={verdict ?? null} />
-            {tangled && <span className="rg-tangled">Tangled</span>}
+            <GarmentCard item={item} size="xs" verdict={tangled ? 'tangled' : (verdict ?? null)} />
           </div>
         ))}
         {Array.from({ length: empty }, (_, i) => (

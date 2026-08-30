@@ -5,6 +5,7 @@ import { Board } from './ui/Board';
 import { Online } from './online/Online';
 import { codeFromUrl, loadSession } from './online/session';
 import { PLACEHOLDER_SPECIAL_DECK, SPECIAL_DECK_IS_PROVISIONAL } from './rules/config';
+import { RulesGuide } from './ui/RulesGuide';
 import './ui/styles.css';
 
 /*
@@ -110,20 +111,7 @@ function Setup({
         ))}
       </select>
 
-      <div className="banner" style={{ marginTop: 20 }}>
-        <h3>The rules for this game</h3>
-        <div className="note">
-          Circuit break cancels the night — nothing washes, and no washer changes power.
-          <br />
-          Every event card takes effect the moment it is drawn; whoever drew it picks the
-          washer for the Gang and for Jimothy.
-          <br />
-          Sanitizer stops shoes dominating everything in that washer, whoever owns them.
-          <br />
-          Socks loaded beside a blanket do not wash and stay in the washer until a night
-          without one.
-        </div>
-      </div>
+      <RulesGuide players={players} />
 
       {SPECIAL_DECK_IS_PROVISIONAL && (
         <div className="banner" style={{ marginTop: 20 }}>
