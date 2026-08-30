@@ -1,5 +1,5 @@
 import type { GameState, Machine } from '../rules/types';
-import { cardName, itemLabel, tonight, willBeDamp } from '../rules/selectors';
+import { cardName, itemLabel, tonight, willTangle } from '../rules/selectors';
 import { GarmentCard } from './Card';
 import type { Verdict } from './Card';
 
@@ -77,16 +77,16 @@ export function MachineCard({
           const item = G.items[id];
           const line = t.lines.find((l) => l.item.id === id);
           const wash = line?.willWash ?? false;
-          const damp = wash && willBeDamp(G, machine, item);
+          const tangled = wash && willTangle(G, machine, item);
           const netted = machine.netProtected.includes(id);
           const ghost = ghosts?.includes(id);
           const live = t.status === 'on' && !G.cbBlackout;
-          const verdict: Verdict = live ? (damp ? 'damp' : wash ? 'wash' : 'back') : null;
+          const verdict: Verdict = live ? (tangled ? 'tangled' : wash ? 'wash' : 'back') : null;
           const note = [
             netted ? 'in the bag' : '',
-            // Damp is the machine's doing, not the sock's: it stays put while a
-            // blanket is in here, and washes on the first night without one.
-            damp ? 'stays in until the blanket goes' : '',
+            // Tangling is the blanket's doing, not the item's: it stays put while
+            // a blanket is in here, and washes on the first night without one.
+            tangled ? 'tangled — stays in' : '',
             ghost ? 'not committed' : '',
           ]
             .filter(Boolean)

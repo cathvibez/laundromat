@@ -14,7 +14,7 @@ import {
   loadTargets,
   sortItems,
   tonight,
-  willBeDamp,
+  willTangle,
 } from '../rules/selectors';
 import { hasLegalPlacement, loadableItems, machineAccepts } from '../rules/placement';
 import { ATTACHING } from '../rules/types';
@@ -901,7 +901,7 @@ function MachinePreview({ G, mi, adding }: { G: LaundromatG; mi: number; adding?
       {preview.items.map((id) => {
         const line = t.lines.find((l) => l.item.id === id);
         const wash = line?.willWash ?? false;
-        const damp = wash && willBeDamp(G, preview, G.items[id]);
+        const tangled = wash && willTangle(G, preview, G.items[id]);
         return (
           <div key={id} className="preview-line">
             <Swatch owner={G.items[id].owner} shade={G.items[id].shade} />
@@ -909,8 +909,8 @@ function MachinePreview({ G, mi, adding }: { G: LaundromatG; mi: number; adding?
               P{G.items[id].owner + 1} {itemLabel(G.items[id])}
               {id === adding ? ' (new)' : ''}
             </span>
-            <span className={`verdict ${damp ? 'damp' : wash ? 'wash' : 'back'}`}>
-              {damp ? 'damp' : wash ? 'washes' : 'back'}
+            <span className={`verdict ${tangled ? 'damp' : wash ? 'wash' : 'back'}`}>
+              {tangled ? 'tangles' : wash ? 'washes' : 'back'}
             </span>
           </div>
         );
@@ -978,15 +978,15 @@ function ReckoningReview({ G, onDone }: { G: LaundromatG; onDone: () => void }) 
                           color:
                             o.outcome === 'washed'
                               ? 'var(--ok)'
-                              : o.outcome === 'damp'
+                              : o.outcome === 'tangled'
                                 ? 'var(--warn)'
                                 : 'var(--bad)',
                         }}
                       >
                         {o.outcome === 'washed'
                           ? 'clean'
-                          : o.outcome === 'damp'
-                            ? 'damp — needs one more wash'
+                          : o.outcome === 'tangled'
+                            ? 'tangled — stays in for one more round'
                             : 'sent back'}
                       </td>
                     </tr>

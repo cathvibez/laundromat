@@ -649,7 +649,12 @@ export function setPower(st: GameState, mi: number, on: boolean): void {
 // PHASE 4 -- reckoning
 // ---------------------------------------------------------------------------
 
-export type Outcome = 'washed' | 'damp' | 'sentBack';
+/**
+ * `tangled` was called `damp` until v11, when a blanket started sharing with any
+ * item rather than only socks.  A tangled shirt is not damp — the old word only
+ * described what happened to the one item type that could ever be in there.
+ */
+export type Outcome = 'washed' | 'tangled' | 'sentBack';
 
 export interface MachineResult {
   machine: number;
@@ -696,16 +701,18 @@ export function phaseReckon(st: GameState, rng: Rng): MachineResult[] {
     const machineHadBlanket = contents.some((x) => x.type === 'blanket');
 
     /*
-     * REVISED v10.  Socks that would have washed beside a blanket do not wash
-     * and DO NOT LEAVE.  They stay in this machine, as ordinary dirty socks,
-     * for as long as it takes: a later night with no blanket in here washes
-     * them normally, and a blanket returning makes them damp again.
+     * REVISED v11.  A blanket is big, and whatever shares the washer with it gets
+     * TANGLED: it does not wash, and it does not leave.  It stays in the drum as an
+     * ordinary dirty item until a night that washer runs without a blanket in it —
+     * which, since the blanket itself washes and leaves, is normally the very next
+     * one.  Load another blanket in first and it is tangled again.
      *
-     * Note the interaction with the verdict, which is the part that is easy to
-     * get wrong.  A sock the verdict SENT BACK is not damp and is not stuck —
-     * it goes home like any other rejected item.  Only a sock that earned its
-     * wash and was denied it by the blanket stays behind.  So "sent back" keeps
-     * meaning exactly one thing.
+     * Until v11 only socks could be in here at all, and the word was "damp".
+     *
+     * Note the interaction with the verdict, which is the part that is easy to get
+     * wrong.  An item the verdict SENT BACK is not tangled — it goes home like any
+     * other rejected item.  Only an item that earned its wash and was denied it by
+     * the blanket stays behind.  So "sent back" keeps meaning exactly one thing.
      */
     const stuck: ItemId[] = [];
 
@@ -717,18 +724,23 @@ export function phaseReckon(st: GameState, rng: Rng): MachineResult[] {
         outcomes.push({ item: item.id, outcome: 'sentBack' });
         return;
       }
-      if (st.cfg.socksBlanketExtraWash && item.type === 'socks' && machineHadBlanket) {
+      if (st.cfg.socksBlanketExtraWash && machineHadBlanket && item.type !== 'blanket') {
         stuck.push(item.id);
-        outcomes.push({ item: item.id, outcome: 'damp' });
+        outcomes.push({ item: item.id, outcome: 'tangled' });
         return;
       }
       if (!p.clean.includes(item.id)) p.clean.push(item.id);
       outcomes.push({ item: item.id, outcome: 'washed' });
     });
 
-    // Post-condition of the rule above: nothing but socks can be left behind.
+    /*
+     * Post-condition of the rule above.  A blanket shares with one item, so at most
+     * one item can be tangled — and never the blanket itself, which washes or is
+     * sent back like anything else.
+     */
+    if (stuck.length > 1) throw new Error('I-5: more than one item tangled in a machine');
     for (const id of stuck) {
-      if (st.items[id].type !== 'socks') throw new Error('I-5: only socks stay in a machine');
+      if (st.items[id].type === 'blanket') throw new Error('I-5: a blanket cannot tangle itself');
     }
     m.items = stuck;
     /*

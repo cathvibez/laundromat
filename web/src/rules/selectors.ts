@@ -76,9 +76,9 @@ export function tonight(st: GameState, m: Machine): TonightSummary {
    */
   const lines = contents.map((item, i) => ({
     item,
-    willWash: verdicts[i] && !willBeDamp(st, m, item),
+    willWash: verdicts[i] && !willTangle(st, m, item),
   }));
-  const stayCount = contents.filter((item, i) => verdicts[i] && willBeDamp(st, m, item)).length;
+  const stayCount = contents.filter((item, i) => verdicts[i] && willTangle(st, m, item)).length;
   const washCount = lines.filter((l) => l.willWash).length;
   // With ownItemsDontTaint the machine no longer resolves at one tier: the
   // ladder below is what OTHER players' items impose on you. The per-item
@@ -92,26 +92,30 @@ export function tonight(st: GameState, m: Machine): TonightSummary {
   const headline =
     washCount === 0
       ? stayCount > 0
-        ? `Tonight: nothing washes. ${stayCount} sock(s) stay in the drum; everything else goes back.`
+        ? `Tonight: nothing washes. ${stayCount} item(s) tangle and stay; everything else goes back.`
         : 'Tonight: nothing washes. Everything goes back.'
       : stayCount > 0
-        ? `Tonight: ${washCount} of ${contents.length} wash · ${stayCount} sock(s) stay in the drum.`
+        ? `Tonight: ${washCount} of ${contents.length} wash · ${stayCount} tangled and staying.`
         : `Tonight: ${washCount} of ${contents.length} wash.`;
   return { status, headline, tierText: tierLabel, lines };
 }
 
 /**
- * Are these socks damp — i.e. will the blanket in here stop them washing?
+ * Will the blanket in here tangle this item and keep it?
  *
- * THE single source of truth for damp, v10.  Damp is not stored on the item any
- * more; it is this question, asked of the machine the sock is sitting in, and
- * the answer changes the moment a blanket is loaded or removed.  [A-24] keys on
- * the machine's CONTENTS, never on the blanket's own verdict, which is what
- * keeps the reckoning commutative.
+ * THE single source of truth for tangling.  It is not stored on the item; it is
+ * this question, asked of the machine the item is sitting in, and the answer
+ * changes the moment a blanket is loaded or removed.  [A-24] keys on the
+ * machine's CONTENTS, never on the blanket's own verdict, which is what keeps
+ * the reckoning commutative.
+ *
+ * REVISED v11: any item can be tangled, not only socks — a blanket now shares
+ * with one item of any type.  The blanket itself is never tangled; it washes or
+ * is sent back like anything else.
  */
-export function willBeDamp(st: GameState, m: Machine, item: ItemCard): boolean {
+export function willTangle(st: GameState, m: Machine, item: ItemCard): boolean {
   if (!st.cfg.socksBlanketExtraWash) return false;
-  if (item.type !== 'socks') return false;
+  if (item.type === 'blanket') return false;
   return machineContents(st, m).some((x) => x.type === 'blanket');
 }
 
@@ -260,7 +264,7 @@ export const RULES_SUMMARY: { heading: string; lines: string[] }[] = [
       'Crowding — 3 or more of the same garment type, any colour: all of them go back.',
       'Underwear washes only among underwear (unless a Wash net covers it).',
       'A blanket must be alone, except that socks may share with it.',
-      'Socks in a washer with a blanket do not wash. They stay in it until it runs without one.',
+      'A blanket tangles the one item beside it: that item does not wash and stays in the washer.',
     ],
   },
   {

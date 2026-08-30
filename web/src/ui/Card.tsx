@@ -17,7 +17,17 @@ import { ART_COLOR_HEX, artForItem, artStyle, eventArt, specialArt } from './art
 export type CardSize = 'xs' | 'sm' | 'md' | 'lg';
 
 /** WASHES / BACK / DAMP, stamped across the face at reckoning time. */
-export type Verdict = 'wash' | 'back' | 'damp' | null;
+/*
+ * `tangled` was `damp` until v11.  The CSS CLASS is still `damp` — `.stamp.damp`
+ * is asserted on in the UI tests and its amber is the right colour either way —
+ * so only the word players read changed.  See stampClass below.
+ */
+export type Verdict = 'wash' | 'back' | 'tangled' | null;
+
+/** The verdict's CSS class, which kept its old name on purpose. */
+function stampClass(v: Exclude<Verdict, null>): string {
+  return v === 'tangled' ? 'damp' : v;
+}
 
 interface GarmentProps {
   item: ItemCard;
@@ -92,8 +102,8 @@ export function GarmentCard({
       </div>
 
       {verdict && (
-        <span className={`stamp ${verdict}`}>
-          {verdict === 'wash' ? 'Washed' : verdict === 'damp' ? 'Damp' : 'Back'}
+        <span className={`stamp ${stampClass(verdict)}`}>
+          {verdict === 'wash' ? 'Washed' : verdict === 'tangled' ? 'Tangled' : 'Back'}
         </span>
       )}
     </div>
