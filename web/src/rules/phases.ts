@@ -802,9 +802,14 @@ export function assertInvariants(st: GameState): void {
   for (const m of st.machines) {
     const contents = machineContents(st, m);
     const blankets = contents.filter((x) => x.type === 'blanket');
+    /*
+     * I-2, REVISED v11.  A blanket is big: it shares with at most ONE other item, of
+     * any type.  This used to read "with socks and nothing else", which is the rule
+     * the blanket had before it started tangling whatever it was loaded beside.
+     */
     if (blankets.length > 1) throw new Error('I-2: two blankets in one machine');
-    if (blankets.length === 1 && contents.some((x) => x.type !== 'blanket' && x.type !== 'socks')) {
-      throw new Error('I-2: blanket shares with a non-sock');
+    if (blankets.length === 1 && contents.length > 2) {
+      throw new Error('I-2: a blanket shares with at most one other item');
     }
     if (contents.length > st.cfg.capacity) throw new Error('I-3: over capacity');
     if (m.dead && m.items.length > 0) throw new Error('dead machines hold nothing');

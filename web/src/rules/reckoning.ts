@@ -342,14 +342,26 @@ const underwearIsolation: MonotoneFilter = ({ items, cards }) => {
 };
 
 /**
- * S5.  A blanket must be alone except for socks [A-W11].  machineAccepts should
- * make an illegal board unreachable; this is the defensive assert, and it is a
- * total loss for the machine when it fires.
+ * S5.  A blanket shares with at most ONE other item [A-W11, REVISED v11].
+ *
+ * It used to be "a blanket must be alone except for socks", any number of them.
+ * A blanket is big rather than fussy: it now admits exactly one companion, of any
+ * type.  Two blankets still cannot share.
+ *
+ * `machineAccepts` should make an illegal board unreachable; this stays the
+ * defensive assert it always was, and a total loss when it fires.  It just guards
+ * a different boundary — too many companions rather than the wrong kind.
+ *
+ * NOTE what is NOT here.  The companion getting tangled and staying in the drum is
+ * a day-level consequence applied in `phaseReckon` AFTER this runs, to items that
+ * passed.  Putting it here would make a verdict depend on another item's verdict
+ * and cost the function its order-independence.
  */
 const blanketExclusivity: MonotoneFilter = ({ items }) => {
   const blankets = items.filter((x) => x.type === 'blanket').length;
   if (blankets === 0) return [];
-  const bad = blankets > 1 || items.some((x) => x.type !== 'blanket' && x.type !== 'socks');
+  const companions = items.length - blankets;
+  const bad = blankets > 1 || companions > 1;
   return bad ? items.map((_, i) => i) : [];
 };
 

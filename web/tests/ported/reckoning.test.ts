@@ -177,14 +177,29 @@ describe('SocksAndBlankets (reckoning half)', () => {
     );
   });
 
-  test('S7 blanket with a non sock is a total loss', () => {
-    expect(resolve([it_('A-D-blanket'), it_('B-D-hats')])).toEqual(new Set());
+  /*
+   * REVISED v11.  S7 used to assert a blanket beside a non-sock was a total loss,
+   * because a blanket admitted socks and nothing else.  A blanket now shares with
+   * exactly one item of ANY type, and that pair is read on the ladder like any other
+   * machine.  What happens to the companion afterwards — it tangles and stays in the
+   * drum — is a day-level concern and deliberately invisible to this pure function.
+   */
+  test('S7 a blanket with one companion of any type is judged normally', () => {
+    expect(resolve([it_('A-D-blanket'), it_('B-D-hats')])).toEqual(
+      specs('A-D-blanket', 'B-D-hats'),
+    );
   });
 
-  test('S8 three socks still crowd beside a blanket', () => {
+  /*
+   * REVISED v11.  Was "three socks still crowd beside a blanket".  Placement should
+   * never produce this board; the filter stays the defensive assert it always was and
+   * simply guards a different boundary — more than one companion, rather than a
+   * companion that is not socks.
+   */
+  test('S8 a blanket with two or more companions is a total loss', () => {
     expect(
       resolve([it_('A-D-blanket'), it_('A-D-socks'), it_('B-D-socks'), it_('C-D-socks')]),
-    ).toEqual(specs('A-D-blanket'));
+    ).toEqual(new Set());
   });
 });
 
@@ -210,7 +225,11 @@ describe('Sanitizer', () => {
     expect(resolve([it_('A-D-underwear'), it_('B-D-shirts')], { cards: san(0) })).toEqual(
       specs('B-D-shirts'),
     );
-    expect(resolve([it_('A-D-blanket'), it_('B-D-hats')], { cards: san(0) })).toEqual(new Set());
+    // blanket exclusivity still fires — v11 boundary: two companions, not a
+    // companion that is not socks.
+    expect(
+      resolve([it_('A-D-blanket'), it_('B-D-hats'), it_('C-D-pants')], { cards: san(0) }),
+    ).toEqual(new Set());
   });
 
   test('N4 sanitizer is a noop without shoes', () => {

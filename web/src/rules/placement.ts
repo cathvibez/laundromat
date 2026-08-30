@@ -13,6 +13,7 @@ export type RefusalReason =
   | 'full'
   | 'blanket-inside'
   | 'blanket-needs-room'
+  | 'blanket-has-company'
   | null;
 
 /** Why this machine will not take this item, or null if it will. */
@@ -25,13 +26,23 @@ export function refusalReason(
   if (machine.dead) return 'destroyed';
   if (machine.jimothy) return 'raccoon';
   if (contents.length >= capacity) return 'full';
+  /*
+   * A blanket is BIG [A-W11, REVISED v11].  It shares with exactly one other item,
+   * of any type except another blanket — so a washer holding a blanket holds two
+   * things at most, whatever that washer's capacity happens to be.
+   *
+   * Until v11 the rule was "a blanket plus any number of socks", which is why the
+   * two branches below used to name socks.  Both directions have to agree, because
+   * this predicate governs loading and the roll-4 move identically: whichever half
+   * of the pair arrives second, the answer must be the same.
+   */
   if (item.type === 'blanket') {
-    // A blanket may join an empty machine or one holding only socks [A-W11].
-    return contents.every((x) => x.type === 'socks') ? null : 'blanket-needs-room';
+    if (contents.some((x) => x.type === 'blanket')) return 'blanket-inside';
+    return contents.length <= 1 ? null : 'blanket-needs-room';
   }
   if (contents.some((x) => x.type === 'blanket')) {
-    // Socks are the one legal companion for a blanket, in both directions.
-    return item.type === 'socks' ? null : 'blanket-inside';
+    // The blanket is already here; it takes one companion and no more.
+    return contents.length <= 1 ? null : 'blanket-has-company';
   }
   return null;
 }
@@ -40,8 +51,9 @@ export const REFUSAL_TEXT: Readonly<Record<Exclude<RefusalReason, null>, string>
   destroyed: 'Destroyed by the Gang - out of the game',
   raccoon: 'Jimothy is in there',
   full: 'Full (4 of 4)',
-  'blanket-inside': 'A blanket is inside - only socks may join it',
-  'blanket-needs-room': 'A blanket needs a machine holding nothing but socks',
+  'blanket-inside': 'A blanket is already in there - two will not fit',
+  'blanket-needs-room': 'A blanket needs a machine holding at most one other item',
+  'blanket-has-company': 'The blanket in there already has its one companion',
 };
 
 export function machineAccepts(st: GameState, machineIndex: number, itemId: ItemId): boolean {

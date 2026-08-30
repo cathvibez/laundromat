@@ -284,13 +284,24 @@ class SocksAndBlankets(unittest.TestCase):
         R.phase_reckon(st)
         self.assertIn(s.iid, st["players"][1]["clean"])
 
-    def test_S7_blanket_with_a_non_sock_is_a_total_loss(self):
-        # unreachable via machineAccepts; the reckoning is defensive.
-        self.assertEqual(resolve([it("A-D-blanket"), it("B-D-hats")]), set())
+    def test_S7_blanket_with_one_companion_of_any_type_is_judged_normally(self):
+        """REVISED v11.  This used to be a total loss: a blanket admitted socks only.
 
-    def test_S8_three_socks_still_crowd_beside_a_blanket(self):
+        A blanket now shares with exactly one item of ANY type, and that pair is read
+        on the ladder like any other machine -- both are dark, neither outranks the
+        other, so both wash.  What happens to the companion afterwards (it tangles and
+        stays put) is a day-level concern and deliberately not visible here."""
+        self.assertEqual(resolve([it("A-D-blanket"), it("B-D-hats")]),
+                         specs("A-D-blanket", "B-D-hats"))
+
+    def test_S8_a_blanket_with_two_companions_is_a_total_loss(self):
+        """REVISED v11.  Was "three socks still crowd beside a blanket".
+
+        Placement should never produce this board, so the filter stays a defensive
+        assert -- it just guards a different boundary now: more than one companion
+        rather than a companion that is not socks."""
         self.assertEqual(resolve([it("A-D-blanket"), it("A-D-socks"), it("B-D-socks"),
-                                  it("C-D-socks")]), specs("A-D-blanket"))
+                                  it("C-D-socks")]), set())
 
 
 # --------------------------------------------------------------------------------------
@@ -318,8 +329,9 @@ class Sanitizer(unittest.TestCase):
         # underwear isolation still fires
         self.assertEqual(resolve([it("A-D-underwear"), it("B-D-shirts")],
                                  [("Sanitizer", 0)]), specs("B-D-shirts"))
-        # blanket exclusivity still fires
-        self.assertEqual(resolve([it("A-D-blanket"), it("B-D-hats")],
+        # blanket exclusivity still fires -- v11 boundary: two companions, not a
+        # companion that is not socks.
+        self.assertEqual(resolve([it("A-D-blanket"), it("B-D-hats"), it("C-D-pants")],
                                  [("Sanitizer", 0)]), set())
 
     def test_N4_sanitizer_is_a_noop_without_shoes(self):

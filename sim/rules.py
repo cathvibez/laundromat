@@ -69,8 +69,9 @@ ASSUMPTION LOG  (every place brief v8 is ambiguous; repeated in the balance repo
           Relocation releases hostages to hands, unwashed (rules-v0.3 B10).
   [A-W10] Animal control, drawn as an event with Jimothy not in play, is a blank; the
           card shuffles back.  Measured as `ac_blanks`.
-  [A-W11] Blanket exclusivity: a machine may hold one blanket plus any number of socks
-          and nothing else.  Two blankets may not share.  Binds loads and face-4 moves.
+  [A-W11] Blanket exclusivity, REVISED v11: a machine may hold one blanket plus at
+          most ONE other item, of any type.  Two blankets may not share.  Binds loads
+          and face-4 moves.  (Until v11 this read "plus any number of socks".)
   [A-W12] Socks that wash in a machine that contained a blanket bank ONE wash event and
           return to hand; a second wash event (anywhere) finishes them.  Socks that wash
           in a blanket-free machine are clean outright regardless of banked count.
@@ -260,12 +261,21 @@ def machine_verdicts(items_key, cards_key, bleach_kills_dark=False,
             if washing[i] and items_key[i][1] == UNDERWEAR and items_key[i] not in net_keys:
                 washing[i] = False
 
-    # ---- S5. blanket exclusivity, socks excepted [A-W11] ---------------------------
+    # ---- S5. blanket exclusivity [A-W11, REVISED v11] ------------------------------
+    #
+    # A blanket is big.  It may share a machine with exactly ONE other item, of any
+    # type -- it used to be "any number of socks and nothing else", which is where the
+    # SOCKS special case came from.  Two blankets still cannot share, and a blanket
+    # with two or more companions is a board that placement should never have allowed,
+    # so it stays a total loss and acts as the defensive assert it always was.
+    #
+    # What the companion SUFFERS is not decided here.  It is judged on the ladder like
+    # anything else; getting tangled by the blanket happens afterwards, to items that
+    # passed.  Keeping that out of this function is what keeps it a pure verdict.
     blankets = [i for i in range(n) if items_key[i][1] == BLANKET]
     if blankets:
-        bad = len(blankets) > 1 or any(items_key[i][1] not in (BLANKET, SOCKS)
-                                       for i in range(n))
-        if bad:
+        companions = n - len(blankets)
+        if len(blankets) > 1 or companions > 1:
             washing = [False] * n
 
     # ---- S6. crowding (>=3 of a type, any colour/shade) ----------------------------

@@ -1,0 +1,450 @@
+/**
+ * RULES GUIDE — styles.
+ *
+ * Every class here is `rg-` prefixed or nested under `.rules-guide`, and that is
+ * load-bearing rather than tidiness: styles.css is the app's stylesheet and the
+ * UI tests assert on its markup, so this file must be incapable of reaching into
+ * it. The one intentional exception is `.gcard`, which arrives already styled by
+ * styles.css because the diagrams are made of real `GarmentCard`s — the point of
+ * the component. Nothing below restyles a card; the guide only frames them.
+ *
+ * NO NEW COLOUR TOKENS. Everything reads from the :root palette in styles.css
+ * (--paper, --ink, --rule-2, --shadow-sm, --radius, --p0..--p5, --ok/--bad/--warn).
+ * A guide that invents its own beige is a guide that stops matching the board the
+ * first time the board is retuned.
+ *
+ * The washer frame (.rg-washer / .rg-whead / .rg-drum) is ported from the print
+ * rulebook's head partial, design/rulebook/parts/00-head.html. Keep them in step:
+ * the printed booklet and this screen are meant to be recognisably one artefact.
+ *
+ * LAYOUT: mobile-first, like styles.css. The base case is one column; the only
+ * breakpoint is 620px, matching `.floor` in styles.css, because `.setup` (max
+ * width 640px) has no breakpoints of its own and a second one here would put a
+ * seam in a place nothing else in the app has a seam.
+ */
+
+.rules-guide {
+  margin: 26px 0 8px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------------------ the header */
+
+.rules-guide .rg-title {
+  margin-bottom: 18px;
+}
+.rules-guide .rg-title h2 {
+  display: inline-block;
+  margin: 0;
+  padding: 6px 15px 8px;
+  font-size: 21px;
+  font-weight: 700;
+  background: var(--card);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  transform: rotate(-1.1deg);
+}
+.rules-guide .rg-title p {
+  margin: 9px 2px 0;
+  color: var(--dim);
+  font-size: 13px;
+}
+
+/* ----------------------------------------------------------- the section */
+
+.rules-guide .rg-sec {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: start;
+  padding: 15px 16px 17px;
+  margin-bottom: 16px;
+  background: var(--paper-2);
+  border: 2px solid var(--rule-2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.rules-guide .rg-sec:nth-child(odd) { transform: rotate(-0.25deg); }
+.rules-guide .rg-sec:nth-child(even) { transform: rotate(0.25deg); }
+
+/* Two columns only where the figure is narrow enough to survive half of a
+   640px container. `.stacked` sections opt out — a row of washers in 300px is
+   a scrollbar, not a diagram. */
+@media (min-width: 620px) {
+  .rules-guide .rg-sec:not(.stacked) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 18px;
+  }
+}
+
+.rules-guide .rg-prose > :first-child { margin-top: 0; }
+.rules-guide .rg-prose p { margin: 0 0 9px; }
+.rules-guide .rg-prose p:last-child { margin-bottom: 0; }
+.rules-guide .rg-prose h3 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.rules-guide .rg-kicker {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 4px;
+}
+.rules-guide .rg-subhead {
+  margin: 18px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.rules-guide .rg-small {
+  font-size: 12.5px;
+  color: var(--dim);
+}
+.rules-guide .rg-fig {
+  min-width: 0;
+}
+
+/* -------------------------------------------------------------- callouts */
+
+.rules-guide .rg-callout {
+  margin: 12px 0 0;
+  padding: 9px 12px 10px;
+  font-size: 12.5px;
+  background: var(--card);
+  border: 2px solid var(--rule-2);
+  border-left-width: 6px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+.rules-guide .rg-callout.bad { border-left-color: var(--bad); }
+
+.rules-guide ol.rg-steps,
+.rules-guide ol.rg-daysteps {
+  margin: 0 0 10px;
+  padding-left: 20px;
+}
+.rules-guide ol.rg-steps li,
+.rules-guide ol.rg-daysteps li { margin-bottom: 6px; }
+
+/* ================== THE WASHER ==================
+   Ported from design/rulebook/parts/00-head.html. A frame, not a machine:
+   MachineCard needs a whole GameState and this needs none. */
+
+.rules-guide .rg-washer {
+  background: var(--card);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 9px 10px 10px;
+  margin-bottom: 12px;
+}
+.rules-guide .rg-washer:last-child { margin-bottom: 0; }
+
+.rules-guide .rg-whead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px;
+}
+.rules-guide .rg-wname {
+  font-weight: 600;
+  font-size: 13px;
+}
+.rules-guide .rg-cap {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.rules-guide .rg-power {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 1px 8px 2px;
+  border-radius: 999px;
+  border: 2px solid var(--ok);
+  color: #3d7a48;
+  background: #eaf5ec;
+}
+
+.rules-guide .rg-drum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px;
+  background: #fffdf8;
+  border: 2px dashed var(--rule-2);
+  border-radius: 13px;
+  min-height: 116px;
+}
+
+/* A card plus room for its tangled tag underneath. */
+.rules-guide .rg-held {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Unused capacity. Drawn at the exact size of an xs card (62x100 in styles.css)
+   so the drum reads as "this many will fit" rather than "this is decorative". */
+.rules-guide .rg-slot {
+  width: 62px;
+  height: 100px;
+  border: 2px dashed var(--line);
+  border-radius: 8px;
+}
+
+/* TANGLED, not damp. See the header comment in RulesGuide.tsx: the DAMP stamp in
+   Card.tsx is v9 vocabulary for a rule that no longer exists, so the guide draws
+   its own tag rather than teaching the wrong word. */
+.rules-guide .rg-tangled {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9a6b10;
+  background: #fbf2dc;
+  border: 2px solid var(--warn);
+  border-radius: 999px;
+  padding: 1px 7px 2px;
+  transform: rotate(-2deg);
+  white-space: nowrap;
+}
+
+.rules-guide .rg-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--dim);
+}
+
+/* Washer examples sit side by side once there is room for two full drums. */
+.rules-guide .rg-cases {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 620px) {
+  .rules-guide .rg-cases { grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); }
+  .rules-guide .rg-cases .rg-washer { margin-bottom: 0; }
+}
+
+/* ------------------------------------------------------------ setup facts */
+
+.rules-guide .rg-pcount {
+  display: flex;
+  gap: 7px;
+  margin-bottom: 11px;
+}
+.rules-guide .rg-pcount button {
+  flex: none;
+  padding: 5px 13px 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--card);
+  border: 2px solid var(--rule-2);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.rules-guide .rg-pcount button.on {
+  border-color: var(--ink);
+  background: #fbf2dc;
+}
+
+.rules-guide .rg-facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.rules-guide .rg-facts > div {
+  padding: 8px 6px 9px;
+  text-align: center;
+  background: var(--card);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+.rules-guide .rg-facts b {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.rules-guide .rg-facts span {
+  display: block;
+  margin-top: 2px;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+/* ------------------------------------------------------------- the round */
+
+.rules-guide .rg-seats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.rules-guide .rg-seat {
+  position: relative;
+  padding: 6px 11px 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--card);
+  background: var(--dim);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+}
+.rules-guide .rg-seat.p0 { background: var(--p0); }
+.rules-guide .rg-seat.p1 { background: var(--p1); }
+.rules-guide .rg-seat.p2 { background: var(--p2); }
+.rules-guide .rg-seat.p3 { background: var(--p3); }
+.rules-guide .rg-seat.p4 { background: var(--p4); }
+.rules-guide .rg-seat.p5 { background: var(--p5); }
+
+/* The key, drawn rather than lettered — it is a token on the table, not a word. */
+.rules-guide .rg-key {
+  position: absolute;
+  top: -9px;
+  left: -7px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--warn);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 rgba(59, 51, 48, 0.16);
+}
+
+.rules-guide .rg-arrow {
+  margin: 9px 0 11px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.rules-guide .rg-arrow::after {
+  content: '';
+  display: block;
+  height: 0;
+  margin-top: 5px;
+  border-top: 2px dashed var(--rule-2);
+}
+
+.rules-guide .rg-daysteps {
+  margin: 0;
+  font-size: 12.5px;
+}
+
+/* ---------------------------------------------------------------- the die */
+
+.rules-guide .rg-faces {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 9px;
+}
+@media (min-width: 620px) {
+  .rules-guide .rg-faces { grid-template-columns: 1fr 1fr; }
+}
+.rules-guide .rg-face {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 11px 9px;
+  font-size: 12.5px;
+  background: var(--card);
+  border: 2px solid var(--rule-2);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.rules-guide .rg-die {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  width: 42px;
+  height: 42px;
+  padding: 5px;
+  background: var(--paper-2);
+  border: 2px solid var(--ink);
+  border-radius: 11px;
+  box-shadow: var(--shadow-sm);
+  transform: rotate(-1.5deg);
+}
+.rules-guide .rg-die .pip {
+  border-radius: 50%;
+  background: transparent;
+}
+.rules-guide .rg-die .pip.on { background: var(--ink); }
+
+/* -------------------------------------------------------------- the ladder */
+
+.rules-guide .rg-ladder {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+.rules-guide .rg-rung {
+  padding: 8px 12px 9px;
+  background: var(--card);
+  border: 2px solid var(--rule-2);
+  border-left-width: 7px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+.rules-guide .rg-rung.dirty { border-left-color: var(--bad); }
+.rules-guide .rg-rung.delicate { border-left-color: var(--warn); }
+.rules-guide .rg-rung b {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.rules-guide .rg-rung span {
+  display: block;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+/* ---------------------------------------------------------- the clean pile */
+
+.rules-guide .rg-pile {
+  padding: 12px;
+  text-align: center;
+  background: var(--card);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.rules-guide .rg-pilecards {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+}
+/* Overlapped, the way a stack of finished laundry actually sits. Lifted from
+   `.drum.tight` in the print rulebook. */
+.rules-guide .rg-pilecards .gcard { margin-right: -16px; }
+.rules-guide .rg-pilecards .gcard:last-child { margin-right: 0; }
+.rules-guide .rg-pilelabel {
+  display: block;
+  margin-top: 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+}

@@ -35,28 +35,52 @@ function fixedDie(face: number, base: Rng = seededRng(7)): Rng {
 }
 
 describe('SocksAndBlankets (placement, and socks stranded by a blanket)', () => {
-  test('S1 socks may join a blanket machine', () => {
+  /*
+   * REVISED v11.  A blanket is BIG: it shares with exactly ONE other item, of any
+   * type except another blanket.  S1 used to assert "socks yes, hats no"; the type
+   * no longer matters and the COUNT does.
+   */
+  test('S1 any single item may join a blanket machine, but only one', () => {
     const rg = rig();
     put(rg, 0, it_('A-D-blanket'));
     rg.st.items['1-socks-D'] = it_('B-D-socks');
     rg.st.items['1-hats-D'] = it_('B-D-hats');
     rg.st.items['1-blanket-D'] = it_('B-D-blanket');
+    // Any type is welcome as the one companion — hats as much as socks.
     expect(machineAccepts(rg.st, 0, '1-socks-D')).toBe(true);
-    expect(machineAccepts(rg.st, 0, '1-hats-D')).toBe(false);
+    expect(machineAccepts(rg.st, 0, '1-hats-D')).toBe(true);
+    // A second blanket never is.
     expect(machineAccepts(rg.st, 0, '1-blanket-D')).toBe(false);
+
+    // Once the blanket has its companion, the washer is closed to everything else.
+    put(rg, 0, it_('B-D-hats'));
+    rg.st.items['2-socks-D'] = it_('C-D-socks');
+    expect(machineAccepts(rg.st, 0, '2-socks-D')).toBe(false);
   });
 
-  test('S2 blanket may join a socks machine', () => {
+  /*
+   * REVISED v11.  Both directions have to agree, because this predicate governs
+   * loading and the roll-4 move identically: whichever half of the pair arrives
+   * second, the answer must be the same.
+   */
+  test('S2 a blanket may join a machine holding at most one item', () => {
     const rg = rig();
     put(rg, 0, it_('A-D-socks'));
-    put(rg, 0, it_('B-L-socks'));
     rg.st.items['2-blanket-D'] = it_('C-D-blanket');
     expect(machineAccepts(rg.st, 0, '2-blanket-D')).toBe(true);
 
+    // A hat is as good a companion as a sock, now.
     const rg2 = rig();
     put(rg2, 0, it_('A-D-hats'));
     rg2.st.items['1-blanket-D'] = it_('B-D-blanket');
-    expect(machineAccepts(rg2.st, 0, '1-blanket-D')).toBe(false);
+    expect(machineAccepts(rg2.st, 0, '1-blanket-D')).toBe(true);
+
+    // But not into a machine that already holds two things.
+    const rg3 = rig();
+    put(rg3, 0, it_('A-D-socks'));
+    put(rg3, 0, it_('B-L-socks'));
+    rg3.st.items['2-blanket-D'] = it_('C-D-blanket');
+    expect(machineAccepts(rg3.st, 0, '2-blanket-D')).toBe(false);
   });
 
   /*
