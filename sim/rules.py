@@ -33,7 +33,7 @@ WHAT CHANGED v5 -> v8 (the engine was three revisions stale)
   * New specials: Sanitizer, Coin.  Wash net narrowed to same-turn underwear.
   * Special item acquisition: draw two, keep one, other to the bottom of the deck.
   * Victory: first to wash all 10, game ends immediately; simultaneous victory allowed.
-  * Machine count = P+1; capacity flat 4.
+  * Machine count = P+1; capacity = P+1 as well [REVISED v11, was a flat 4].
 
 ASSUMPTION LOG  (every place brief v8 is ambiguous; repeated in the balance report)
 ----------------------------------------------------------------------------------
@@ -111,6 +111,11 @@ EVENTS = ("Gang", "Circuit break", "Jimothy", "Animal control")
 FIXED_EVENT_DECK = {"Gang": 1, "Circuit break": 1, "Jimothy": 1, "Animal control": 1}
 
 MACHINES_BY_PLAYERS = {3: 4, 4: 5, 5: 6, 6: 7}          # brief v8: P + 1
+# REVISED v11.  Capacity was a flat 4 and the hand a flat 10; both now scale with
+# the table.  Capacity equalling the machine count is a coincidence of these four
+# numbers, not a rule -- keep the tables separate.
+CAPACITY_BY_PLAYERS = {3: 4, 4: 5, 5: 6, 6: 7}
+MUST_WASH_BY_PLAYERS = {3: 10, 4: 10, 5: 8, 6: 8}
 V5_MACHINES_BY_PLAYERS = {3: 3, 4: 3, 5: 4, 6: 4}       # the archived baseline's counts
 
 DEFAULT_SPECIAL_DECK = dict((s, 2) for s in SPECIALS)   # 14 cards; P0 is swept
@@ -120,8 +125,12 @@ def default_config(players, **overrides):
     cfg = {
         "players": players,
         "machines": MACHINES_BY_PLAYERS[players],
-        "capacity": 4,
-        "hand_size": 10,
+        # REVISED v11: both scale with the table.  Capacity was a flat 4 and the
+        # hand a flat 10.  Capacity happens to equal the machine count at every
+        # supported player count, but that is a coincidence of these numbers rather
+        # than a rule, so the two tables are kept separate.
+        "capacity": CAPACITY_BY_PLAYERS[players],
+        "hand_size": MUST_WASH_BY_PLAYERS[players],
         "mandatory_load": True,           # v8: no longer optional
         "keyholder_first": False,         # [A-W01]
         "sanitizer_owner_only": False,    # [A-W05]

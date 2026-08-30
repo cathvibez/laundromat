@@ -6,7 +6,7 @@
   "Sanitizer",
   "Wash net"
  ],
- "capacity": 4,
+ "capacity": 5,
  "crowdThreshold": 3,
  "dice": {
   "1": {

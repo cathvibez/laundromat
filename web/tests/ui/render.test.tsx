@@ -52,7 +52,9 @@ describe('UI', () => {
     expect(screen.getByText('Key: Player 1')).toBeTruthy();
     // 4 players -> 5 machines, each showing capacity out of 4.
     for (let i = 1; i <= 5; i++) expect(screen.getByText(`M${i}`)).toBeTruthy();
-    expect(screen.getAllByText('0/4').length).toBe(5);
+    // Four players: five washers, each holding five (capacity scales with the
+    // table since v11, so this is not a flat 4 any more).
+    expect(screen.getAllByText('0/5').length).toBe(5);
     expect(screen.getByText(/Player 1 · hand/)).toBeTruthy();
     // No damp zone: socks stranded by a blanket stay in the machine (v10).
     expect(screen.queryByText(/Damp zone/)).toBeNull();

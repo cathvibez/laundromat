@@ -739,15 +739,27 @@ class DeckAndTurn(unittest.TestCase):
         self.assertEqual(len(st["machines"][0]["items"]), 2)
         self.assertEqual(st["machines"][0]["cards"], [("Coloring", 2)])
 
-    def test_D9_machine_count_is_players_plus_one(self):
+    def test_D9_machine_count_and_capacity_both_scale(self):
+        """REVISED v11.  Capacity was a flat 4; it now scales with the table, and
+        so does the number of items each player has to wash."""
         for p in (3, 4, 5, 6):
             self.assertEqual(R.default_config(p)["machines"], p + 1)
-            self.assertEqual(R.default_config(p)["capacity"], 4)
+            self.assertEqual(R.default_config(p)["capacity"], p + 1)
+        self.assertEqual(R.default_config(3)["hand_size"], 10)
+        self.assertEqual(R.default_config(4)["hand_size"], 10)
+        self.assertEqual(R.default_config(5)["hand_size"], 8)
+        self.assertEqual(R.default_config(6)["hand_size"], 8)
 
-    def test_D10_capacity_four_blocks_a_fifth_load(self):
+    def test_D10_capacity_blocks_the_load_that_overflows(self):
+        """REVISED v11.  Was "capacity four blocks a fifth load"; at five players a
+        washer now takes six, so it is the seventh load that is refused."""
         st = rig(players=5, machines=6)
-        for who in ("A", "B", "C", "D"):
-            put(st, 0, it("%s-D-hats" % who))
+        self.assertEqual(st["cfg"]["capacity"], 6)
+        # Six distinct items out of four owners: shade makes A-D-hats and A-L-hats
+        # different cards.
+        for spec in ("A-D-hats", "B-D-hats", "C-D-hats", "D-D-hats",
+                     "A-L-hats", "B-L-hats"):
+            put(st, 0, it(spec))
         x = it("A-L-pants")
         self.assertFalse(R.machine_accepts(st, 0, x))
         self.assertTrue(R.machine_accepts(st, 1, x))

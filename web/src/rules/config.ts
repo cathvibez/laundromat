@@ -6,7 +6,7 @@
 import type { EventName, LaundromatConfig, SpecialName } from './types';
 import { FIXED_EVENT_DECK } from './types';
 
-/** Brief v8 section 1: machine count = P + 1, capacity flat 4. */
+/** Machine count = P + 1. */
 export const MACHINES_BY_PLAYERS: Readonly<Record<number, number>> = {
   3: 4,
   4: 5,
@@ -39,6 +39,37 @@ export const PLACEHOLDER_SPECIAL_DECK: Readonly<Record<SpecialName, number>> = {
 };
 
 /** Manufacturing constraint.  Asserted at setup; see assertDeckSize(). */
+/**
+ * Washer capacity, REVISED v11 — it scales with the table instead of being a flat 4.
+ *
+ * It happens to equal the washer count at every player count, but that is a
+ * coincidence of these four numbers and not a rule; keep the two tables separate so
+ * nobody derives one from the other and is surprised when they diverge.
+ *
+ * Consequence worth watching: at six players a washer holds seven items while
+ * `crowdThreshold` stays at three, so crowding — which fired in about one reckoning
+ * in a hundred — gets substantially more likely at the big end of the table.
+ */
+export const CAPACITY_BY_PLAYERS: Readonly<Record<number, number>> = {
+  3: 4,
+  4: 5,
+  5: 6,
+  6: 7,
+};
+
+/**
+ * How many items each player must wash, REVISED v11.  Was a flat 10.
+ *
+ * The big tables drop to eight.  More players means more contention for every
+ * washer, so ten each would make a six-player game drag rather than make it harder.
+ */
+export const MUST_WASH_BY_PLAYERS: Readonly<Record<number, number>> = {
+  3: 10,
+  4: 10,
+  5: 8,
+  6: 8,
+};
+
 export const SPECIAL_DECK_TOTAL = 20;
 
 export const SPECIAL_DECK_IS_PROVISIONAL = true;
@@ -61,8 +92,8 @@ export function defaultConfig(
   const cfg: LaundromatConfig = {
     players,
     machines,
-    capacity: 4,
-    handSize: 10,
+    capacity: CAPACITY_BY_PLAYERS[players],
+    handSize: MUST_WASH_BY_PLAYERS[players],
     crowdThreshold: 3, // >= N of a garment type sends them all back [A-22]
 
     turnOrder: 'cardLoadExtra', // designer-confirmed: card -> load -> extra [A-W03]

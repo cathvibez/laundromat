@@ -537,17 +537,34 @@ describe('DeckAndTurn', () => {
     expect(rg.st.machines[0].cards).toEqual([{ name: 'Coloring', owner: 2 }]);
   });
 
-  test('D9 machine count is players plus one', () => {
+  /*
+   * REVISED v11.  Capacity was a flat 4; it now scales with the table, and so does
+   * the number of items each player has to wash.
+   */
+  test('D9 machine count and capacity both scale with the table', () => {
     for (const p of [3, 4, 5, 6]) {
       expect(defaultConfig(p).machines).toBe(p + 1);
-      expect(defaultConfig(p).capacity).toBe(4);
+      expect(defaultConfig(p).capacity).toBe(p + 1);
       expect(MACHINES_BY_PLAYERS[p]).toBe(p + 1);
     }
+    expect(defaultConfig(3).handSize).toBe(10);
+    expect(defaultConfig(4).handSize).toBe(10);
+    expect(defaultConfig(5).handSize).toBe(8);
+    expect(defaultConfig(6).handSize).toBe(8);
   });
 
-  test('D10 capacity four blocks a fifth load', () => {
+  /*
+   * REVISED v11.  Was "capacity four blocks a fifth load"; at five players a washer
+   * takes six, so it is the seventh that is refused.
+   */
+  test('D10 capacity blocks the load that overflows', () => {
     const rg = rig(5);
-    for (const who of ['A', 'B', 'C', 'D']) put(rg, 0, it_(`${who}-D-hats`));
+    expect(rg.st.cfg.capacity).toBe(6);
+    // Six distinct cards out of four owners: shade makes A-D-hats and A-L-hats
+    // different items.
+    for (const spec of ['A-D-hats', 'B-D-hats', 'C-D-hats', 'D-D-hats', 'A-L-hats', 'B-L-hats']) {
+      put(rg, 0, it_(spec));
+    }
     rg.st.items['0-pants-L'] = it_('A-L-pants');
     expect(machineAccepts(rg.st, 0, '0-pants-L')).toBe(false);
     expect(machineAccepts(rg.st, 1, '0-pants-L')).toBe(true);

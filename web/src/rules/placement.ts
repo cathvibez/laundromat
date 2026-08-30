@@ -47,10 +47,15 @@ export function refusalReason(
   return null;
 }
 
+/**
+ * `full` takes the capacity, which is no longer a flat 4 — it scales with the
+ * player count (CAPACITY_BY_PLAYERS), so a hardcoded "4 of 4" would lie at every
+ * table but the smallest.
+ */
 export const REFUSAL_TEXT: Readonly<Record<Exclude<RefusalReason, null>, string>> = {
   destroyed: 'Destroyed by the Gang - out of the game',
   raccoon: 'Jimothy is in there',
-  full: 'Full (4 of 4)',
+  full: 'Full',
   'blanket-inside': 'A blanket is already in there - two will not fit',
   'blanket-needs-room': 'A blanket needs a machine holding at most one other item',
   'blanket-has-company': 'The blanket in there already has its one companion',
