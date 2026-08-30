@@ -46,12 +46,18 @@ describe('Integrity', () => {
     }
   });
 
-  test('games terminate with a winner', () => {
+  /*
+   * REVISED v11.  A tie ends the game with NOBODY winning, so an empty winners
+   * list is now a legitimate ending and cannot be asserted against.  What still
+   * must hold is that the game ENDS — reaching the day cap is the failure — and
+   * that it never reports more than one winner.
+   */
+  test('games terminate, with one winner or none', () => {
     for (const p of [3, 4, 5, 6]) {
       for (let seed = 0; seed < 12; seed++) {
         const st = run(p, seed);
         expect(st.over, `P=${p} seed=${seed} hit the day cap at day ${st.day}`).toBe(true);
-        expect(st.winners.length).toBeGreaterThan(0);
+        expect(st.winners.length, `P=${p} seed=${seed} reported a shared win`).toBeLessThan(2);
       }
     }
   });

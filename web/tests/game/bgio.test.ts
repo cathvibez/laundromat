@@ -58,8 +58,13 @@ function playThrough(
     const m = client.moves;
 
     if (ctx.phase === 'key') {
+      // The keyholder's action is compulsory (v11): restore a washer if one is
+      // off, otherwise switch one off. passKey is legal only when the Gang has
+      // destroyed everything.
       const off = G.machines.find((x) => !x.dead && !x.on);
+      const live = G.machines.filter((x) => !x.dead);
       if (off) m.setMachinePower(off.id, true);
+      else if (live.length > 0) m.setMachinePower(live[live.length - 1].id, false);
       else m.passKey();
       continue;
     }
@@ -123,12 +128,19 @@ function playThrough(
 }
 
 describe('boardgame.io adapter', () => {
-  test('a complete 4-player game runs to victory through the real client', () => {
+  test('a complete 4-player game runs to an ending through the real client', () => {
     const r = playThrough(4);
-    expect(r.winners.length).toBeGreaterThanOrEqual(1);
+    /*
+     * Not "to victory": since v11 a tie ends the game with NOBODY winning, and this
+     * client plays unseeded, so roughly one run in eleven legitimately finishes with
+     * an empty winners list. Asserting a winner made this test fail at that rate and
+     * look flaky when it was reporting a rule working.
+     */
+    expect(r.G.over).toBe(true);
+    expect(r.winners.length).toBeLessThan(2);
     expect(r.days).toBeGreaterThan(1);
     for (const w of r.winners) {
-      expect(r.G.players[w].clean.length).toBe(10);
+      expect(r.G.players[w].clean.length).toBe(r.G.players[w].mustWash.length);
     }
     assertInvariants(r.G);
   });
@@ -136,7 +148,13 @@ describe('boardgame.io adapter', () => {
   test('every supported player count finishes', () => {
     for (const n of [3, 4, 5, 6]) {
       const r = playThrough(n);
-      expect(r.winners.length, `P=${n}`).toBeGreaterThanOrEqual(1);
+      /*
+       * REVISED v11: zero winners is a legitimate ending, not a stalled game — a
+       * tie means nobody wins. What matters is that the game ENDED and that it
+       * never reports a shared win.
+       */
+      expect(r.G.over, `P=${n} did not finish`).toBe(true);
+      expect(r.winners.length, `P=${n} reported a shared win`).toBeLessThan(2);
       assertInvariants(r.G);
     }
   });
@@ -160,7 +178,11 @@ describe('boardgame.io adapter', () => {
       const { G, ctx } = s;
       const m = client.moves;
       if (ctx.phase === 'key') {
-        m.passKey();
+        const off = G.machines.find((x) => !x.dead && !x.on);
+        const live = G.machines.filter((x) => !x.dead);
+        if (off) m.setMachinePower(off.id, true);
+        else if (live.length > 0) m.setMachinePower(live[live.length - 1].id, false);
+        else m.passKey();
       } else if (ctx.phase === 'event') {
         m.resolveEvent(G.machines.find((x) => !x.dead)!.id);
       } else {

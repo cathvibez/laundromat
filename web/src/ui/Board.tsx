@@ -783,14 +783,23 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
       {ctx.gameover && !showReckoning && (
         <div className="overlay">
           <div className="modal">
+            {/*
+              An EMPTY winners list is a real ending since v11, not a bug: two
+              players finishing on the same night means nobody wins. It has to be
+              the first case tested, because every other branch indexes winners[0].
+            */}
             <h2>
-              {ctx.gameover.winners.length > 1
-                ? `${ctx.gameover.winners.map((w: number) => nameOf(w)).join(' and ')} win together`
+              {ctx.gameover.winners.length === 0
+                ? 'Nobody wins'
                 : online && ctx.gameover.winners[0] === seat
                   ? 'You win'
                   : `${nameOf(ctx.gameover.winners[0])} wins`}
             </h2>
-            <p>All ten items washed on day {G.day}.</p>
+            <p>
+              {ctx.gameover.winners.length === 0
+                ? `Two players finished together on day ${G.day}, so the laundromat keeps them all.`
+                : `Everything washed on day ${G.day}.`}
+            </p>
             <table>
               <tbody>
                 {G.players.map((p) => (

@@ -34,6 +34,7 @@ import {
   skipCard,
   skipExtra,
   log,
+  anyPowerChangePossible,
 } from '../rules/phases';
 import type { MachineResult, SpecialTarget } from '../rules/phases';
 import type { Rng } from '../rules/rng';
@@ -151,8 +152,18 @@ const keyMoves: MoveMap<LaundromatG> = {
     setPower(G, machine, on);
     events.endPhase();
   },
+  /*
+   * REVISED v11: the keyholder MUST switch a washer on or off. Passing used to be
+   * a free choice; the manual is explicit that the action is compulsory.
+   *
+   * It stays legal ONLY when there is genuinely nothing to switch — every washer
+   * destroyed by the Gang. Without that escape the key phase could never end and
+   * the game would deadlock, which is a far worse outcome than a keyholder who
+   * skips their turn.
+   */
   passKey: ({ G, events }: MoveCtx) => {
-    log(G, 'The keyholder passes.');
+    if (anyPowerChangePossible(G)) return INVALID_MOVE;
+    log(G, 'No washer can be switched, so the keyholder passes.');
     events.endPhase();
   },
 };

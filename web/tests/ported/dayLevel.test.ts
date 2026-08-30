@@ -402,7 +402,12 @@ describe('Victory', () => {
     expect(rg.st.winners).toEqual([1]);
   });
 
-  test('V2 simultaneous victory is allowed', () => {
+  /*
+   * REVISED v11.  Was "simultaneous victory is allowed", and both finishers were
+   * recorded as co-winners.  A tie now means NOBODY wins — the game is over and
+   * the winners list is empty, which is a distinct ending rather than a bug.
+   */
+  test('V2 a tie means nobody wins', () => {
     const rg = rig();
     rg.st.day = 7;
     for (const pid of [0, 2]) {
@@ -411,7 +416,17 @@ describe('Victory', () => {
     }
     phaseEndOfDay(rg.st);
     expect(rg.st.over).toBe(true);
-    expect([...rg.st.winners].sort()).toEqual([0, 2]);
+    expect(rg.st.winners).toEqual([]);
+  });
+
+  test('V2b a lone finisher still wins outright', () => {
+    const rg = rig();
+    rg.st.day = 7;
+    rg.st.players[1].mustWash = ['1-hats-L'];
+    rg.st.players[1].clean = ['1-hats-L'];
+    phaseEndOfDay(rg.st);
+    expect(rg.st.over).toBe(true);
+    expect(rg.st.winners).toEqual([1]);
   });
 
   test('V3 no rotation extension', () => {

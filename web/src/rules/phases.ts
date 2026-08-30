@@ -639,6 +639,18 @@ export function canSetPower(st: GameState, mi: number, on: boolean): boolean {
   return !!m && !m.dead && m.on !== on;
 }
 
+/**
+ * Is there any washer the keyholder could switch?
+ *
+ * The keyholder's action is compulsory (v11), so this is what decides whether
+ * passing is legal: only when every washer is destroyed and there is nothing left
+ * to switch.  A live washer can always be toggled — if it is on, it can go off —
+ * so in practice this is false only on a board the Gang has emptied.
+ */
+export function anyPowerChangePossible(st: GameState): boolean {
+  return st.machines.some((m) => !m.dead);
+}
+
 export function setPower(st: GameState, mi: number, on: boolean): void {
   if (!canSetPower(st, mi, on)) return;
   st.machines[mi].on = on;
@@ -787,15 +799,26 @@ export function phaseEndOfDay(st: GameState): void {
   st.players[st.key].keyHolds += 1;
   st.key = (st.key + 1) % st.cfg.players;
 
-  const winners = st.players.filter((p) => p.finishedDay !== null).map((p) => p.id);
-  if (winners.length > 0) {
+  /*
+   * REVISED v11: a tie is not a shared win, it is NO win.
+   *
+   * Two players finishing on the same night used to be recorded as co-winners.
+   * The designer's ruling — "no one wins if there's a tie (muah ha ha ha)" — makes
+   * the game end with nobody having won, which is a state the board has never had
+   * to show before: `st.over` is true and `st.winners` is empty, and everything
+   * downstream (the game-level endIf, the win screen) has to read that as an
+   * ending rather than as "still playing".
+   */
+  const finished = st.players.filter((p) => p.finishedDay !== null).map((p) => p.id);
+  if (finished.length > 0) {
     st.over = true;
-    st.winners = winners;
+    st.winners = finished.length === 1 ? finished : [];
     log(
       st,
-      winners.length === 1
-        ? `Player ${winners[0] + 1} has washed all ten items and wins.`
-        : `Players ${winners.map((w) => w + 1).join(' and ')} finish together and all win.`,
+      finished.length === 1
+        ? `Player ${finished[0] + 1} has washed everything and wins.`
+        : `Players ${finished.map((w) => w + 1).join(' and ')} finished together, ` +
+            `so nobody wins. The laundromat keeps them all.`,
     );
   }
 }

@@ -432,7 +432,7 @@ export function RulesGuide({ players = 4, className }: RulesGuideProps) {
             <h4 className="rg-subhead">Blankets are big</h4>
             <div className="rg-cases">
               <Washer
-                name="Tangled"
+                name="Blanket, tangled"
                 cap={cfg.cap}
                 load={[
                   { item: ex(3, 'blanket', 'D'), verdict: 'wash' },
@@ -441,7 +441,7 @@ export function RulesGuide({ players = 4, className }: RulesGuideProps) {
                 note="The socks would have washed, so instead they tangle into the blanket and stay in the drum one more round. The blanket washes and leaves."
               />
               <Washer
-                name="Tainted, not tangled"
+                name="Blanket, tainted"
                 cap={cfg.cap}
                 load={[
                   { item: ex(3, 'blanket', 'D'), verdict: 'wash' },

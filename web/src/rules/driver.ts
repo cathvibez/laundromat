@@ -134,8 +134,15 @@ export function playDay(st: GameState, policy: Policy, rng: Rng): void {
     phaseEvent(st, choice, rng);
   }
 
-  // ---- PHASE 3: key -------------------------------------------------------
-  const act = policy.chooseKey?.(st, st.key) ?? null;
+  /* ---- PHASE 3: key -------------------------------------------------------
+   *
+   * REVISED v11: the keyholder MUST switch a washer.  A policy that declines used
+   * to mean "nothing happens"; now it means the driver has to pick, because a day
+   * cannot end with the action unspent.  If everything is already on, the only
+   * legal action is to turn one OFF — which is the real bite of making this
+   * compulsory, and it is the rule as written.
+   */
+  const act = policy.chooseKey?.(st, st.key) ?? forcedPowerChange(st);
   if (act) setPower(st, act.machine, act.on);
 
   // ---- PHASE 4 and 5 ------------------------------------------------------
@@ -160,9 +167,27 @@ export function playGame(st: GameState, policy: Policy, rng: Rng): GameState {
   return st;
 }
 
+/**
+ * The keyholder's compulsory action, when the policy will not choose one.
+ *
+ * Prefers restoring power, because a washer that is off helps nobody.  Falls back
+ * to switching one off — with everything on that is the only legal move, and a
+ * player at a table would face the same choice.  Returns null only when the Gang
+ * has destroyed every washer, which is the one board where passing stays legal.
+ */
+function forcedPowerChange(st: GameState): { machine: number; on: boolean } | null {
+  const off = st.machines.find((m) => !m.dead && !m.on);
+  if (off) return { machine: off.id, on: true };
+  const live = st.machines.filter((m) => !m.dead);
+  if (live.length === 0) return null;
+  return { machine: live[live.length - 1].id, on: false };
+}
+
 /** Deliberately simple reference bot: load the first legal thing, always. */
 export const GreedyPolicy: Policy = {
   chooseLoad: (st, pid) => anyLegalLoad(st, pid),
+  // Restore power if anything is off; otherwise the driver's forced choice
+  // applies, because the action is compulsory.
   chooseKey: (st) => {
     const off = st.machines.find((m) => !m.dead && !m.on);
     if (off) return { machine: off.id, on: true };

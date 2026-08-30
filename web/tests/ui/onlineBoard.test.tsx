@@ -63,7 +63,13 @@ function playUntil(
       continue;
     }
     if (st.ctx.phase === 'key') {
-      c.moves.passKey();
+      // The keyholder's action is compulsory (v11): restore a washer if one is
+      // off, otherwise switch one off.
+      const off = G.machines.find((x) => !x.dead && !x.on);
+      const live = G.machines.filter((x) => !x.dead);
+      if (off) c.moves.setMachinePower(off.id, true);
+      else if (live.length > 0) c.moves.setMachinePower(live[live.length - 1].id, false);
+      else c.moves.passKey();
       continue;
     }
 
@@ -387,7 +393,7 @@ describe('online: the game ending without you', () => {
     render(<Board {...props} />);
 
     expect(screen.getByText('Jo wins')).toBeTruthy();
-    expect(screen.getByText(/All ten items washed/)).toBeTruthy();
+    expect(screen.getByText(/Everything washed on day/)).toBeTruthy();
     // The turn strip is gone — there is no turn any more, and leaving it up
     // would be the interface saying something untrue.
     expect(document.querySelector('.turn-strip')).toBeNull();
@@ -403,12 +409,18 @@ describe('online: the game ending without you', () => {
     expect(screen.getByText('You win')).toBeTruthy();
   });
 
-  test('a shared win names both winners', () => {
+  /*
+   * REVISED v11.  Was "a shared win names both winners".  A tie no longer produces
+   * co-winners: it produces NO winner, and the engine sends an empty list. The
+   * screen has to read that as an ending rather than crash indexing winners[0].
+   */
+  test('a tie is reported as nobody winning, not as a shared win', () => {
     const c = driver();
     const props = propsFor(c, { seat: '0' });
-    props.ctx = { ...props.ctx, gameover: { winners: [1, 2] } };
+    props.ctx = { ...props.ctx, gameover: { winners: [] } };
     render(<Board {...props} />);
-    expect(screen.getByText('Ravi and Jo win together')).toBeTruthy();
+    expect(screen.getByText('Nobody wins')).toBeTruthy();
+    expect(screen.getByText(/finished together/)).toBeTruthy();
   });
 });
 
