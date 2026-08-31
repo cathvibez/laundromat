@@ -470,7 +470,7 @@ export function RulesGuide({ players = 4, className }: RulesGuideProps) {
       <Section
         id="rg-win"
         kicker="To win"
-        title="Empty hands"
+        title="Everything clean"
         figure={
           <div className="rg-pile">
             <div className="rg-pilecards">
