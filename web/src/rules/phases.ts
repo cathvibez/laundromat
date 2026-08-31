@@ -258,7 +258,7 @@ export function blockedDisplace(
   log(
     st,
     `Player ${t.player + 1} could not load, so they moved ${describe(st.items[id])} ` +
-      `from M${from + 1} to M${to + 1}.`,
+      `from Washer ${from + 1} to Washer ${to + 1}.`,
   );
   advanceIfDone(st, rng);
   return true;
@@ -326,14 +326,14 @@ export function applySpecial(
       // machine on this turn.
       st.turn.netTurn = { player: pid, machine: mi };
     }
-    log(st, `Player ${pid + 1} played ${name} on M${mi + 1}.`);
+    log(st, `Player ${pid + 1} played ${name} on Washer ${mi + 1}.`);
     return;
   }
   if (name === 'Snacc') {
     const mi = target as number;
     moveJimothy(st, mi, rng);
     recycleSpecial(st, name, rng);
-    log(st, `Player ${pid + 1} played Snacc: Jimothy is lured to M${mi + 1}.`);
+    log(st, `Player ${pid + 1} played Snacc: Jimothy is lured to Washer ${mi + 1}.`);
     return;
   }
   if (name === 'Coin') {
@@ -341,7 +341,7 @@ export function applySpecial(
     const m = st.machines[machine];
     if (!m.dead && m.on !== on) {
       m.on = on;
-      log(st, `Player ${pid + 1} played the Coin: M${machine + 1} switched ${on ? 'ON' : 'OFF'}.`);
+      log(st, `Player ${pid + 1} played the Coin: Washer ${machine + 1} switched ${on ? 'ON' : 'OFF'}.`);
     } else {
       log(st, `Player ${pid + 1} played the Coin with no effect.`);
     }
@@ -351,7 +351,7 @@ export function applySpecial(
 
 export function loadItem(st: GameState, pid: PlayerId, id: ItemId, mi: number, rng: Rng): void {
   const t = st.turn!;
-  if (!machineAccepts(st, mi, id)) throw new Error(`M${mi} will not accept ${id}`);
+  if (!machineAccepts(st, mi, id)) throw new Error(`Washer ${mi} will not accept ${id}`);
   if (!loadableItems(st, pid).includes(id)) throw new Error(`${id} is not loadable by ${pid}`);
   removeFromZones(st, pid, id);
   const m = st.machines[mi];
@@ -366,7 +366,7 @@ export function loadItem(st: GameState, pid: PlayerId, id: ItemId, mi: number, r
     m.netProtected.push(id);
   }
   t.loadsDone += 1;
-  log(st, `Player ${pid + 1} loaded ${describe(item)} into M${mi + 1}.`);
+  log(st, `Player ${pid + 1} loaded ${describe(item)} into Washer ${mi + 1}.`);
   advanceIfDone(st, rng);
 }
 
@@ -396,7 +396,7 @@ export function displace(st: GameState, from: number, id: ItemId, to: number, rn
   src.items = src.items.filter((x) => x !== id);
   src.netProtected = src.netProtected.filter((x) => x !== id); // I-11
   st.machines[to].items.push(id);
-  log(st, `${describe(st.items[id])} moved from M${from + 1} to M${to + 1}.`);
+  log(st, `${describe(st.items[id])} moved from Washer ${from + 1} to Washer ${to + 1}.`);
   finishExtra(st, rng);
 }
 
@@ -578,7 +578,7 @@ export function removeJimothy(st: GameState, reason: 'Animal control', rng: Rng)
 export function releaseHostages(st: GameState, mi: number, rng: Rng): void {
   const m = st.machines[mi];
   if (m.items.length > 0) {
-    log(st, `M${mi + 1} releases ${m.items.length} item(s) to their owners, unwashed.`);
+    log(st, `Washer ${mi + 1} releases ${m.items.length} item(s) to their owners, unwashed.`);
   }
   for (const id of m.items) returnToOwner(st, id);
   m.items = [];
@@ -644,7 +644,7 @@ function resolveGang(st: GameState, choice: EventChoice, rng: Rng): void {
         st.machines[dest].jimothy = true;
         st.jimothyAt = dest;
         st.jimothySince = st.day;
-        log(st, `Jimothy relocates to M${dest + 1}.`);
+        log(st, `Jimothy relocates to Washer ${dest + 1}.`);
       } else {
         st.jimothySince = null;
         st.jimothyArrived = null;
@@ -652,7 +652,7 @@ function resolveGang(st: GameState, choice: EventChoice, rng: Rng): void {
     }
     m.dead = true;
     m.on = false;
-    log(st, `GANG: M${mi + 1} is shot and out of the game permanently.`);
+    log(st, `GANG: Washer ${mi + 1} is shot and out of the game permanently.`);
   }
   st.gangUsed = true;
   // never returns to the deck
@@ -679,7 +679,7 @@ function resolveJimothyEvent(st: GameState, choice: EventChoice, rng: Rng): void
   if (cands.length === 0) return;
   const mi = choice.machine !== undefined && cands.includes(choice.machine) ? choice.machine : cands[0];
   moveJimothy(st, mi, rng);
-  log(st, `JIMOTHY settles into M${mi + 1}. It cannot run and cannot be loaded.`);
+  log(st, `JIMOTHY settles into Washer ${mi + 1}. It cannot run and cannot be loaded.`);
   // His card stays on the board; it does NOT return to the deck.
 }
 
@@ -687,7 +687,7 @@ function resolveAnimalControl(st: GameState, rng: Rng): void {
   if (st.jimothyAt === null) {
     log(st, 'ANIMAL CONTROL: no raccoon in play. Nothing happens.'); // [A-W10] blank
   } else {
-    log(st, `ANIMAL CONTROL: Jimothy is taken away from M${st.jimothyAt + 1}.`);
+    log(st, `ANIMAL CONTROL: Jimothy is taken away from Washer ${st.jimothyAt + 1}.`);
     removeJimothy(st, 'Animal control', rng);
   }
   st.eventDeck.push('Animal control');
@@ -718,7 +718,7 @@ export function anyPowerChangePossible(st: GameState): boolean {
 export function setPower(st: GameState, mi: number, on: boolean): void {
   if (!canSetPower(st, mi, on)) return;
   st.machines[mi].on = on;
-  log(st, `The keyholder switches M${mi + 1} ${on ? 'ON' : 'OFF'}.`);
+  log(st, `The keyholder switches Washer ${mi + 1} ${on ? 'ON' : 'OFF'}.`);
 }
 
 // ---------------------------------------------------------------------------

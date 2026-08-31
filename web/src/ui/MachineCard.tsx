@@ -65,7 +65,7 @@ export function MachineCard({
       onClick={selectable && onSelect ? onSelect : undefined}
     >
       <div className="head">
-        <span className="name">M{machine.id + 1}</span>
+        <span className="name">Washer {machine.id + 1}</span>
         <span className={`power ${t.status}`}>{statusLabel}</span>
         <span className="cap">
           {machine.items.length}/{capacity}

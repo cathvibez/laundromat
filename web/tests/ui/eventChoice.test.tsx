@@ -107,7 +107,7 @@ describe('mid-turn event choice', () => {
 
       // And confirming must actually resolve it: the turn stops waiting.
       const act = [...overlay!.querySelectorAll('button')].find((b) =>
-        /^(Shoot it|Put him there|Send him to M\d)$/.test(b.textContent ?? ''),
+        /^(Shoot it|Put him there|Send him to Washer \d)$/.test(b.textContent ?? ''),
       );
       expect(act, 'the confirmation offers no way to commit the choice').toBeTruthy();
       fireEvent.click(act!);

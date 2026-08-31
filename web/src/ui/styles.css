@@ -775,3 +775,350 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
   border: 2px dashed var(--warn); border-radius: var(--radius-sm);
   padding: 7px 11px; margin-bottom: 10px; font-weight: 500;
 }
+
+/* ==========================================================================
+   THE BOARD AS ONE SCREEN
+   ==========================================================================
+ *
+ * Everything here hangs off `.app.board`, never `.app`. `.app` is shared with
+ * the setup screen and every lobby screen, and those are documents that must
+ * go on scrolling — putting a viewport height on `.app` would trap them.
+ *
+ * Three rows: head, main, hand. The page itself never scrolls; if anything has
+ * to overflow it does so inside the washer floor. Below 1100px, or on a short
+ * viewport, all of this switches back off and the board is a document again —
+ * see the escape hatch at the bottom. That is deliberate: crushing seven
+ * washers into 90px each is worse than scrolling.
+ *
+ * DO NOT add `transform`, `filter`, `backdrop-filter` or `contain` to .app.board
+ * or .board-main. Any of them makes this element a containing block for the
+ * `position: fixed` .overlay modals, which would then be clipped by the
+ * `overflow: hidden` below — six modals gone, with nothing in the console.
+ */
+
+@media (min-width: 1100px) {
+  .app.board {
+    height: 100dvh;
+    max-width: none;
+    padding: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .app.board .board-head { padding: 12px 16px 0; }
+  .app.board header.top { margin-bottom: 8px; }
+
+  .app.board .board-main {
+    display: grid;
+    /* minmax(0,1fr), never a bare 1fr: bare 1fr is minmax(auto,1fr) and a tall
+       washer would push the whole grid past the viewport. */
+    grid-template-columns: minmax(0, 1fr) 290px;
+    gap: 12px;
+    padding: 0 16px;
+    min-height: 0;
+  }
+
+  .app.board .board-floor {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+  }
+  .app.board .board-floor .section-title { margin: 0; }
+
+  /* THE FLOOR FILLS THE ROOM.
+     `flex: 1` is the line whose absence left dead space under the washers in
+     the first mockup — without it the grid takes only its content height and
+     the space below it is simply empty. Two fixed rows plus column auto-flow
+     means 4 washers make 2 columns and 7 make 4, with no count in the CSS. */
+  .app.board .floor {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 10px;
+    align-items: stretch;
+    overflow: auto;
+  }
+
+  /* An odd washer count leaves a hole in the second row; let the last one take
+     the whole column instead of sitting above empty space. */
+  .app.board .floor[data-odd] > .machine:last-child { grid-row: span 2; }
+
+  /* A washer must be able to SHRINK, or the fixed 130px drum minimum is what
+     bursts the viewport. The drum takes what is left and scrolls if the table
+     is unusually full. */
+  .app.board .machine { min-height: 0; overflow: hidden; }
+  .app.board .machine .slots {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    align-content: flex-start;
+  }
+  .app.board .machine .tonight { flex: none; }
+
+  .app.board .board-side {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 10px;
+    min-height: 0;
+  }
+  .app.board .board-side .rail {
+    margin-top: 0;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  /* The hand is the last row: it keeps its own height and never scrolls away. */
+  .app.board .zones {
+    padding: 0 16px 12px;
+    grid-template-columns: minmax(0, 1fr) 290px;
+  }
+  .app.board .zones .items { overflow-x: auto; }
+  .app.board .turnbar { margin-top: 0; }
+}
+
+/* ---------------- the die dock ---------------- */
+
+.die-dock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  background: var(--card);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lift);
+  padding: 12px 12px 13px;
+  transform: rotate(-0.4deg);
+}
+.die-dock .roll-btn { width: 100%; }
+.die-dock .die-caption {
+  font-size: var(--fs-micro);
+  color: var(--dim);
+  text-align: center;
+}
+
+/* The face is drawn as pips now, not a digit. Same paper-cutout treatment. */
+.die-face { width: 100%; height: 100%; display: block; }
+.die-face circle { fill: var(--ink); }
+.die .die-blank {
+  display: block; width: 34%; height: 34%; border-radius: 50%;
+  border: 2px dashed var(--rule-2);
+}
+.die {
+  width: 64px; height: 64px; padding: 9px;
+  font-size: inherit;
+}
+
+/* ~600ms of tumble, then the REAL face. Die.tsx explains why the animation can
+   never be the thing that picks the number. */
+.die.rolling { animation: tumble 620ms cubic-bezier(0.34, 1.3, 0.64, 1); }
+@keyframes tumble {
+  0%   { transform: rotate(-5deg)  scale(1);    }
+  25%  { transform: rotate(82deg)  scale(1.13); }
+  50%  { transform: rotate(190deg) scale(1.05); }
+  75%  { transform: rotate(291deg) scale(1.11); }
+  100% { transform: rotate(355deg) scale(1);    }
+}
+@media (prefers-reduced-motion: reduce) {
+  .die.rolling { animation: none; }
+}
+
+/* ---------------- the escape hatch ----------------
+ * Under 1100px, or on a viewport too short to hold two rows of washers, the
+ * fixed-height layout switches off entirely and the board goes back to being a
+ * document — the phone carousel above takes over. Nothing is clipped, because
+ * nothing is being held to a height. */
+@media (max-height: 660px) {
+  .app.board {
+    height: auto;
+    overflow: visible;
+    display: block;
+    padding: 16px 14px 120px;
+  }
+  .app.board .board-main { display: block; padding: 0; }
+  .app.board .floor {
+    display: grid;
+    grid-template-rows: none;
+    grid-auto-flow: row;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+  .app.board .machine { overflow: visible; }
+  .app.board .machine .slots { min-height: 116px; overflow: visible; }
+}
+
+/* The modal cap was 88vh, which on a phone is measured against a viewport the
+   URL bar is not in — the reckoning got clipped. */
+.modal { max-height: 88dvh; }
+
+/* ---------------- the vertical budget ----------------
+ *
+ * The first pass at the one-screen board gave the hand 390px of 780 and left
+ * the washer floor 154 — the washers are the game, so that is backwards. The
+ * rules below buy the floor its space back, and every one of them applies ONLY
+ * inside .app.board, so the setup screen and the lobby are untouched.
+ */
+
+@media (min-width: 1100px) {
+  /* Hand cards drop from 118x190 to 96x152. They are still the biggest cards on
+     the board — they are the ones you pick up — but 190px of card plus a label
+     plus a clean pile was half the viewport. */
+  .app.board .zones .gcard.s-md { width: 96px; height: 152px; }
+
+  /* The clean pile is a progress bar and a number; it does not need a second
+     row of cards on a screen this tight. The rail already carries everyone's
+     count, including yours.
+     `.items ~ .items` and not `:nth-of-type(2)` — nth-of-type counts ELEMENTS,
+     and these are all divs, so it matched the wrong node and silently did
+     nothing. This selects any .items that has an earlier .items sibling. */
+  .app.board .zones .panel > .items ~ .items { display: none; }
+
+  .app.board .zones .panel { padding: 8px 11px 9px; }
+  .app.board .zones .zone-label { margin: 0 0 5px; }
+
+  /* The turn bar sits under the floor and used to be a full card of its own.
+     Its heading and its instruction are one line each. */
+  .app.board .turnbar { padding: 9px 13px; }
+  .app.board .turnbar h2 { font-size: var(--fs-body); }
+
+  /* Six players is six rows plus a heading in a column that also holds the die.
+     Tighten the rows rather than let the panel clip. */
+  .app.board .board-side .rail-row { padding: 5px 0; }
+  .app.board .board-side .rail-name { margin-bottom: 2px; }
+  .app.board .board-side .panel { padding: 8px 10px; }
+
+  /* The dock is the one thing that must never be squeezed — it is the control. */
+  .app.board .die-dock { padding: 10px 11px 11px; }
+  .app.board .die { width: 56px; height: 56px; }
+}
+
+@media (min-width: 1100px) {
+  /* THE DRUM HAS TO HOLD A CARD.
+     The floor is two rows of a fixed-height region, so a washer's height is
+     decided by the budget, not by its contents — and at 62x100 the xs card was
+     taller than the drum it lives in, which clipped every item on the board.
+     48x78 on the board only; the same card stays 62x100 in the rules guide and
+     the reckoning modal, where there is room. */
+  .app.board .machine .gcard.s-xs { width: 48px; height: 78px; }
+  .app.board .machine .slots .gcard { margin-right: -14px; }
+  .app.board .machine .slots .gcard:last-child,
+  .app.board .machine .slots .gcard:hover { margin-right: 0; }
+  .app.board .machine .slot { width: 48px; height: 78px; }
+  .app.board .machine { padding: 7px 9px 8px; }
+  .app.board .machine .head { margin-bottom: 5px; }
+
+  /* Trimmed to buy the floor its two full rows. */
+  .app.board .board-head { padding: 8px 16px 0; }
+  .app.board header.top { margin-bottom: 6px; }
+  .app.board header.top h1 { font-size: var(--fs-lead); padding: 5px 13px 6px; }
+  .app.board .turnbar { padding: 7px 12px; }
+  .app.board .turnbar h2 { margin-bottom: 1px; }
+  .app.board .zones { padding: 0 16px 10px; }
+}
+
+@media (min-width: 1100px) {
+  /* The washer's height is set by the budget, so what matters is how much of it
+     reaches the DRUM. The forecast line and the head were taking half of it, so
+     both are trimmed and the forecast is clamped to one line — it is a summary,
+     and the full reckoning is a modal away. */
+  .app.board .machine .tonight {
+    font-size: var(--fs-micro);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .app.board .machine .tonight .tier { display: none; }
+  .app.board .machine .head { margin-bottom: 4px; gap: 6px; }
+  .app.board .machine .head .name { font-size: var(--fs-small); }
+  .app.board .machine .slots { padding: 5px; gap: 4px; }
+
+  /* The rail is six rows and a heading in a column it shares with the die. */
+  .app.board .board-side .rail-row { padding: 3px 0; }
+  .app.board .board-side .progress { height: 6px; }
+  .app.board .board-side .rail-nums { font-size: var(--fs-micro); }
+
+  .app.board .turnbar .sub { font-size: var(--fs-micro); }
+}
+
+@media (min-width: 1100px) {
+  /* The turn bar's heading repeats what the top bar and the turn strip already
+     say; on a 780px laptop that repetition costs the washers a row of cards. */
+  .app.board .turnbar { padding: 6px 12px 7px; }
+  .app.board .turnbar h2 { font-size: var(--fs-small); margin: 0; }
+  .app.board .turnbar .row { margin-top: 6px; }
+}
+
+/* A 13" laptop cannot show seven washers, two rows, full-size cards AND a hand,
+   so on a short viewport the drum card shrinks rather than the drum clipping it.
+   Above 860px there is room for the real thing and it comes straight back. */
+@media (min-width: 1100px) and (max-height: 859px) {
+  .app.board .machine .gcard.s-xs { width: 42px; height: 62px; }
+  .app.board .machine .slot { width: 42px; height: 62px; }
+  .app.board .machine .gcard.s-xs .nm { font-size: 9px; padding: 1px 2px 2px; }
+}
+@media (min-width: 1100px) and (min-height: 860px) {
+  .app.board .machine .gcard.s-xs { width: 62px; height: 100px; }
+  .app.board .machine .slot { width: 62px; height: 100px; }
+  .app.board .machine .tonight { -webkit-line-clamp: 3; }
+  .app.board .machine .tonight .tier { display: block; }
+}
+
+@media (min-width: 1100px) {
+  /* Six players is six rows in a column that also holds the die dock, and the
+     rail was clipping at P3. The count moves up beside the name so each player
+     is two lines instead of three. */
+  .app.board .board-side .rail-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 6px;
+    align-items: baseline;
+  }
+  .app.board .board-side .rail-name { grid-column: 1; grid-row: 1; margin-bottom: 0; }
+  .app.board .board-side .rail-nums { grid-column: 2; grid-row: 1; text-align: right; }
+  .app.board .board-side .progress { grid-column: 1 / -1; grid-row: 2; }
+  .app.board .die { width: 50px; height: 50px; }
+  .app.board .die-dock { padding: 9px 10px 10px; gap: 7px; }
+}
+
+@media (min-width: 1100px) {
+  /* The `key` / `you` / `away` pills were setting the rail row's height at 34px
+     all by themselves — six of those is the whole column. Same pills, sized for
+     a sidebar rather than a header. */
+  .app.board .board-side .badge {
+    padding: 1px 8px 2px;
+    font-size: var(--fs-card);
+    border-width: 1.5px;
+    box-shadow: none;
+  }
+  .app.board .board-side .rail-name { gap: 5px; }
+  .app.board .board-side .swatch { width: 8px; height: 8px; }
+}
+
+/* On a short laptop the dock goes side-on: die beside button rather than above
+   it. That is ~55px back to the rail, which is the difference between a
+   six-player table fitting and scrolling. */
+@media (min-width: 1100px) and (max-height: 859px) {
+  .app.board .die-dock { flex-direction: row; align-items: center; gap: 10px; }
+  .app.board .die-dock .roll-btn { width: auto; flex: 1; }
+  .app.board .die-dock .die-caption { flex: 1; text-align: left; }
+}
+
+@media (min-width: 1100px) {
+  /* The two spans ran together as "0/8 cleanhand 8" once the row became a grid. */
+  .app.board .board-side .rail-nums { display: flex; gap: 8px; }
+}
+
+/* A grid item's min-width defaults to `auto`, which means "as wide as my
+   content" — so the hand panel refused to shrink below the width of eight cards
+   laid end to end and pushed the whole PAGE sideways on a phone. The cards
+   already scroll horizontally inside `.items.scroll`; this is what lets them.
+   Pre-dates the one-screen board — it just showed up while measuring it. */
+.zones .panel { min-width: 0; }
+.zones .items { max-width: 100%; }

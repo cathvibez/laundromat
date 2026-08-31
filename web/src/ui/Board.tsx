@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { BoardProps } from 'boardgame.io/react';
 import type { LaundromatG } from '../game/Laundromat';
 import { MachineCard, Swatch } from './MachineCard';
+import { DieDock } from './Die';
 import { GarmentCard, SpecialCard } from './Card';
 import { DICE_TEXT, canPlaySpecial, loadBlocked, loadsOutstanding } from '../rules/phases';
 import { firstBlockedDisplacement } from '../rules/driver';
@@ -73,6 +74,7 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
   );
   const [revealed, setRevealed] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(false);
+  const [showLog, setShowLog] = useState(false);
 
   const current = Number(ctx.currentPlayer);
   const phase = ctx.phase;
@@ -143,7 +145,8 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
     !showResolved &&
     !ctx.gameover;
 
-  const modalUp = showReckoning || showReveal || showResolved || confirm !== null || showRules;
+  const modalUp =
+    showReckoning || showReveal || showResolved || confirm !== null || showRules || showLog;
 
   /**
    * The board as it WOULD be with the staged loads applied.  Legality for the
@@ -229,7 +232,7 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
     if (phase === 'key') {
       const to = m.on ? 'OFF' : 'ON';
       setConfirm({
-        title: `Switch M${mi + 1} ${to}?`,
+        title: `Switch Washer ${mi + 1} ${to}?`,
         body: (
           <>
             <p>
@@ -258,11 +261,11 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
         const others = G.machines.filter((x) => !x.dead && x.id !== mi);
         if (m.jimothy && others.length > 0) {
           setConfirm({
-            title: `Shoot M${mi + 1}, and send Jimothy where?`,
+            title: `Shoot Washer ${mi + 1}, and send Jimothy where?`,
             body: (
               <>
                 <p>
-                  M{mi + 1} is destroyed permanently and its {m.items.length} item(s) go back to
+                  Washer {mi + 1} is destroyed permanently and its {m.items.length} item(s) go back to
                   their owners. Jimothy is not removed — he relocates. Choose his new machine:
                 </p>
                 <div className="row">
@@ -274,7 +277,7 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
                         submitEventChoice(mi, o.id);
                       }}
                     >
-                      Send him to M{o.id + 1}
+                      Send him to Washer {o.id + 1}
                     </button>
                   ))}
                 </div>
@@ -286,7 +289,7 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
           return;
         }
         setConfirm({
-          title: `Shoot M${mi + 1}?`,
+          title: `Shoot Washer ${mi + 1}?`,
           body: (
             <>
               <p>
@@ -303,7 +306,7 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
       }
       if (G.revealedEvent === 'Jimothy') {
         setConfirm({
-          title: `Put Jimothy in M${mi + 1}?`,
+          title: `Put Jimothy in Washer ${mi + 1}?`,
           body: (
             <>
               <p>
@@ -327,13 +330,13 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
       const name = pending.name;
       const coinTo = !m.on;
       setConfirm({
-        title: `Play ${cardName(name)} on M${mi + 1}?`,
+        title: `Play ${cardName(name)} on Washer ${mi + 1}?`,
         body: (
           <>
             <p>{SPECIAL_TEXT[name]}</p>
             {name === 'Coin' && (
               <p>
-                M{mi + 1} will switch <b>{coinTo ? 'ON' : 'OFF'}</b>. The keyholder acts after you
+                Washer {mi + 1} will switch <b>{coinTo ? 'ON' : 'OFF'}</b>. The keyholder acts after you
                 and can undo it.
               </p>
             )}
@@ -357,11 +360,11 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
     if (pending.kind === 'moveTo') {
       const item = G.items[pending.item];
       setConfirm({
-        title: `Move ${itemLabel(item)} to M${mi + 1}?`,
+        title: `Move ${itemLabel(item)} to Washer ${mi + 1}?`,
         body: (
           <>
             <p>
-              It leaves M{pending.from + 1} and joins M{mi + 1}.
+              It leaves Washer {pending.from + 1} and joins Washer {mi + 1}.
             </p>
             <MachinePreview G={G} mi={mi} adding={pending.item} />
           </>
@@ -402,7 +405,15 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
         : 'Key phase';
 
   return (
-    <div className="app">
+    <div className="app board">
+      {/*
+        THE BOARD IS ONE VIEWPORT TALL. Three rows: this head, the main row that
+        takes what is left, and the hand. Nothing here scrolls the page — the
+        washer floor scrolls inside itself if it ever has to. Note the class is
+        `app board`, not `app`: `.app` is shared with the setup screen and the
+        whole lobby, and those must go on scrolling normally.
+      */}
+      <div className="board-head">
       <header className="top">
         <h1>Laundromat</h1>
         <span className="day">Day {G.day}</span>
@@ -410,6 +421,9 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
         <span className="badge key">Key: Player {G.key + 1}</span>
         {G.revealedEvent && <span className="badge provisional">Event: {G.revealedEvent}</span>}
         <span className="spacer" />
+        <button className="info-btn" title="Show the log" onClick={() => setShowLog(true)}>
+          &#9776;
+        </button>
         <button className="info-btn" title="Show the rules" onClick={() => setShowRules(true)}>
           i
         </button>
@@ -473,6 +487,8 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
         </div>
       )}
 
+      </div>
+
       {needsPass ? (
         <div className="pass-screen">
           <h2>Pass the device to Player {current + 1}</h2>
@@ -483,8 +499,8 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
         </div>
       ) : (
         <>
-          <div className="main-grid">
-            <div>
+          <div className="board-main">
+            <div className="board-floor">
               <div className="section-title">The floor · capacity {G.cfg.capacity} per machine</div>
 
               {/*
@@ -503,21 +519,25 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
                         className={`floor-chip ${cls}`}
                         title={
                           m.dead
-                            ? `M${m.id + 1} is destroyed`
+                            ? `Washer ${m.id + 1} is destroyed`
                             : sel.ok
-                              ? `M${m.id + 1} will take it`
-                              : `M${m.id + 1} is ${m.on ? 'on' : 'off'}`
+                              ? `Washer ${m.id + 1} will take it`
+                              : `Washer ${m.id + 1} is ${m.on ? 'on' : 'off'}`
                         }
                         onClick={() => scrollToMachine(m.id)}
                       >
-                        M{m.id + 1} · {m.items.length}/{G.cfg.capacity}
+                        W{m.id + 1} · {m.items.length}/{G.cfg.capacity}
                       </button>
                     );
                   })}
                 </div>
               )}
 
-              <div className="floor">
+              {/* data-odd, not a class: an odd washer count leaves a hole in
+                  the second row, and the CSS lets the last one span both rather
+                  than sit above empty space. The parity belongs in the
+                  stylesheet, not in a conditional className here. */}
+              <div className="floor" data-odd={shadow.machines.length % 2 === 1 ? '' : undefined}>
                 {shadow.machines.map((m) => {
                   const sel = machineSelectable(m.id);
                   return (
@@ -556,16 +576,6 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
                   );
                 })}
               </div>
-            </div>
-
-            <ProgressRail
-              G={G}
-              current={current}
-              seat={online ? seat : null}
-              nameOf={online ? nameOf : null}
-              awayIds={new Set(away.map((m) => Number(m.id)))}
-            />
-          </div>
 
           {phase === 'event' && G.revealedEvent && (
             <div className="banner">
@@ -641,6 +651,34 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
               commitStaged={commitStaged}
             />
           )}
+            </div>
+
+            {/*
+              The right column. The rail scrolls if the table is big; the die
+              dock is pinned under it so the thing you act with never moves as
+              washers reflow, and it sits directly above your hand — die, then
+              hand, in the order you actually use them.
+            */}
+            <aside className="board-side">
+              <ProgressRail
+                G={G}
+                current={current}
+                seat={online ? seat : null}
+                nameOf={online ? nameOf : null}
+                awayIds={new Set(away.map((m) => Number(m.id)))}
+              />
+              <DieDock
+                face={turn?.face ?? null}
+                /* Exactly the guard the roll button carried inside TurnBar
+                   before it moved here. Deliberately NOT `&& !modalUp`: a modal
+                   is a full-screen overlay, so it already blocks the click, and
+                   adding the term here would make the button vanish and reappear
+                   underneath it. */
+                canRoll={myTurn && phase === 'roll' && turn?.stage === 'roll' && !ctx.gameover}
+                onRoll={() => moves.roll()}
+              />
+            </aside>
+          </div>
 
           {/*
             ALWAYS `seat`, never `current`. Online, the server has already
@@ -665,18 +703,6 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
             }
           />
 
-          <div className="section-title">Log</div>
-          <div className="log">
-            {[...G.log]
-              .slice(-40)
-              .reverse()
-              .map((l, i) => (
-                <div key={i} className={i < 3 ? 'recent' : ''}>
-                  <span style={{ opacity: 0.5 }}>d{l.day} </span>
-                  {l.text}
-                </div>
-              ))}
-          </div>
         </>
       )}
 
@@ -753,6 +779,28 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
                 </button>
               )}
               <button onClick={() => setConfirm(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLog && (
+        <div className="overlay" onClick={() => setShowLog(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>What has happened</h2>
+            <div className="log">
+              {[...G.log]
+                .slice(-40)
+                .reverse()
+                .map((l, i) => (
+                  <div key={i} className={i < 3 ? 'recent' : ''}>
+                    <span style={{ opacity: 0.5 }}>d{l.day} </span>
+                    {l.text}
+                  </div>
+                ))}
+            </div>
+            <div className="row" style={{ marginTop: 14 }}>
+              <button onClick={() => setShowLog(false)}>Close</button>
             </div>
           </div>
         </div>
@@ -905,7 +953,7 @@ function MachinePreview({ G, mi, adding }: { G: LaundromatG; mi: number; adding?
   return (
     <div className="preview">
       <div className="preview-head">
-        M{mi + 1} · {preview.items.length}/{G.cfg.capacity}
+        Washer {mi + 1} · {preview.items.length}/{G.cfg.capacity}
       </div>
       {preview.items.length === 0 && <div className="rules-help">empty</div>}
       {preview.items.map((id) => {
@@ -969,7 +1017,7 @@ function ReckoningReview({ G, onDone }: { G: LaundromatG; onDone: () => void }) 
             className={`result-machine${idx === shown - 1 && !done ? ' active' : ''}`}
           >
             <h4>
-              M{r.machine + 1}
+              Washer {r.machine + 1}
               {r.skipped ? ` — skipped: ${SKIP_TEXT[r.skipped]}` : r.tier ? ` — tier ${r.tier}` : ''}
             </h4>
             {r.outcomes.length === 0 ? (
@@ -1080,7 +1128,6 @@ function TurnBar({
       <h2>{heading}</h2>
 
       <div className="row">
-        {turn.face && <div className="die">{turn.face}</div>}
         <div>
           {turn.face ? (
             <>
@@ -1099,13 +1146,8 @@ function TurnBar({
         </div>
       </div>
 
-      {stage === 'roll' && (
-        <div className="row">
-          <button className="primary" onClick={() => moves.roll()}>
-            Roll the die
-          </button>
-        </div>
-      )}
+      {/* The die and its button live in the right-hand dock now (see Die.tsx).
+          Exactly one 'Roll the die' node may exist in the document. */}
 
       {stage === 'card' && (
         <div className="row">
@@ -1174,8 +1216,8 @@ function TurnBar({
                         body: (
                           <p>
                             Nothing you hold can be loaded, so you move{' '}
-                            {itemLabel(G.items[substitute.item])} from M{substitute.from + 1} to M
-                            {substitute.to + 1}. That is your whole turn's loading spent.
+                            {itemLabel(G.items[substitute.item])} from Washer {substitute.from + 1} to
+                            Washer {substitute.to + 1}. That is your whole turn's loading spent.
                           </p>
                         ),
                         confirmLabel: 'Move it',
@@ -1188,7 +1230,7 @@ function TurnBar({
                       })
                     }
                   >
-                    Move {itemLabel(G.items[substitute.item])} to M{substitute.to + 1}
+                    Move {itemLabel(G.items[substitute.item])} to Washer {substitute.to + 1}
                   </button>
                 </>
               ) : (
@@ -1236,7 +1278,7 @@ function TurnBar({
                     <div key={`${sg.item}${i}`} className="staged-row">
                       <Swatch owner={G.items[sg.item].owner} shade={G.items[sg.item].shade} />
                       <span>
-                        {itemLabel(G.items[sg.item])} → M{sg.machine + 1}
+                        {itemLabel(G.items[sg.item])} → Washer {sg.machine + 1}
                       </span>
                       <button
                         onClick={() => setStaged(staged.filter((_, j) => j !== i))}
@@ -1408,7 +1450,9 @@ function ProgressRail({
 }) {
   return (
     <div className="panel rail">
-      <div className="zone-label">Race to ten</div>
+      <div className="zone-label">
+        Race to {G.players[0]?.mustWash.length ?? 10}
+      </div>
       {G.players.map((p) => {
         const pct = Math.round((p.clean.length / Math.max(1, p.mustWash.length)) * 100);
         return (

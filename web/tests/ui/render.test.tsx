@@ -56,7 +56,7 @@ describe('UI', () => {
     expect(screen.getByText('Day 1')).toBeTruthy();
     expect(screen.getByText('Key: Player 1')).toBeTruthy();
     // 4 players -> 5 machines, each showing capacity out of 4.
-    for (let i = 1; i <= 5; i++) expect(screen.getByText(`M${i}`)).toBeTruthy();
+    for (let i = 1; i <= 5; i++) expect(screen.getByText(`Washer ${i}`)).toBeTruthy();
     // Four players: five washers, each holding five (capacity scales with the
     // table since v11, so this is not a flat 4 any more).
     expect(screen.getAllByText('0/5').length).toBe(5);
