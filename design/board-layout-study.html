@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laundromat Board Layout — layout study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   REVIEW CHROME — the page around the mockups. Theme-aware, so it
+   reads in either mode. The board frames below deliberately do NOT
+   follow the theme: they show the game's real light palette, because
+   that is the thing being judged.
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --chrome-bg: #efe7d8;
+  --chrome-surface: #f9f4ea;
+  --chrome-ink: #3b3330;
+  --chrome-dim: #7d7168;
+  --chrome-line: #d9cdb8;
+  --chrome-accent: #5fa86b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --chrome-bg: #23201d;
+    --chrome-surface: #2c2825;
+    --chrome-ink: #ece4d6;
+    --chrome-dim: #a2968a;
+    --chrome-line: #453f39;
+    --chrome-accent: #7cc088;
+  }
+}
+:root[data-theme="dark"] {
+  --chrome-bg: #23201d;
+  --chrome-surface: #2c2825;
+  --chrome-ink: #ece4d6;
+  --chrome-dim: #a2968a;
+  --chrome-line: #453f39;
+  --chrome-accent: #7cc088;
+}
+
+/* The game's palette. Fixed — never themed. */
+.stage {
+  --paper: #f7f1e4;  --paper-2: #fdf9f1; --card: #ffffff;
+  --ink: #3b3330;    --dim: #8b7f73;     --line: #e3d8c4; --rule-2: #d3c4aa;
+  --panel-2: #f2ebdc;
+  --good: #5fa86b;   --bad: #e0705a;     --warn: #e2a93f;
+  --p0: #6e52a3; --p1: #b0762e; --p2: #3f6f90; --p3: #f0642b; --p4: #3f9c48; --p5: #e63a8b;
+  --shadow: 6px 6px 0 rgba(59,51,48,.16);
+  --shadow-sm: 4px 4px 0 rgba(59,51,48,.14);
+  --radius: 16px; --radius-sm: 11px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--chrome-bg);
+  color: var(--chrome-ink);
+  font-family: 'Fredoka', ui-rounded, 'SF Pro Rounded', 'Segoe UI', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 44px 22px 100px; }
+
+/* ---- page masthead ---- */
+.masthead { margin-bottom: 40px; }
+.eyebrow {
+  font-size: 12px; text-transform: uppercase; letter-spacing: .16em;
+  color: var(--chrome-dim); font-weight: 600; margin-bottom: 10px;
+}
+h1 {
+  font-size: clamp(30px, 4.4vw, 46px); font-weight: 700; margin: 0 0 14px;
+  letter-spacing: -.01em; text-wrap: balance;
+}
+.lede { font-size: 17px; color: var(--chrome-dim); max-width: 62ch; margin: 0; }
+
+.callout {
+  margin-top: 22px; padding: 14px 18px;
+  border-left: 3px solid var(--chrome-accent);
+  background: var(--chrome-surface);
+  border-radius: 0 10px 10px 0;
+  font-size: 14.5px; color: var(--chrome-dim);
+}
+.callout strong { color: var(--chrome-ink); font-weight: 600; }
+
+/* ---- view sections ---- */
+.view { margin-top: 60px; }
+.view-head {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  padding-bottom: 12px; margin-bottom: 20px;
+  border-bottom: 1px solid var(--chrome-line);
+}
+.view-head h2 { font-size: 21px; font-weight: 600; margin: 0; }
+.view-head .meta { font-size: 13px; color: var(--chrome-dim); }
+
+.notes { margin: 18px 0 0; padding: 0; list-style: none; font-size: 14.5px; color: var(--chrome-dim); }
+.notes li { padding: 5px 0 5px 20px; position: relative; }
+.notes li::before {
+  content: ""; position: absolute; left: 4px; top: 14px;
+  width: 5px; height: 5px; border-radius: 50%; background: var(--chrome-accent);
+}
+.notes b { color: var(--chrome-ink); font-weight: 600; }
+
+/* ---- device frame ---- */
+.frame {
+  border: 1px solid var(--chrome-line); border-radius: 12px;
+  overflow: hidden; background: var(--chrome-surface);
+  box-shadow: 0 14px 40px rgba(0,0,0,.13);
+}
+.frame-bar {
+  display: flex; align-items: center; gap: 7px;
+  padding: 9px 13px; border-bottom: 1px solid var(--chrome-line);
+  font-size: 11.5px; color: var(--chrome-dim); letter-spacing: .04em;
+}
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--chrome-line); flex: none; }
+.frame-bar span { margin-left: 8px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   THE BOARD
+   ═══════════════════════════════════════════════════════════════ */
+.stage {
+  background: var(--paper);
+  color: var(--ink);
+  background-image:
+    radial-gradient(circle at 12px 12px, rgba(59,51,48,.045) 1.4px, transparent 1.5px);
+  background-size: 26px 26px;
+}
+.stage.laptop { aspect-ratio: 16 / 10; container-type: size; }
+
+/* one full-height grid: top bar / main / hand. Nothing scrolls the page. */
+.board {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 12px 14px 14px;
+}
+
+/* ---- top bar ---- */
+.topbar {
+  display: flex; align-items: center; gap: 11px; flex-wrap: wrap;
+}
+.wordmark {
+  font-size: 17px; font-weight: 700; margin: 0;
+  background: var(--card); border: 2px solid var(--ink); border-radius: var(--radius);
+  padding: 5px 13px 6px; box-shadow: var(--shadow-sm); transform: rotate(-1.3deg);
+}
+.day { font-size: 13.5px; font-weight: 600; }
+.pill {
+  display: inline-block; padding: 3px 11px; border-radius: 999px;
+  border: 2px solid var(--rule-2); background: var(--card);
+  font-size: 11.5px; font-weight: 500; box-shadow: var(--shadow-sm);
+}
+.pill.phase { border-color: var(--good); color: #3d7a48; }
+.pill.key { border-color: var(--warn); color: #9a6b10; transform: rotate(1deg); }
+.grow { flex: 1; }
+
+.tool {
+  font: inherit; font-size: 12px; font-weight: 500; cursor: pointer;
+  padding: 5px 12px; border-radius: 999px;
+  border: 2px solid var(--rule-2); background: var(--card); color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.tool:hover { transform: translateY(-1px); box-shadow: 5px 5px 0 rgba(59,51,48,.16); }
+.tool:focus-visible { outline: 2px solid var(--good); outline-offset: 2px; }
+.tool .stars { color: var(--warn); letter-spacing: -1px; }
+
+/* ---- main row: washers | rail ---- */
+.main {
+  display: grid; grid-template-columns: minmax(0,1fr) 200px; gap: 12px;
+  min-height: 0;
+}
+
+.floor-wrap { display: flex; flex-direction: column; min-height: 0; }
+.label {
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--dim); font-weight: 600; margin-bottom: 6px;
+}
+
+/* TWO ROWS, filled column by column */
+.floor {
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 9px; min-height: 0; overflow: auto;
+}
+
+.washer {
+  background: var(--paper-2); border: 2px solid var(--ink); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); padding: 7px 8px 8px;
+  display: flex; flex-direction: column; gap: 5px; min-height: 0;
+}
+.washer:nth-child(odd) { transform: rotate(-0.45deg); }
+.washer:nth-child(even) { transform: rotate(0.5deg); }
+.washer.off { opacity: .62; background: #efe9df; border-color: var(--rule-2); }
+
+.whead { display: flex; align-items: center; gap: 6px; }
+.wname { font-weight: 600; font-size: 12.5px; }
+.wpow {
+  font-size: 9px; font-weight: 600; padding: 1px 7px; border-radius: 999px;
+  border: 1.5px solid var(--good); color: #3d7a48; letter-spacing: .05em;
+}
+.washer.off .wpow { border-color: var(--rule-2); color: var(--dim); }
+.wcap { margin-left: auto; font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
+
+.drum {
+  flex: 1; min-height: 0; border: 2px dashed var(--rule-2); border-radius: var(--radius-sm);
+  background: var(--card); padding: 5px; display: flex; align-items: center; gap: 3px;
+}
+.chip {
+  width: 20px; height: 30px; border-radius: 4px; border: 1.5px solid var(--ink);
+  flex: none; box-shadow: 2px 2px 0 rgba(59,51,48,.12);
+}
+.slot { width: 20px; height: 30px; border-radius: 4px; border: 1.5px dashed var(--rule-2); flex: none; }
+.tonight { font-size: 10px; color: var(--dim); line-height: 1.3; }
+.tonight b { color: var(--good); font-weight: 600; }
+.tonight.bad b { color: var(--bad); }
+
+/* ---- right column ---- */
+.rail-col { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+
+.panel {
+  background: var(--panel-2); border: 2px solid var(--ink); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); padding: 9px 10px;
+}
+.rail-row { padding: 4px 0; border-bottom: 1.5px dotted var(--line); }
+.rail-row:last-child { border-bottom: none; }
+.rail-name { display: flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; margin-bottom: 3px; }
+.swatch { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink); flex: none; }
+.you { font-size: 9px; color: var(--dim); font-weight: 500; }
+.num { margin-left: auto; font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.bar { height: 7px; border-radius: 999px; background: var(--card); border: 1.5px solid var(--ink); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--good); }
+
+/* ---- the die ---- */
+.diebox {
+  background: var(--card); border: 2px solid var(--ink); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 11px 10px 12px; text-align: center;
+  transform: rotate(-0.4deg);
+}
+.die {
+  width: 62px; height: 62px; margin: 0 auto 9px; display: block;
+  border-radius: 14px; background: var(--paper-2); border: 2px solid var(--ink);
+  box-shadow: var(--shadow-sm); transform: rotate(-5deg);
+  cursor: pointer;
+}
+.die:focus-visible { outline: 2px solid var(--good); outline-offset: 3px; }
+.die.rolling { animation: tumble .62s cubic-bezier(.34,1.3,.64,1); }
+@keyframes tumble {
+  0%   { transform: rotate(-5deg)   scale(1);    }
+  25%  { transform: rotate(82deg)   scale(1.13); }
+  50%  { transform: rotate(190deg)  scale(1.05); }
+  75%  { transform: rotate(291deg)  scale(1.11); }
+  100% { transform: rotate(355deg)  scale(1);    }
+}
+@media (prefers-reduced-motion: reduce) {
+  .die.rolling { animation: none; }
+}
+.roll-btn {
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%;
+  padding: 8px 12px; border-radius: var(--radius-sm);
+  border: 2px solid var(--ink); background: #ffe9a8; color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  transition: transform .12s ease;
+}
+.roll-btn:hover { transform: translateY(-1px); }
+.roll-btn:focus-visible { outline: 2px solid var(--good); outline-offset: 2px; }
+.die-cap { font-size: 10.5px; color: var(--dim); margin-top: 7px; min-height: 1.3em; }
+
+/* ---- hand ---- */
+.hand {
+  background: var(--panel-2); border: 2px solid var(--ink); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); padding: 8px 11px 10px;
+  display: flex; align-items: center; gap: 12px;
+}
+.hand-cards { display: flex; gap: 7px; }
+.gcard {
+  width: 46px; height: 72px; border-radius: 7px; border: 2px solid var(--ink);
+  background: var(--card); box-shadow: var(--shadow-sm);
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px;
+  font-size: 8.5px; color: var(--dim); font-weight: 500;
+}
+.gcard:nth-child(odd) { transform: rotate(-1.2deg); }
+.gcard:nth-child(even) { transform: rotate(1.4deg); }
+
+/* ---- die placement variant ---- */
+.slot-left { display: none; }
+.stage.alt .slot-right { display: none; }
+.stage.alt .slot-left { display: block; margin-top: 9px; }
+
+/* toggle */
+.switch {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  margin: 0 0 16px; font-size: 14px; color: var(--chrome-dim);
+}
+.switch button {
+  font: inherit; font-size: 13px; cursor: pointer;
+  padding: 6px 14px; border-radius: 999px;
+  border: 1px solid var(--chrome-line); background: transparent; color: var(--chrome-ink);
+}
+.switch button[aria-pressed="true"] {
+  background: var(--chrome-accent); border-color: var(--chrome-accent); color: #fff; font-weight: 600;
+}
+.switch button:focus-visible { outline: 2px solid var(--chrome-accent); outline-offset: 2px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE
+   ═══════════════════════════════════════════════════════════════ */
+.phone-row { display: flex; gap: 26px; align-items: flex-start; flex-wrap: wrap; }
+.phone {
+  width: 300px; flex: none;
+  border: 9px solid #241f1c; border-radius: 32px; overflow: hidden;
+  box-shadow: 0 14px 40px rgba(0,0,0,.2);
+}
+.stage.mob { height: 620px; }
+.board.mob { grid-template-rows: auto auto minmax(0,1fr) auto auto; gap: 8px; padding: 10px; }
+.board.mob .floor {
+  grid-template-rows: none; grid-auto-flow: column;
+  grid-auto-columns: 82%; overflow-x: auto; scroll-snap-type: x mandatory;
+}
+.board.mob .washer { scroll-snap-align: center; }
+.jump { display: flex; gap: 5px; overflow-x: auto; }
+.jump button {
+  font: inherit; font-size: 10.5px; cursor: pointer; flex: none;
+  padding: 3px 9px; border-radius: 999px;
+  border: 2px solid var(--rule-2); background: var(--card); color: var(--ink);
+}
+.jump button[aria-pressed="true"] { border-color: var(--good); color: #3d7a48; font-weight: 600; }
+.board.mob .diebox { display: flex; align-items: center; gap: 10px; text-align: left; padding: 8px 10px; }
+.board.mob .die { margin: 0; width: 46px; height: 46px; flex: none; }
+.board.mob .roll-btn { width: auto; flex: 1; }
+.board.mob .hand-cards { overflow-x: auto; }
+
+/* ═══════════════════════════════════════════════════════════════
+   FRONT PAGE PAGER
+   ═══════════════════════════════════════════════════════════════ */
+.stage.front { height: 480px; display: flex; flex-direction: column; }
+.front-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px 10px; flex-wrap: wrap;
+}
+.front-head h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.front-head .sub { font-size: 12px; color: var(--dim); }
+
+.pager { flex: 1; position: relative; min-height: 0; display: flex; align-items: center; gap: 8px; padding: 0 10px; }
+.pages {
+  flex: 1; height: 100%; display: flex; overflow-x: auto;
+  scroll-snap-type: x mandatory; scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+.pages::-webkit-scrollbar { display: none; }
+@media (prefers-reduced-motion: reduce) { .pages { scroll-behavior: auto; } }
+
+.page {
+  flex: 0 0 100%; scroll-snap-align: center; height: 100%;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: center;
+  padding: 6px 12px 16px;
+}
+.page .prose { min-width: 0; }
+.kicker {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .15em;
+  color: var(--dim); font-weight: 600; margin-bottom: 7px;
+}
+.page h4 { margin: 0 0 9px; font-size: 21px; font-weight: 700; text-wrap: balance; }
+.page p { margin: 0; font-size: 13.5px; color: #5c534d; max-width: 40ch; }
+.fig {
+  height: 100%; min-height: 0; display: flex; align-items: center; justify-content: center;
+  gap: 8px; flex-wrap: wrap;
+}
+
+.arrow {
+  font: inherit; font-size: 17px; cursor: pointer; flex: none;
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 2px solid var(--ink); background: var(--card); color: var(--ink);
+  box-shadow: var(--shadow-sm); display: grid; place-items: center;
+}
+.arrow:hover { background: #fffdf7; }
+.arrow:focus-visible { outline: 2px solid var(--good); outline-offset: 2px; }
+.arrow[disabled] { opacity: .3; cursor: default; }
+
+.dots { display: flex; gap: 7px; justify-content: center; padding: 0 0 14px; }
+.dots button {
+  width: 9px; height: 9px; padding: 0; border-radius: 50%; cursor: pointer;
+  border: 2px solid var(--ink); background: transparent;
+}
+.dots button[aria-current="true"] { background: var(--ink); }
+.dots button:focus-visible { outline: 2px solid var(--good); outline-offset: 2px; }
+
+/* mini figures for the front page */
+.mini-washer {
+  width: 74px; height: 92px; border: 2px solid var(--ink); border-radius: 11px;
+  background: var(--paper-2); box-shadow: var(--shadow-sm); padding: 6px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.mini-washer .t { font-size: 9px; font-weight: 600; }
+.mini-drum { flex: 1; border: 2px dashed var(--rule-2); border-radius: 7px; background: var(--card); }
+.mini-die {
+  width: 52px; height: 52px; border-radius: 12px; background: var(--paper-2);
+  border: 2px solid var(--ink); box-shadow: var(--shadow-sm); transform: rotate(-6deg);
+}
+
+.foot {
+  margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--chrome-line);
+  font-size: 13.5px; color: var(--chrome-dim);
+}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">Layout study · not built yet</div>
+    <h1>Laundromat board layout</h1>
+    <p class="lede">
+      Three views for review: the laptop board, the same board on a phone, and the
+      front page as a sideways pager. Real palette, real type — the layout is the
+      thing to judge.
+    </p>
+    <div class="callout">
+      <strong>Nothing here is wired up.</strong> No game logic, no network, no data
+      leaves the page. The die rolls a real random face so the motion can be judged;
+      everything else is fixed content standing in for a live game.
+    </div>
+  </header>
+
+  <!-- ══════════ LAPTOP ══════════ -->
+  <section class="view">
+    <div class="view-head">
+      <h2>Laptop board</h2>
+      <span class="meta">1440 × 900 · six players, seven washers</span>
+    </div>
+
+    <div class="switch">
+      <span>Die placement:</span>
+      <button id="pA" aria-pressed="true">Right column, under progress</button>
+      <button id="pB" aria-pressed="false">Bottom left, by the washers</button>
+    </div>
+
+    <div class="frame">
+      <div class="frame-bar">
+        <i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <span>play-laundromat.fly.dev</span>
+      </div>
+      <div class="stage laptop" id="stage">
+        <div class="board">
+
+          <div class="topbar">
+            <h2 class="wordmark">Laundromat</h2>
+            <span class="day">Day 3</span>
+            <span class="pill phase">Roll phase</span>
+            <span class="pill key">Key: Ada</span>
+            <span class="grow"></span>
+            <button class="tool">Rulebook</button>
+            <button class="tool">Stay in touch</button>
+            <button class="tool"><span class="stars">★★★★☆</span> Review</button>
+          </div>
+
+          <div class="main">
+            <div class="floor-wrap">
+              <div class="label">The floor · capacity 6 per washer</div>
+              <div class="floor" id="floor"></div>
+              <div class="slot-left" id="slotLeft"></div>
+            </div>
+
+            <div class="rail-col">
+              <div class="panel">
+                <div class="label" style="margin-bottom:5px">Race to ten</div>
+                <div id="rail"></div>
+              </div>
+              <div class="slot-right" id="slotRight"></div>
+            </div>
+          </div>
+
+          <div class="hand">
+            <div class="label" style="margin:0">Your hand</div>
+            <div class="hand-cards" id="hand"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <ul class="notes">
+      <li><b>One <code>100dvh</code> grid</b> — top bar, main row, hand. The washer area
+        scrolls inside itself if it ever overflows, so the page never does.</li>
+      <li><b>Washers fill two rows</b>, column by column, so four to seven of them
+        stay one shape instead of rewrapping as the player count changes.</li>
+      <li><b>The die is the only warm-yellow thing on screen.</b> That is what makes it
+        read as the call to action without needing to be large.</li>
+      <li><b>Click the die</b> to see the proposed roll animation.</li>
+    </ul>
+  </section>
+
+  <!-- ══════════ PHONE ══════════ -->
+  <section class="view">
+    <div class="view-head">
+      <h2>Phone</h2>
+      <span class="meta">390 × 844 · same regions, restacked</span>
+    </div>
+
+    <div class="phone-row">
+      <div class="phone">
+        <div class="stage mob">
+          <div class="board mob">
+            <div class="topbar">
+              <h2 class="wordmark" style="font-size:14px;padding:4px 10px">Laundromat</h2>
+              <span class="grow"></span>
+              <span class="day">Day 3</span>
+              <button class="tool" style="padding:4px 9px">☰</button>
+            </div>
+
+            <div class="jump" id="jump"></div>
+            <div class="floor" id="floorM"></div>
+
+            <div class="panel">
+              <div class="label" style="margin-bottom:5px">Race to ten</div>
+              <div id="railM"></div>
+            </div>
+
+            <div class="diebox">
+              <svg class="die" id="dieM" viewBox="0 0 100 100" role="img" aria-label="Die showing 4"></svg>
+              <button class="roll-btn">Roll the die</button>
+            </div>
+
+            <div class="hand" style="padding:6px 8px">
+              <div class="hand-cards" id="handM"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ul class="notes" style="flex:1;min-width:280px;margin-top:0">
+        <li><b>Same four regions, same order</b> — top bar, washers, progress, die,
+          hand. Nothing is hidden on the phone that exists on the laptop.</li>
+        <li><b>Washers become a snap carousel</b> with jump chips above, which is the
+          mechanism already in the app today.</li>
+        <li><b>The die and its button go side by side</b> to buy back vertical space,
+          and sit directly above the hand.</li>
+        <li><b>Laptop first, per your note</b> — this is the same design under
+          pressure, not a separate one.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ══════════ FRONT PAGE ══════════ -->
+  <section class="view">
+    <div class="view-head">
+      <h2>Front page</h2>
+      <span class="meta">Six sections, left to right</span>
+    </div>
+
+    <div class="frame">
+      <div class="frame-bar">
+        <i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <span>play-laundromat.fly.dev</span>
+      </div>
+      <div class="stage front">
+        <div class="front-head">
+          <h3>How to play</h3>
+          <span class="sub">Everyone's laundry, one row of washers, and not enough of them.</span>
+        </div>
+
+        <div class="pager">
+          <button class="arrow" id="prev" aria-label="Previous section">‹</button>
+          <div class="pages" id="pages"></div>
+          <button class="arrow" id="next" aria-label="Next section">›</button>
+        </div>
+
+        <div class="dots" id="dots"></div>
+      </div>
+    </div>
+
+    <ul class="notes">
+      <li><b>These six sections already exist</b> in <code>RulesGuide.tsx</code> with
+        stable ids — about, setup, days, die, washers, win. This is a container
+        change, not a rewrite of the content.</li>
+      <li><b>Arrows, dots, arrow keys, and swipe</b> all move the same scroller.</li>
+      <li><b>Scroll-snap does the work</b>, the same mechanism the phone washer
+        carousel uses today.</li>
+    </ul>
+  </section>
+
+  <p class="foot">
+    Mockup for review. Once the layout is settled, the implementation follows —
+    <code>styles.css</code> for the grid, <code>Board.tsx</code> for the regions,
+    a new die component, and the pager around the existing rules sections.
+  </p>
+</div>
+
+<script>
+/* ---------- die pips ---------- */
+const PIPS = {
+  1: [[50,50]],
+  2: [[30,30],[70,70]],
+  3: [[28,28],[50,50],[72,72]],
+  4: [[30,30],[70,30],[30,70],[70,70]],
+  5: [[30,30],[70,30],[50,50],[30,70],[70,70]],
+  6: [[30,26],[70,26],[30,50],[70,50],[30,74],[70,74]]
+};
+function drawDie(el, n) {
+  el.innerHTML = PIPS[n].map(([x, y]) =>
+    `<circle cx="${x}" cy="${y}" r="8.5" fill="#3b3330"/>`).join('');
+  el.setAttribute('aria-label', 'Die showing ' + n);
+}
+
+/* ---------- washers ---------- */
+const WASHERS = [
+  { n: 1, on: true,  items: ['--p0','--p3'],               cap: 6, note: 'Two clean',    bad: false },
+  { n: 2, on: true,  items: ['--p1','--p1','--p4'],        cap: 6, note: 'All clean',    bad: false },
+  { n: 3, on: false, items: ['--p2'],                      cap: 6, note: 'Off — stays',  bad: true  },
+  { n: 4, on: true,  items: ['--p5','--p0','--p2','--p4'], cap: 6, note: 'Tangled',      bad: true  },
+  { n: 5, on: true,  items: [],                            cap: 6, note: 'Empty',        bad: false },
+  { n: 6, on: true,  items: ['--p3','--p3'],               cap: 6, note: 'Two clean',    bad: false },
+  { n: 7, on: true,  items: ['--p4'],                      cap: 6, note: 'One clean',    bad: false }
+];
+
+function washerHTML(w) {
+  const chips = w.items.map(c => `<i class="chip" style="background:var(${c})"></i>`).join('');
+  const slots = Array.from({ length: Math.max(0, 4 - w.items.length) },
+    () => '<i class="slot"></i>').join('');
+  return `<div class="washer${w.on ? '' : ' off'}">
+      <div class="whead">
+        <span class="wname">Washer ${w.n}</span>
+        <span class="wpow">${w.on ? 'ON' : 'OFF'}</span>
+        <span class="wcap">${w.items.length}/${w.cap}</span>
+      </div>
+      <div class="drum">${chips}${slots}</div>
+      <div class="tonight${w.bad ? ' bad' : ''}">Tonight: <b>${w.note}</b></div>
+    </div>`;
+}
+document.getElementById('floor').innerHTML = WASHERS.map(washerHTML).join('');
+document.getElementById('floorM').innerHTML = WASHERS.map(washerHTML).join('');
+
+/* ---------- jump chips (phone) ---------- */
+document.getElementById('jump').innerHTML = WASHERS.map((w, i) =>
+  `<button aria-pressed="${i === 0}">W${w.n}</button>`).join('');
+
+/* ---------- progress rail ---------- */
+const PLAYERS = [
+  { name: 'Ada',   c: '--p0', clean: 7, of: 10, you: true  },
+  { name: 'Bo',    c: '--p3', clean: 5, of: 10, you: false },
+  { name: 'Cy',    c: '--p2', clean: 4, of: 10, you: false },
+  { name: 'Dee',   c: '--p4', clean: 2, of: 10, you: false },
+  { name: 'Eve',   c: '--p1', clean: 2, of: 10, you: false },
+  { name: 'Fitz',  c: '--p5', clean: 1, of: 10, you: false }
+];
+const railHTML = PLAYERS.map(p => `
+  <div class="rail-row">
+    <div class="rail-name">
+      <i class="swatch" style="background:var(${p.c})"></i>${p.name}
+      ${p.you ? '<span class="you">you</span>' : ''}
+      <span class="num">${p.clean}/${p.of}</span>
+    </div>
+    <div class="bar"><i style="width:${Math.round(p.clean / p.of * 100)}%"></i></div>
+  </div>`).join('');
+document.getElementById('rail').innerHTML = railHTML;
+document.getElementById('railM').innerHTML = PLAYERS.slice(0, 3).map(p => `
+  <div class="rail-row">
+    <div class="rail-name">
+      <i class="swatch" style="background:var(${p.c})"></i>${p.name}
+      <span class="num">${p.clean}/${p.of}</span>
+    </div>
+    <div class="bar"><i style="width:${Math.round(p.clean / p.of * 100)}%"></i></div>
+  </div>`).join('');
+
+/* ---------- hand ---------- */
+const HAND = ['Sock', 'Shirt', 'Jeans', 'Towel', 'Blanket'];
+const handHTML = HAND.map(t => `<div class="gcard">${t}</div>`).join('');
+document.getElementById('hand').innerHTML = handHTML;
+document.getElementById('handM').innerHTML = handHTML;
+
+/* ---------- the die box, movable between two slots ---------- */
+const dieBox = `
+  <div class="diebox">
+    <svg class="die" id="die" viewBox="0 0 100 100" role="button" tabindex="0" aria-label="Die showing 4"></svg>
+    <button class="roll-btn" id="rollBtn">Roll the die</button>
+    <div class="die-cap" id="dieCap">Roll to begin your turn.</div>
+  </div>`;
+document.getElementById('slotRight').innerHTML = dieBox;
+document.getElementById('slotLeft').innerHTML = dieBox;
+
+const FACE_TEXT = {
+  1: 'Load one item.', 2: 'Load two items.', 3: 'Play a card, then load.',
+  4: 'Load two items.', 5: 'Take the key.', 6: 'Draw an event.'
+};
+
+function wireDie(scope) {
+  const die = scope.querySelector('.die');
+  const btn = scope.querySelector('.roll-btn');
+  const cap = scope.querySelector('.die-cap');
+  if (!die) return;
+  drawDie(die, 4);
+
+  let busy = false;
+  const roll = () => {
+    if (busy) return;
+    busy = true;
+    /* The real face is decided up front — the animation only delays the
+       reveal. In the app this value arrives from the server. */
+    const face = 1 + Math.floor(Math.random() * 6);
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduce) {
+      drawDie(die, face);
+      if (cap) cap.textContent = FACE_TEXT[face];
+      busy = false;
+      return;
+    }
+
+    if (cap) cap.textContent = '';
+    die.classList.add('rolling');
+    const flick = setInterval(() => drawDie(die, 1 + Math.floor(Math.random() * 6)), 70);
+
+    setTimeout(() => {
+      clearInterval(flick);
+      die.classList.remove('rolling');
+      drawDie(die, face);
+      if (cap) cap.textContent = FACE_TEXT[face];
+      busy = false;
+    }, 620);
+  };
+
+  die.addEventListener('click', roll);
+  die.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); roll(); }
+  });
+  if (btn) btn.addEventListener('click', roll);
+}
+wireDie(document.getElementById('slotRight'));
+wireDie(document.getElementById('slotLeft'));
+drawDie(document.getElementById('dieM'), 4);
+
+/* ---------- placement toggle ---------- */
+const stage = document.getElementById('stage');
+const pA = document.getElementById('pA'), pB = document.getElementById('pB');
+pA.addEventListener('click', () => {
+  stage.classList.remove('alt');
+  pA.setAttribute('aria-pressed', 'true');
+  pB.setAttribute('aria-pressed', 'false');
+});
+pB.addEventListener('click', () => {
+  stage.classList.add('alt');
+  pA.setAttribute('aria-pressed', 'false');
+  pB.setAttribute('aria-pressed', 'true');
+});
+
+/* ---------- front page pager ---------- */
+const SECTIONS = [
+  { k: 'About the game', h: "One laundromat, everybody's washing",
+    p: 'Everyone shares a bank of washers. You load your own dirty items in — but so does everyone else, and the machine does not care whose clothes are ruining whose.',
+    fig: '<div class="mini-washer"><span class="t">Washer 1</span><div class="mini-drum"></div></div><div class="mini-washer"><span class="t">Washer 2</span><div class="mini-drum"></div></div>' },
+  { k: 'Setup', h: 'Lay out the table',
+    p: 'One washer more than there are players. Everyone starts with a hand of dirty laundry and a pile of nothing clean.',
+    fig: '<div class="mini-washer"><span class="t">Washer 1</span><div class="mini-drum"></div></div><div class="mini-washer"><span class="t">Washer 2</span><div class="mini-drum"></div></div><div class="mini-washer"><span class="t">Washer 3</span><div class="mini-drum"></div></div>' },
+  { k: 'The days', h: 'A day, start to finish',
+    p: 'Everyone takes a turn, the keyholder decides what runs, and then the washers do their work. Tomorrow you find out how it went.',
+    fig: '<div class="gcard" style="width:56px;height:86px">Morning</div><div class="gcard" style="width:56px;height:86px">Turns</div><div class="gcard" style="width:56px;height:86px">Night</div>' },
+  { k: 'The die', h: 'What the six faces do',
+    p: 'The die tells you how much you may do: load one item, load two, play a card first, or hand you the key and the power that comes with it.',
+    fig: '<div class="mini-die"></div><div class="mini-die" style="transform:rotate(7deg)"></div><div class="mini-die" style="transform:rotate(-2deg)"></div>' },
+  { k: 'The washers', h: 'Who comes out clean',
+    p: 'A washer that is on, not overloaded and not tangled sends everything inside it home clean. Everything else comes back damp, or does not come back at all.',
+    fig: '<div class="mini-washer"><span class="t">Washer 4</span><div class="mini-drum"></div></div><div class="mini-die"></div>' },
+  { k: 'To win', h: 'Everything clean',
+    p: 'First to get every item on their list washed takes it. A tie means nobody wins, so the keyholder has to act.',
+    fig: '<div class="gcard" style="width:52px;height:80px">Clean</div><div class="gcard" style="width:52px;height:80px">Clean</div><div class="gcard" style="width:52px;height:80px">Clean</div>' }
+];
+
+const pages = document.getElementById('pages');
+const dots = document.getElementById('dots');
+pages.innerHTML = SECTIONS.map(s => `
+  <div class="page">
+    <div class="prose">
+      <div class="kicker">${s.k}</div>
+      <h4>${s.h}</h4>
+      <p>${s.p}</p>
+    </div>
+    <div class="fig">${s.fig}</div>
+  </div>`).join('');
+dots.innerHTML = SECTIONS.map((s, i) =>
+  `<button aria-current="${i === 0}" aria-label="${s.k}"></button>`).join('');
+
+const prev = document.getElementById('prev'), next = document.getElementById('next');
+let at = 0;
+
+function goTo(i) {
+  at = Math.max(0, Math.min(SECTIONS.length - 1, i));
+  pages.scrollTo({ left: at * pages.clientWidth,
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  sync();
+}
+function sync() {
+  prev.disabled = at === 0;
+  next.disabled = at === SECTIONS.length - 1;
+  [...dots.children].forEach((d, i) => d.setAttribute('aria-current', String(i === at)));
+}
+prev.addEventListener('click', () => goTo(at - 1));
+next.addEventListener('click', () => goTo(at + 1));
+[...dots.children].forEach((d, i) => d.addEventListener('click', () => goTo(i)));
+
+/* keep the dots honest when someone swipes or trackpad-scrolls instead */
+let tick;
+pages.addEventListener('scroll', () => {
+  clearTimeout(tick);
+  tick = setTimeout(() => {
+    const i = Math.round(pages.scrollLeft / pages.clientWidth);
+    if (i !== at) { at = i; sync(); }
+  }, 90);
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const box = pages.getBoundingClientRect();
+  if (box.bottom < 0 || box.top > innerHeight) return;   /* only when in view */
+  goTo(at + (e.key === 'ArrowRight' ? 1 : -1));
+});
+sync();
+</script>
+</body>
+</html>
