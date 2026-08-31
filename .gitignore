@@ -3,3 +3,4 @@
 
 # Browser automation scratch output.
 .playwright-mcp/
+.vercel
