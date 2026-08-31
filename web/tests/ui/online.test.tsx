@@ -179,20 +179,28 @@ describe('every server failure becomes a sentence', () => {
 });
 
 describe('mode chooser', () => {
-  test('the landing screen offers both modes and defaults to hot-seat', () => {
+  test('the landing screen offers both modes, and only online is ready to click', () => {
     fakeNet();
     render(<App />);
-    // The hot-seat setup is still the thing you land on, unchanged.
-    expect(screen.getByText('Start the day')).toBeTruthy();
-    expect(screen.getByText('Play on this device')).toBeTruthy();
-    expect(screen.getByText('Play online')).toBeTruthy();
+    // The hot-seat setup is still the thing you land on.
+    const hotseat = screen.getByText('Play on this device') as HTMLButtonElement;
+    const online = screen.getByText('Play online') as HTMLButtonElement;
+    expect(hotseat).toBeTruthy();
+    expect(online).toBeTruthy();
+    // Both buttons start their mode directly now — there is no separate start
+    // button. Hot-seat needs a seat count first; online takes its count from
+    // whoever joins the room, so it is never gated.
+    expect(hotseat.disabled).toBe(true);
+    expect(online.disabled).toBe(false);
+    fireEvent.click(screen.getByLabelText('5 players'));
+    expect((screen.getByText('Play on this device') as HTMLButtonElement).disabled).toBe(false);
   });
 
   test('online is a detour, not a trap — Back returns to hot-seat', async () => {
     fakeNet();
     await goOnline();
     fireEvent.click(screen.getByText('Back'));
-    expect(screen.getByText('Start the day')).toBeTruthy();
+    expect(screen.getByText('Play on this device')).toBeTruthy();
   });
 });
 
@@ -498,7 +506,7 @@ describe('reconnection', () => {
     storeSeat({ savedAt: Date.now() - 48 * 60 * 60 * 1000 });
     fakeNet();
     render(<App />);
-    expect(screen.getByText('Start the day')).toBeTruthy(); // no stored seat -> hot-seat landing
+    expect(screen.getByText('Play on this device')).toBeTruthy(); // no stored seat -> hot-seat landing
   });
 
   test('joining stores the seat so a reload can get back in', async () => {

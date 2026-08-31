@@ -18,7 +18,10 @@ import { App } from '../../src/App';
 describe('regression: the hand must be usable after a roll', () => {
   test('a hand card can be picked up and placed by clicking', () => {
     render(<App />);
-    fireEvent.click(screen.getByText('Start the day'));
+    // The seat count is a required choice now — the hot-seat button stays
+    // disabled until one is picked, so choosing is part of starting.
+    fireEvent.click(screen.getByLabelText('4 players'));
+    fireEvent.click(screen.getByText('Play on this device'));
     const pass = screen.queryByText(/^I am Player \d$/);
     if (pass) fireEvent.click(pass);
 

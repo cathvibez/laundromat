@@ -37,7 +37,7 @@
  * pass the verdict straight through rather than labelling it themselves.
  */
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ItemCard, ItemType, PlayerId, Shade } from '../rules/types';
 import { GarmentCard } from './Card';
 import './rules-guide.css';
@@ -165,12 +165,89 @@ export interface RulesGuideProps {
    *  is only the starting point, so the guide opens on whatever the setup screen
    *  already has selected. */
   players?: number;
+  /**
+   * When supplied, the 3P/4P/5P/6P buttons in the setup section stop being a
+   * local preview control and become THE player-count control for whoever
+   * rendered the guide. Leave it off and the guide keeps its own state, so it
+   * still works standalone.
+   */
+  onPlayersChange?: (n: number) => void;
   className?: string;
 }
 
-export function RulesGuide({ players = 4, className }: RulesGuideProps) {
-  const [n, setN] = useState<number>(TABLE[players] ? players : 4);
+/** The six sections, in reading order. Ids match the `Section` ids below. */
+const PAGES = [
+  { id: 'rg-about', label: 'About the game' },
+  { id: 'rg-setup', label: 'Setup' },
+  { id: 'rg-days', label: 'The days' },
+  { id: 'rg-die', label: 'The die' },
+  { id: 'rg-washers', label: 'The washers' },
+  { id: 'rg-win', label: 'To win' },
+];
+
+export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGuideProps) {
+  /*
+   * The count is EITHER ours or the caller's, never both. It used to be only
+   * ours, which meant the setup screen's control and the 3P/4P/5P/6P buttons in
+   * here held two separate numbers: changing one silently disagreed with the
+   * other, and the guide could illustrate a four-player table for a game about
+   * to start with six.
+   */
+  const [ownN, setOwnN] = useState<number>(TABLE[players] ? players : 4);
+  const controlled = onPlayersChange !== undefined;
+  const n = controlled ? (TABLE[players] ? players : 4) : ownN;
+  const setN = controlled ? onPlayersChange : setOwnN;
   const cfg = TABLE[n];
+
+  /* ---- the pager ---------------------------------------------------------
+   * The sections are unchanged; only the container is. Each is a full-width
+   * flex child of a scroll-snap track, so the browser does the paging and the
+   * arrows/dots/keys are three ways of driving the same scroller. That means a
+   * trackpad swipe stays in sync for free — the scroll listener is what keeps
+   * the dots honest when someone does that instead of clicking.
+   */
+  const track = useRef<HTMLDivElement | null>(null);
+  const [at, setAt] = useState(0);
+
+  const goTo = useCallback((i: number) => {
+    const el = track.current;
+    if (!el) return;
+    const clamped = Math.max(0, Math.min(PAGES.length - 1, i));
+    setAt(clamped);
+    const reduce =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // jsdom has no layout and no scrollTo; guard so tests can still drive this.
+    if (typeof el.scrollTo === 'function') {
+      el.scrollTo({ left: clamped * el.clientWidth, behavior: reduce ? 'auto' : 'smooth' });
+    }
+  }, []);
+
+  const onScroll = useCallback(() => {
+    const el = track.current;
+    if (!el || !el.clientWidth) return;
+    const i = Math.round(el.scrollLeft / el.clientWidth);
+    setAt((prev) => (i !== prev && i >= 0 && i < PAGES.length ? i : prev));
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const el = track.current;
+      if (!el) return;
+      // Only when the guide is actually on screen, so the arrow keys are not
+      // stolen from the rest of the page.
+      const box = el.getBoundingClientRect();
+      if (box.bottom < 0 || box.top > window.innerHeight) return;
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement || active instanceof HTMLSelectElement) return;
+      e.preventDefault();
+      goTo(at + (e.key === 'ArrowRight' ? 1 : -1));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [at, goTo]);
 
   return (
     <div className={`rules-guide${className ? ` ${className}` : ''}`}>
@@ -178,6 +255,19 @@ export function RulesGuide({ players = 4, className }: RulesGuideProps) {
         <h2>How to play</h2>
         <p>Everyone's laundry, one row of washers, and not enough of them.</p>
       </div>
+
+      <div className="rg-pager">
+        <button
+          type="button"
+          className="rg-nav prev"
+          onClick={() => goTo(at - 1)}
+          disabled={at === 0}
+          aria-label="Previous section"
+        >
+          &lsaquo;
+        </button>
+
+        <div className="rg-track" ref={track} onScroll={onScroll}>
 
       {/* ------------------------------------------------------ about */}
       <Section
@@ -491,6 +581,33 @@ export function RulesGuide({ players = 4, className }: RulesGuideProps) {
           wins. Watch what the person to your right has left.
         </div>
       </Section>
+        </div>
+
+        <button
+          type="button"
+          className="rg-nav next"
+          onClick={() => goTo(at + 1)}
+          disabled={at === PAGES.length - 1}
+          aria-label="Next section"
+        >
+          &rsaquo;
+        </button>
+      </div>
+
+      <div className="rg-dots" role="tablist" aria-label="Rules sections">
+        {PAGES.map((p, i) => (
+          <button
+            key={p.id}
+            type="button"
+            role="tab"
+            className={`rg-dot${i === at ? ' on' : ''}`}
+            aria-selected={i === at}
+            aria-label={p.label}
+            onClick={() => goTo(i)}
+          />
+        ))}
+        <span className="rg-dot-label">{PAGES[at]?.label}</span>
+      </div>
     </div>
   );
 }

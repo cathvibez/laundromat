@@ -40,7 +40,12 @@ describe('UI', () => {
     expect(screen.queryByLabelText(/Circuit break/i)).toBeNull();
     expect(screen.queryByLabelText(/Event timing/i)).toBeNull();
     expect(screen.queryByText(/Sensitivity switches/i)).toBeNull();
-    expect(screen.getByText('Players')).toBeTruthy();
+    // The seat count is still the only thing the screen asks for; it is a
+    // required button group now rather than a pre-filled <select>.
+    expect(screen.getByLabelText(/Number of players/i)).toBeTruthy();
+    expect(
+      (screen.getByText('Play on this device') as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   test('the board renders every machine, the key, the day and the hand', () => {

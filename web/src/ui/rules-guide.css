@@ -26,8 +26,8 @@
 .rules-guide {
   margin: 26px 0 8px;
   color: var(--ink);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: var(--fs-body);
+  line-height: 1.6;
 }
 
 /* ------------------------------------------------------------ the header */
@@ -39,7 +39,7 @@
   display: inline-block;
   margin: 0;
   padding: 6px 15px 8px;
-  font-size: 21px;
+  font-size: var(--fs-head);
   font-weight: 700;
   background: var(--card);
   border: 2px solid var(--ink);
@@ -50,7 +50,7 @@
 .rules-guide .rg-title p {
   margin: 9px 2px 0;
   color: var(--dim);
-  font-size: 13px;
+  font-size: var(--fs-small);
 }
 
 /* ----------------------------------------------------------- the section */
@@ -67,8 +67,12 @@
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
 }
-.rules-guide .rg-sec:nth-child(odd) { transform: rotate(-0.25deg); }
-.rules-guide .rg-sec:nth-child(even) { transform: rotate(0.25deg); }
+/* The sections used to sit at ±0.25deg like everything else in the app. They no
+   longer do, and this is the one deliberate exception to the house tilt: a
+   fractional rotation on a card is charm, but on a block of running prose it
+   softens the baselines and costs real legibility. The tilt stays on every
+   figure INSIDE these sections — the washers, the cards, the dice — so the page
+   still reads as cut paper. Only the paragraphs sit straight. */
 
 /* Two columns only where the figure is narrow enough to survive half of a
    640px container. `.stacked` sections opt out — a row of washers in 300px is
@@ -85,25 +89,25 @@
 .rules-guide .rg-prose p:last-child { margin-bottom: 0; }
 .rules-guide .rg-prose h3 {
   margin: 0 0 8px;
-  font-size: 17px;
+  font-size: var(--fs-lead);
   font-weight: 600;
 }
 .rules-guide .rg-kicker {
-  font-size: 10.5px;
+  font-size: var(--fs-micro);
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--dim);
   margin-bottom: 4px;
 }
 .rules-guide .rg-subhead {
   margin: 18px 0 8px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 .rules-guide .rg-small {
-  font-size: 12.5px;
+  font-size: var(--fs-small);
   color: var(--dim);
 }
 .rules-guide .rg-fig {
@@ -115,7 +119,7 @@
 .rules-guide .rg-callout {
   margin: 12px 0 0;
   padding: 9px 12px 10px;
-  font-size: 12.5px;
+  font-size: var(--fs-small);
   background: var(--card);
   border: 2px solid var(--rule-2);
   border-left-width: 6px;
@@ -154,23 +158,23 @@
 }
 .rules-guide .rg-wname {
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-small);
 }
 .rules-guide .rg-cap {
   margin-left: auto;
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
 .rules-guide .rg-power {
-  font-size: 9.5px;
+  font-size: var(--fs-card);
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--track-label);
   text-transform: uppercase;
   padding: 1px 8px 2px;
   border-radius: 999px;
   border: 2px solid var(--ok);
-  color: #3d7a48;
+  color: var(--good-ink);
   background: #eaf5ec;
 }
 
@@ -208,7 +212,7 @@
    its own tag rather than teaching the wrong word. */
 .rules-guide .rg-note {
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: var(--fs-micro);
   line-height: 1.45;
   color: var(--dim);
 }
@@ -235,7 +239,7 @@
   flex: none;
   padding: 5px 13px 6px;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-small);
   font-weight: 600;
   color: var(--ink);
   background: var(--card);
@@ -265,7 +269,7 @@
 }
 .rules-guide .rg-facts b {
   display: block;
-  font-size: 22px;
+  font-size: var(--fs-head);
   font-weight: 700;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
@@ -273,8 +277,8 @@
 .rules-guide .rg-facts span {
   display: block;
   margin-top: 2px;
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
+  font-size: var(--fs-micro);
+  letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--dim);
 }
@@ -289,7 +293,7 @@
 .rules-guide .rg-seat {
   position: relative;
   padding: 6px 11px 7px;
-  font-size: 12.5px;
+  font-size: var(--fs-small);
   font-weight: 600;
   color: var(--card);
   background: var(--dim);
@@ -319,8 +323,8 @@
 
 .rules-guide .rg-arrow {
   margin: 9px 0 11px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: var(--fs-micro);
+  letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--dim);
 }
@@ -334,7 +338,7 @@
 
 .rules-guide .rg-daysteps {
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-small);
 }
 
 /* ---------------------------------------------------------------- the die */
@@ -352,7 +356,7 @@
   align-items: center;
   gap: 11px;
   padding: 8px 11px 9px;
-  font-size: 12.5px;
+  font-size: var(--fs-small);
   background: var(--card);
   border: 2px solid var(--rule-2);
   border-radius: var(--radius-sm);
@@ -397,12 +401,12 @@
 .rules-guide .rg-rung.dirty { border-left-color: var(--bad); }
 .rules-guide .rg-rung.delicate { border-left-color: var(--warn); }
 .rules-guide .rg-rung b {
-  font-size: 13.5px;
+  font-size: var(--fs-small);
   font-weight: 600;
 }
 .rules-guide .rg-rung span {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-micro);
   color: var(--dim);
 }
 
@@ -428,9 +432,97 @@
 .rules-guide .rg-pilelabel {
   display: block;
   margin-top: 10px;
-  font-size: 10.5px;
+  font-size: var(--fs-micro);
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--dim);
+}
+
+/* ============================================================ the pager
+ *
+ * The six sections are unchanged — this is only the container. Each becomes a
+ * full-width child of a horizontal scroll-snap track, which is the same
+ * mechanism the phone washer carousel uses in styles.css. The browser owns the
+ * scrolling; the arrows, the dots and the arrow keys are three ways of asking
+ * it to move, which is why a trackpad swipe cannot desync the dots.
+ */
+
+.rules-guide .rg-pager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rules-guide .rg-track {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.rules-guide .rg-track::-webkit-scrollbar { display: none; }
+
+/* Was `margin-bottom: 16px` on a vertical stack. As a page it is a full-width
+   snap target instead, and `align-content: start` keeps a short section (To win)
+   from stretching its figure to match a tall one (The washers). */
+.rules-guide .rg-track > .rg-sec {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  margin-bottom: 0;
+  align-content: start;
+}
+
+.rules-guide .rg-nav {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  font-size: var(--fs-head);
+  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+.rules-guide .rg-nav:disabled { opacity: 0.3; }
+
+.rules-guide .rg-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.rules-guide .rg-dot {
+  width: 11px;
+  height: 11px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid var(--ink);
+  box-shadow: none;
+}
+.rules-guide .rg-dot.on { background: var(--ink); }
+.rules-guide .rg-dot-label {
+  margin-left: 6px;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rules-guide .rg-track { scroll-behavior: auto; }
+}
+
+/* On a phone the arrows eat width the prose needs; swipe carries the paging and
+   the dots stay as the position indicator. */
+@media (max-width: 619px) {
+  .rules-guide .rg-nav { display: none; }
 }
