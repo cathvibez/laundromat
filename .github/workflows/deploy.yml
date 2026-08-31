@@ -55,7 +55,22 @@ jobs:
         working-directory: web
         run: npm test
 
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      # WAS `superfly/flyctl-actions/setup-flyctl@master`, which broke the deploy
+      # on 2026-08-31: the action ran, exited in about a second without putting a
+      # binary anywhere, and the next step died on `flyctl: command not found`
+      # with the tests already green — so the run looked like a deploy failure
+      # with nothing wrong in the repo. Pinning a third-party action to a moving
+      # branch means someone else's merge can take this pipeline down, and the
+      # official installer is two lines with nothing between us and Fly.
+      - name: Install flyctl
+        run: |
+          curl -L https://fly.io/install.sh | sh
+          echo "$HOME/.fly/bin" >> "$GITHUB_PATH"
+
+      # Fail here, loudly, rather than three steps later on a confusing
+      # "command not found".
+      - name: Check flyctl is on PATH
+        run: flyctl version
 
       # The Dockerfile is at the REPOSITORY ROOT (it has to sit with
       # .dockerignore), so the build context is the root and the config is
