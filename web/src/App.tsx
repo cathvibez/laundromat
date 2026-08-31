@@ -99,9 +99,6 @@ function Setup({
   return (
     <div className="app setup">
       <h1 style={{ letterSpacing: '0.14em', textTransform: 'uppercase' }}>Laundromat</h1>
-      <p className="tagline">
-        Everyone&rsquo;s laundry, one row of washers, and not enough of them.
-      </p>
 
       <div className="player-pick" role="group" aria-label="Number of players">
         <span className="pick-label">How many players?</span>
@@ -147,7 +144,7 @@ function Setup({
           : `Hot-seat for ${players}. Everyone shares this screen, and hands stay private between turns.`}
       </p>
 
-      <RulesGuide players={players ?? 4} onPlayersChange={setPlayers} />
+      <RulesGuide players={players} onPlayersChange={setPlayers} />
 
       {SPECIAL_DECK_IS_PROVISIONAL && (
         <div className="banner" style={{ marginTop: 20 }}>

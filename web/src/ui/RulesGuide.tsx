@@ -164,7 +164,7 @@ export interface RulesGuideProps {
   /** Which row of the setup table to illustrate. The reader can change it; this
    *  is only the starting point, so the guide opens on whatever the setup screen
    *  already has selected. */
-  players?: number;
+  players?: number | null;
   /**
    * When supplied, the 3P/4P/5P/6P buttons in the setup section stop being a
    * local preview control and become THE player-count control for whoever
@@ -193,9 +193,17 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
    * other, and the guide could illustrate a four-player table for a game about
    * to start with six.
    */
-  const [ownN, setOwnN] = useState<number>(TABLE[players] ? players : 4);
+  const [ownN, setOwnN] = useState<number>(players && TABLE[players] ? players : 4);
   const controlled = onPlayersChange !== undefined;
-  const n = controlled ? (TABLE[players] ? players : 4) : ownN;
+  /*
+   * Two different numbers, and conflating them is a lie on screen. `n` is what
+   * the diagrams are DRAWN at, which always needs a value. `picked` is what the
+   * player has actually chosen, which starts as nothing — so before they choose,
+   * the guide illustrates a four-player table without any of the 3P/4P/5P/6P
+   * buttons claiming to be selected.
+   */
+  const picked = controlled ? (players ?? null) : ownN;
+  const n = (picked && TABLE[picked] ? picked : 4) as number;
   const setN = controlled ? onPlayersChange : setOwnN;
   const cfg = TABLE[n];
 
@@ -311,7 +319,8 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
                 <button
                   key={p}
                   type="button"
-                  className={p === n ? 'on' : ''}
+                  className={p === picked ? 'on' : ''}
+                  aria-pressed={p === picked}
                   onClick={() => setN(p)}
                 >
                   {p}P

@@ -375,6 +375,9 @@ header.top .spacer { flex: 1; }
 .result-machine h4 { margin: 8px 0 6px; font-size: 14px; font-weight: 600; }
 
 .setup { max-width: 640px; margin: 30px auto; }
+/* The rules guide pages sideways now, and its sections are two-column with
+   washer diagrams in them — 640px was sized for a vertical stack of prose. */
+.setup:has(.rules-guide) { max-width: 880px; }
 .setup label {
   display: block; margin: 14px 0 5px; font-size: var(--fs-micro); color: var(--dim);
   text-transform: uppercase; letter-spacing: var(--track-label); font-weight: 600;

@@ -526,3 +526,15 @@
 @media (max-width: 619px) {
   .rules-guide .rg-nav { display: none; }
 }
+
+/* A horizontal track is as tall as its TALLEST page, so the short sections (To
+   win) were sitting in a screenful of empty paper left by the tall ones (The
+   washers). Bound the track and let a page scroll inside itself instead. */
+.rules-guide .rg-track > .rg-sec {
+  min-height: 380px;
+  max-height: 68vh;
+  overflow-y: auto;
+}
+@media (max-width: 619px) {
+  .rules-guide .rg-track > .rg-sec { min-height: 320px; max-height: 74vh; }
+}
