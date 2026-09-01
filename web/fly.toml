@@ -24,6 +24,7 @@ primary_region = "sjc"
   # two must agree.
   PORT = "8080"
   NODE_ENV = "production"
+  DATA_DIR = "/data"
 
 [http_service]
   internal_port = 8080
@@ -54,6 +55,14 @@ primary_region = "sjc"
     method = "GET"
     timeout = "5s"
     path = "/api/health"
+
+# The one durable thing on this server: sign-ups and reviews, in SQLite.
+# Everything else is in memory on purpose. A volume can only attach to ONE
+# machine, which is a happy accident — it makes the single-instance rule above
+# something Fly will now enforce rather than something we have to remember.
+[[mounts]]
+  source = "laundromat_data"
+  destination = "/data"
 
 [[vm]]
   size = "shared-cpu-1x"

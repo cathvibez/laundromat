@@ -1,125 +1,131 @@
 /**
  * STAY IN TOUCH, and LEAVE A REVIEW.
  *
- * Both of these end in a `mailto:`, and that is the whole design rather than a
- * shortcut. The server has no persistence of any kind — rooms live in a Map in
- * server/rooms.ts, there is no database and no mounted volume, and the logs are
- * a live stream with no history — so anything this screen "saved" would have an
- * expected lifetime of "until the next deploy". A mailto has none of that
- * problem: the message lands in a real inbox, it survives everything, and it
- * needs no endpoint, no storage and no privacy policy.
+ * Both post to /api/feedback and are stored in SQLite on the Fly volume, which
+ * is the one durable thing the server has (server/feedback.ts explains why it
+ * is the exception to this project's no-database rule). Nothing here shows the
+ * owner's address: the submissions go to a private admin page, not to a mailbox
+ * the whole internet can read off the page source.
  *
- * The cost is honesty about what the buttons do, which is why neither of them
- * pretends to be a form that submits. They compose a message and hand it to the
- * player's own mail client, and both show the address in plain text as well,
- * because a browser with no mail client configured would otherwise dead-end.
+ * The two forms share `Field`, `Submitted` and the submit/error handling below,
+ * because the only real difference between them is which inputs are required.
  */
 
 import { useState } from 'react';
+import { submitFeedback } from './feedbackApi';
 
-/** Where a support ticket or a review actually goes. */
-export const CONTACT_EMAIL = 'kailinzheng12@gmail.com';
+type State = { k: 'idle' } | { k: 'sending' } | { k: 'done' } | { k: 'error'; message: string };
 
-function mailto(subject: string, body: string): string {
-  return `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
-
-/** Copy, with the older API as a fallback and a plain failure if neither works. */
-function useCopy(): [boolean, (text: string) => void] {
-  const [done, setDone] = useState(false);
-  const copy = (text: string) => {
-    const ok = () => {
-      setDone(true);
-      window.setTimeout(() => setDone(false), 1800);
-    };
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).then(ok).catch(() => undefined);
-      return;
-    }
-    try {
-      const el = document.createElement('textarea');
-      el.value = text;
-      el.setAttribute('readonly', '');
-      el.style.position = 'fixed';
-      el.style.opacity = '0';
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand('copy');
-      document.body.removeChild(el);
-      ok();
-    } catch {
-      /* the address is on screen either way */
-    }
-  };
-  return [done, copy];
-}
-
-function EmailLine() {
-  const [copied, copy] = useCopy();
+function Field({
+  id,
+  label,
+  hint,
+  children,
+}: {
+  id: string;
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="contact-line">
-      <code className="contact-addr">{CONTACT_EMAIL}</code>
-      <button type="button" className="contact-copy" onClick={() => copy(CONTACT_EMAIL)}>
-        {copied ? 'Copied' : 'Copy'}
-      </button>
+    <div className="field">
+      <label className="contact-label" htmlFor={id}>
+        {label}
+        {hint && <span className="field-hint"> {hint}</span>}
+      </label>
+      {children}
     </div>
+  );
+}
+
+function Submitted({ title, line, onClose }: { title: string; line: string; onClose: () => void }) {
+  return (
+    <>
+      <h2>{title}</h2>
+      <p>{line}</p>
+      <div className="row">
+        <button className="primary" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </>
   );
 }
 
 /* ------------------------------------------------------------ stay in touch */
 
 export function StayInTouch({ onClose }: { onClose: () => void }) {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const trimmed = email.trim();
+  const [state, setState] = useState<State>({ k: 'idle' });
 
-  /*
-   * The address is put in the BODY as well as being the sender. A mail client
-   * sends from whichever account it happens to be signed into, which is often
-   * not the address someone actually wants to be reached on.
-   */
-  const href = mailto(
-    'Laundromat — keep me posted',
-    `Keep me posted about Laundromat.\n\n` +
-      (trimmed ? `Best address for me: ${trimmed}\n\n` : '') +
-      `(Anything else you want to say goes here.)\n`,
-  );
+  const canSend = email.trim().length > 0 && state.k !== 'sending';
+
+  async function send() {
+    setState({ k: 'sending' });
+    try {
+      await submitFeedback({ kind: 'signup', name: name.trim(), email: email.trim() });
+      setState({ k: 'done' });
+    } catch (e) {
+      setState({ k: 'error', message: e instanceof Error ? e.message : 'That did not send.' });
+    }
+  }
 
   return (
     <div className="overlay" onClick={onClose}>
       <div className="modal contact-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Stay in touch</h2>
-        <p>
-          Laundromat is a board game in development. If you want to hear when there is
-          something worth hearing about — a playtest, a print run — send a note and you
-          are on the list. No newsletter, no schedule, and nothing else ever.
-        </p>
+        {state.k === 'done' ? (
+          <Submitted
+            title="You are on the list"
+            line="You will hear when there is something worth hearing about, and nothing in between."
+            onClose={onClose}
+          />
+        ) : (
+          <>
+            <h2>Stay in touch</h2>
+            <p>
+              Laundromat is a board game in development. Leave your details and you will hear
+              when there is something worth hearing about — a playtest, a print run. No
+              newsletter, no schedule.
+            </p>
 
-        <label className="contact-label" htmlFor="contact-email">
-          Your email
-        </label>
-        <input
-          id="contact-email"
-          type="email"
-          className="contact-input"
-          placeholder="you@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email"
-        />
-        <p className="note">
-          This opens your own mail app with the message ready — nothing is sent from
-          this page, and nothing is stored here.
-        </p>
+            <Field id="touch-name" label="Your name">
+              <input
+                id="touch-name"
+                className="contact-input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoComplete="name"
+                placeholder="Kai"
+              />
+            </Field>
 
-        <div className="row">
-          <a className="button-link primary" href={href}>
-            Write the email
-          </a>
-          <button onClick={onClose}>Close</button>
-        </div>
+            <Field id="touch-email" label="Your email">
+              <input
+                id="touch-email"
+                className="contact-input"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                placeholder="you@example.com"
+              />
+            </Field>
 
-        <p className="note">Or write to it directly:</p>
-        <EmailLine />
+            {state.k === 'error' && (
+              <p className="contact-error" role="alert">
+                {state.message}
+              </p>
+            )}
+
+            <div className="row">
+              <button className="primary" disabled={!canSend} onClick={send}>
+                {state.k === 'sending' ? 'Sending…' : 'Send'}
+              </button>
+              <button onClick={onClose}>Close</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -139,82 +145,117 @@ const VERDICT: Record<number, string> = {
 export function LeaveReview({ onClose }: { onClose: () => void }) {
   const [stars, setStars] = useState(0);
   const [hover, setHover] = useState(0);
-  const [text, setText] = useState('');
+  const [comment, setComment] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [state, setState] = useState<State>({ k: 'idle' });
   const shown = hover || stars;
 
-  const href = mailto(
-    `Laundromat review — ${stars}/5 ${VERDICT[stars] ?? ''}`.trim(),
-    `${stars} out of 5 — ${VERDICT[stars] ?? ''}\n\n${text.trim() || '(no comment)'}\n`,
-  );
+  const canSend = stars > 0 && state.k !== 'sending';
+
+  async function send() {
+    setState({ k: 'sending' });
+    try {
+      await submitFeedback({
+        kind: 'review',
+        stars,
+        comment: comment.trim(),
+        name: name.trim(),
+        email: email.trim(),
+      });
+      setState({ k: 'done' });
+    } catch (e) {
+      setState({ k: 'error', message: e instanceof Error ? e.message : 'That did not send.' });
+    }
+  }
 
   return (
     <div className="overlay" onClick={onClose}>
       <div className="modal contact-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Leave a review</h2>
-        <p>
-          The game is still being designed, so an honest reaction is worth more than a
-          kind one. What worked, what dragged, what you would change.
-        </p>
+        {state.k === 'done' ? (
+          <Submitted
+            title="Thank you"
+            line="Your review is in. An honest reaction while the game is still being designed is worth a great deal."
+            onClose={onClose}
+          />
+        ) : (
+          <>
+            <h2>Leave a review</h2>
+            <p>
+              The game is still being designed, so an honest reaction is worth more than a kind
+              one.
+            </p>
 
-        <div
-          className="stars"
-          role="radiogroup"
-          aria-label="Rating out of five"
-          onMouseLeave={() => setHover(0)}
-        >
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              type="button"
-              role="radio"
-              aria-checked={stars === n}
-              aria-label={`${n} out of 5 — ${VERDICT[n]}`}
-              className={`star${n <= shown ? ' on' : ''}`}
-              onMouseEnter={() => setHover(n)}
-              onFocus={() => setHover(n)}
-              onBlur={() => setHover(0)}
-              onClick={() => setStars(n)}
+            <div
+              className="stars"
+              role="radiogroup"
+              aria-label="Rating out of five"
+              onMouseLeave={() => setHover(0)}
             >
-              ★
-            </button>
-          ))}
-          <span className="star-verdict">{shown ? VERDICT[shown] : 'Pick a rating'}</span>
-        </div>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  role="radio"
+                  aria-checked={stars === n}
+                  aria-label={`${n} out of 5 — ${VERDICT[n]}`}
+                  className={`star${n <= shown ? ' on' : ''}`}
+                  onMouseEnter={() => setHover(n)}
+                  onFocus={() => setHover(n)}
+                  onBlur={() => setHover(0)}
+                  onClick={() => setStars(n)}
+                >
+                  ★
+                </button>
+              ))}
+              <span className="star-verdict">{shown ? VERDICT[shown] : 'Pick a rating'}</span>
+            </div>
 
-        <label className="contact-label" htmlFor="review-text">
-          In your words (optional)
-        </label>
-        <textarea
-          id="review-text"
-          className="contact-input"
-          rows={4}
-          placeholder="The keyholder decision is the best part. The middle days drag."
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
-        <p className="note">
-          This opens your own mail app with the review ready — nothing is sent from this
-          page, and nothing is stored here.
-        </p>
+            <Field id="review-comment" label="In a line">
+              <input
+                id="review-comment"
+                className="contact-input"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="The keyholder decision is the best part."
+              />
+            </Field>
 
-        <div className="row">
-          {/* Disabled as a span, not an <a>: an anchor with no href is not a
-              button to a screen reader, and a mailto with 0/5 in the subject is
-              a review nobody meant to leave. */}
-          {stars === 0 ? (
-            <span className="button-link disabled" aria-disabled="true">
-              Pick a rating first
-            </span>
-          ) : (
-            <a className="button-link primary" href={href}>
-              Write the review
-            </a>
-          )}
-          <button onClick={onClose}>Close</button>
-        </div>
+            <Field id="review-name" label="Your name" hint="optional">
+              <input
+                id="review-name"
+                className="contact-input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoComplete="name"
+              />
+            </Field>
 
-        <p className="note">Or write to it directly:</p>
-        <EmailLine />
+            <Field id="review-email" label="Your email" hint="optional, only if you want a reply">
+              <input
+                id="review-email"
+                className="contact-input"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+              />
+            </Field>
+
+            {state.k === 'error' && (
+              <p className="contact-error" role="alert">
+                {state.message}
+              </p>
+            )}
+
+            <div className="row">
+              <button className="primary" disabled={!canSend} onClick={send}>
+                {state.k === 'sending' ? 'Sending…' : 'Send review'}
+              </button>
+              <button onClick={onClose}>Close</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

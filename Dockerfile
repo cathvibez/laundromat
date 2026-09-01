@@ -15,7 +15,7 @@
 # two output directories and production dependencies, nothing else.
 
 # ---- build ----------------------------------------------------------------
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 
 # The build context is the REPOSITORY ROOT, not web/, because this file sits at
@@ -46,7 +46,7 @@ RUN npm run build
 RUN npm run build:server
 
 # ---- runtime --------------------------------------------------------------
-FROM node:20-alpine AS runtime
+FROM node:24-alpine AS runtime
 WORKDIR /app
 
 # Set before `npm ci` so the install itself runs in production mode.

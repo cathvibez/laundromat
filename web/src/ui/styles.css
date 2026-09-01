@@ -1175,6 +1175,15 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
 }
 .contact-input:focus-visible { outline: 2px solid var(--good); outline-offset: 1px; }
 
+/* WAS a mailto and the owner's address in plain text. Both forms post to
+   /api/feedback now and the address is never on the page. */
+.field { margin-bottom: 10px; }
+.field-hint { text-transform: none; letter-spacing: 0; font-weight: 500; opacity: 0.85; }
+.contact-error {
+  margin: 10px 0 0; padding: 8px 11px;
+  font-size: var(--fs-small); color: var(--bad-ink);
+  background: #fbece8; border: 2px solid var(--bad); border-radius: var(--radius-sm);
+}
 .contact-line {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin-top: 6px;

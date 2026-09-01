@@ -14,6 +14,8 @@ import { Server, Origins } from 'boardgame.io/server';
 import type { StorageAPI } from 'boardgame.io';
 import { Laundromat } from '../src/game/Laundromat';
 import { mountLobby } from './lobby';
+import { mountFeedback } from './feedbackRoutes';
+import { openFeedbackDb } from './feedback';
 import { RoomStore } from './rooms';
 import { serveStatic, spaFallback } from './static';
 import { attachLog, fingerprint, forRoom, forUser } from './log';
@@ -91,6 +93,12 @@ export function buildServer(opts: BuildOptions = {}) {
   }
 
   mountLobby(server.router, { rooms, db: server.db, game: Laundromat });
+
+  // Sign-ups and reviews. Opened here rather than at import time so a server
+  // built for a test does not touch the disk, and so a failure to open the
+  // store disables the feature instead of stopping the game server.
+  openFeedbackDb();
+  mountFeedback(server.router);
 
   server.router.get('/api/health', (ctx) => {
     ctx.body = { ok: true, rooms: rooms.size(), uptime: process.uptime() };
