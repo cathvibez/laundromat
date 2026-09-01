@@ -1474,3 +1474,16 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
   .app.board .machine .slot { min-height: 52px; }
   .app.board .machine .slots { overflow-y: auto; }
 }
+
+/* With no special cards and no event, the right-hand panel has nothing in it
+   but a sentence — so it stops holding a 290px column and the hand takes the
+   width. It reappears the moment there is something to put in it. */
+@media (min-width: 1100px) {
+  .app.board .zones.zones-solo { grid-template-columns: minmax(0, 1fr); }
+  .app.board .zones.zones-solo > .panel:last-child {
+    display: flex;
+    align-items: center;
+    padding: 7px 12px;
+  }
+  .app.board .zones.zones-solo > .panel:last-child .zone-label { margin: 0 10px 0 0; }
+}

@@ -63,8 +63,11 @@ describe('UI', () => {
     expect(screen.getByText(/Player 1 · hand/)).toBeTruthy();
     // No damp zone: socks stranded by a blanket stay in the machine (v10).
     expect(screen.queryByText(/Damp zone/)).toBeNull();
-    expect(screen.getByText(/Fresh · drawn today/)).toBeTruthy();
-    expect(screen.getByText(/Ready · playable/)).toBeTruthy();
+    // One "Special items" section now, not a Fresh and a Ready heading: the old
+    // pair named a mechanic without saying what the cards were or where they
+    // came from, and showed two empty lists for most of the first day.
+    expect(screen.getByText(/Special items/)).toBeTruthy();
+    expect(screen.getByText(/Roll a/)).toBeTruthy();
   });
 
   test('rolling shows the die and what it entitles you to, then loading works', () => {

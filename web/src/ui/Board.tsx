@@ -1563,8 +1563,11 @@ function Zones({
   );
   const pct = Math.round((p.clean.length / Math.max(1, p.mustWash.length)) * 100);
 
+  /** Every special card you hold, whichever side of the one-day wait. */
+  const specials = [...p.ready, ...p.fresh];
+
   return (
-    <div className="zones">
+    <div className={`zones${specials.length === 0 && !G.revealedEvent ? ' zones-solo' : ''}`}>
       <div className="panel">
         <div className="zone-label" title={SORT_EXPLAINER}>
           <BasketIcon size={16} className="label-icon" />
@@ -1645,28 +1648,48 @@ function Zones({
             </div>
           </>
         )}
-        <div className="zone-label">Fresh · drawn today, unplayable ({p.fresh.length})</div>
-        <div className="items scroll">
-          {p.fresh.map((n, i) => (
-            <SpecialCard key={`${n}${i}`} name={n} size="sm" fresh title={SPECIAL_TEXT[n]} />
-          ))}
-          {p.fresh.length === 0 && <span className="rules-help">nothing fresh</span>}
+        {/*
+          ONE SECTION, NOT TWO. This used to be "Fresh · drawn today,
+          unplayable" and "Ready · playable" as separate headings, which named
+          a mechanic without ever saying WHAT these cards are or where they come
+          from — and showed two empty lists for most of the first day. It is one
+          list of special items now; the card itself says when it wakes up.
+        */}
+        <div className="zone-label">
+          Special items ({p.fresh.length + p.ready.length})
         </div>
-
-        <div className="zone-label">Ready · playable ({p.ready.length})</div>
-        <div className="items scroll">
-          {p.ready.map((n, i) => (
-            <SpecialCard key={`${n}${i}`} name={n} size="sm" title={SPECIAL_TEXT[n]} />
-          ))}
-          {p.ready.length === 0 && <span className="rules-help">nothing ready</span>}
-        </div>
-        {p.ready.length > 0 && (
-          <div className="rules-help" style={{ marginTop: 8 }}>
-            {p.ready.map((n, i) => (
-              <div key={`${n}${i}`} style={{ marginBottom: 3 }}>
-                <b>{cardName(n)}</b> — {SPECIAL_TEXT[n]}
+        {specials.length > 0 ? (
+          <>
+            <div className="items scroll">
+              {p.ready.map((n, i) => (
+                <SpecialCard key={`r${n}${i}`} name={n} size="sm" title={SPECIAL_TEXT[n]} />
+              ))}
+              {p.fresh.map((n, i) => (
+                <SpecialCard key={`f${n}${i}`} name={n} size="sm" fresh title={SPECIAL_TEXT[n]} />
+              ))}
+            </div>
+            {p.ready.length > 0 && (
+              <div className="rules-help" style={{ marginTop: 8 }}>
+                {p.ready.map((n, i) => (
+                  <div key={`${n}${i}`} style={{ marginBottom: 3 }}>
+                    <b>{cardName(n)}</b> — {SPECIAL_TEXT[n]}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+            {p.fresh.length > 0 && (
+              <div className="rules-help" style={{ marginTop: 6 }}>
+                Cards marked <b>tomorrow</b> were drawn today and cannot be played until the
+                next day.
+              </div>
+            )}
+          </>
+        ) : (
+          /* The empty state teaches the rule, because this panel is empty for
+             most of the first day and a bare "nothing" taught nobody. */
+          <div className="rules-help">
+            None yet. Roll a <b>5</b> to draw two and keep one. A card you have just drawn
+            cannot be played until the next day.
           </div>
         )}
       </div>
