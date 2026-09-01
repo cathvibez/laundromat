@@ -149,11 +149,23 @@ export function MachineCard({
             />
           );
         })}
-        {Array.from({ length: empties }, (_, i) => (
-          <div key={`e${i}`} className="slot">
-            empty
+        {/*
+          ONE FILLER, NOT N EMPTY BOXES.
+          This used to draw a fixed-size placeholder per unused space, so a
+          seven-capacity washer drew seven of them — and at six players the
+          drum is 261px wide against 593px of content, clipped by
+          `overflow: hidden` with no scrollbar. Thirty of those boxes sat
+          outside their own drum, sliced mid-word, and the only honest answer
+          on screen was the counter in the head.
+
+          A single flexing remainder cannot overflow: it takes whatever is
+          left after the real cards and says how much that is.
+        */}
+        {empties > 0 && (
+          <div className="slot-rest" aria-label={`${empties} space${empties === 1 ? '' : 's'} free`}>
+            {empties} free
           </div>
-        ))}
+        )}
       </div>
 
       {machine.cards.length > 0 && (

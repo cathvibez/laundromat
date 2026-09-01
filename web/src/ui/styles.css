@@ -127,7 +127,14 @@ button:active:not(:disabled) {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0 rgba(59, 51, 48, 0.12);
 }
-button:disabled { opacity: 0.42; cursor: not-allowed; box-shadow: none; }
+/* A disabled control still has to read as a control. At 0.42 the primary
+   button's label measured 2.1:1 and looked like a decorative blob rather than
+   something that will become available. */
+button:disabled {
+  cursor: not-allowed; box-shadow: none;
+  background: var(--panel-2); border-color: var(--rule-2); color: var(--dim);
+}
+button.primary:disabled { background: #f6ecd2; }
 button.primary { background: #ffe9a8; }
 button.danger { background: #fbece8; border-color: var(--bad); color: var(--bad-ink); }
 
@@ -300,10 +307,12 @@ header.top .spacer { flex: 1; }
   position: absolute; top: 50%; left: 50%;
   font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
   padding: 3px 9px; border: 3px solid; border-radius: 7px;
-  background: rgba(255, 255, 255, 0.88); white-space: nowrap; pointer-events: none;
+  /* OPAQUE. It was rgba(255,255,255,.88) and sits over card artwork, so the
+     measured contrast was the best case and the real one was worse. */
+  background: #fff; white-space: nowrap; pointer-events: none;
 }
-.stamp.wash { color: var(--good); border-color: var(--good); transform: translate(-50%, -50%) rotate(-11deg); }
-.stamp.back { color: var(--bad); border-color: var(--bad); transform: translate(-50%, -50%) rotate(-8deg); }
+.stamp.wash { color: var(--good-ink); border-color: var(--good); transform: translate(-50%, -50%) rotate(-11deg); }
+.stamp.back { color: var(--bad-ink); border-color: var(--bad); transform: translate(-50%, -50%) rotate(-8deg); }
 .stamp.damp { color: var(--warn-ink); border-color: var(--damp); transform: translate(-50%, -50%) rotate(-9deg); }
 .gcard.s-xs .stamp { font-size: var(--fs-card); padding: 2px 5px; border-width: 2px; }
 
@@ -374,8 +383,13 @@ header.top .spacer { flex: 1; }
 .machine:nth-child(even) { transform: rotate(0.5deg); }
 .machine.selectable { border-color: var(--good); cursor: pointer; }
 .machine.selectable:hover { background: #fffdf7; box-shadow: var(--shadow-lift); }
-.machine.refused { opacity: 0.5; }
-.machine.dead { opacity: 0.58; background: #efe9df; border-color: var(--rule-2); }
+/* DIM THE SURFACE, NOT THE INK.
+   These were `opacity` on the whole subtree, which took --ink to 3.3:1 and
+   --dim to 2.3:1 — a dead washer still has contents and a forecast you are
+   meant to reason about, so it has to stay readable. The fill recedes and the
+   border softens; the text does not move. */
+.machine.refused { background: #f2ede4; border-color: var(--rule-2); }
+.machine.dead { background: #efe9df; border-color: var(--rule-2); }
 
 .machine .head { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
 .machine .head .name { font-weight: 600; font-size: var(--fs-body); }
@@ -1435,10 +1449,9 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
    the day ended now, and that changes every time anyone loads — so they are
    drawn with a dotted edge and a lighter plate. The reckoning screen, which
    reports what actually happened, keeps the solid border. */
-.stamp.provisional {
-  border-style: dashed;
-  background: rgba(255, 255, 255, 0.8);
-}
+/* A forecast is dashed, but it is still a verdict someone has to read, so it
+   keeps the opaque plate. */
+.stamp.provisional { border-style: dashed; }
 
 /* The staging list is the one confirmation the load path has now, so it has to
    carry what the dialog used to say. */
@@ -1874,3 +1887,28 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
   max-height: 5.6em; overflow-y: auto;
 }
 .just-now .zone-label { margin-top: 0; }
+
+
+/* ---------------- the drum's free space ----------------
+ * One flexing remainder in place of N fixed placeholders. It shrinks to
+ * nothing rather than pushing the real cards out of a clipped drum, which is
+ * what the per-space boxes did — see the note in MachineCard.tsx.
+ */
+.slot-rest {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--line);
+  border-radius: 8px;
+  font-size: var(--fs-card);
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  align-self: stretch;
+}
+
+/* The capacity counter is now the only exact statement of how full a washer
+   is, so it stops being the smallest, faintest thing in its own header. */
+.machine .head .cap { font-size: var(--fs-small); font-weight: 600; color: var(--ink); }
