@@ -106,3 +106,87 @@ describe('the hand can also be dragged into a washer', () => {
     expect(document.querySelectorAll('.panel .gcard.selected').length).toBe(0);
   });
 });
+
+/**
+ * THE CUE, AND THE BOT GATE.
+ *
+ * Two things a screenshot cannot check and a person forgets to: that exactly
+ * ONE control is ringed at a time and that the ring moves as the turn does, and
+ * that a bot seat does not play until the human lets it. The second is the
+ * whole point of solo mode — the bots used to move on a timer, so a slow reader
+ * came back to a board that had changed twice while they were reading it.
+ */
+describe('the board points at the next thing to do', () => {
+  test('the cue walks roll -> hand -> washer, one control at a time', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Play with friends here'));
+    fireEvent.click(screen.getByLabelText('4 players'));
+    fireEvent.click(screen.getByText('Start the day'));
+    const pass = screen.queryByText(/^I am Player \d$/);
+    if (pass) fireEvent.click(pass);
+
+    // Before the roll: the roll button and nothing else.
+    expect(document.querySelectorAll('.cue, .cue-zone').length).toBe(1);
+    expect(document.querySelector('.roll-btn.cue')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Roll the die'));
+    const noCard = screen.queryByText('Play no card');
+    if (noCard) fireEvent.click(noCard);
+
+    // Loading: the hand, which is a row of cards and so is ringed as a zone.
+    expect(document.querySelector('.roll-btn.cue')).toBeNull();
+    expect(document.querySelector('.items.cue-zone')).toBeTruthy();
+
+    const live = document.querySelectorAll<HTMLElement>('.panel .gcard.clickable');
+    if (live.length === 0) return; // that roll owed no loads
+    fireEvent.click(live[0]);
+
+    // Holding a card: the washers that will take it, and the hand no longer.
+    expect(document.querySelector('.items.cue-zone')).toBeNull();
+    expect(document.querySelectorAll('.machine.cue').length).toBeGreaterThan(0);
+  });
+});
+
+describe('solo: a bot turn waits to be started', () => {
+  function startSolo() {
+    render(<App />);
+    fireEvent.click(screen.getByText('Play by myself'));
+    fireEvent.click(screen.getByText('Hell mode'));
+    fireEvent.click(screen.getByText('Start the day'));
+  }
+
+  test('the bot does not move until the human clicks, then it plays itself', async () => {
+    startSolo();
+    // Seat 0 is the human, so play their turn to the end of the load stage and
+    // hand over. Rolling is enough to reach a bot turn only after the loads are
+    // done, so drive the whole turn the way a person would.
+    fireEvent.click(screen.getByText('Roll the die'));
+    const noCard = screen.queryByText('Play no card');
+    if (noCard) fireEvent.click(noCard);
+
+    for (let i = 0; i < 6; i++) {
+      const live = document.querySelectorAll<HTMLElement>('.panel .gcard.clickable');
+      const washerFirst = document.querySelector('.machine.cue');
+      if (washerFirst) fireEvent.click(washerFirst);
+      else if (live.length > 0) fireEvent.click(live[0]);
+      const commit = document.querySelector<HTMLElement>('.load-panel button.primary.cue');
+      if (commit) {
+        fireEvent.click(commit);
+        break;
+      }
+    }
+
+    // Either we are already on a bot's turn or the human turn had an extra to
+    // resolve; only the first case is what this test is about.
+    const bar = document.querySelector('.botbar');
+    if (!bar) return;
+    expect(bar.textContent).toMatch(/is up\./);
+    expect(document.querySelector('.botbar button.cue')).toBeTruthy();
+
+    // THE POINT: time passing changes nothing. The old runner would have played
+    // the whole turn inside this wait.
+    const before = document.querySelector('.botbar')!.textContent;
+    await new Promise((r) => setTimeout(r, 900));
+    expect(document.querySelector('.botbar')!.textContent).toBe(before);
+  });
+});

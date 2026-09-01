@@ -1639,3 +1639,105 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
 }
 .seat-swatch:hover { transform: scale(1.08); }
 .seat-swatch:focus-visible { outline: 2px solid var(--good); outline-offset: 3px; }
+
+/* ---------------- the cue: one ring, and it moves ----------------
+ *
+ * A new player should be able to take a turn without reading anything. The turn
+ * bar's imperative line is the sentence; this is the arrow. Exactly one control
+ * carries `.cue` at a time (Board.tsx's `Focus` decides which), and it walks the
+ * turn — roll, card, hand, washer, commit — so the eye is dragged along the
+ * sequence rather than told about it.
+ *
+ * An expanding ring rather than a colour change: the board already spends green
+ * on "this washer will take it" and amber on "careful", and a sixth meaning in a
+ * seventh colour is how a palette stops meaning anything. Motion is unused, so
+ * motion is free.
+ */
+.cue {
+  position: relative;
+  animation: cue-ring 1.75s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
+}
+@keyframes cue-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(95, 168, 107, 0.62); }
+  62%  { box-shadow: 0 0 0 11px rgba(95, 168, 107, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(95, 168, 107, 0); }
+}
+
+/* A washer is a big target with a shadow of its own, so it keeps the shadow and
+   pulses the ring outside it. */
+.machine.cue {
+  animation: cue-ring-machine 1.75s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
+}
+@keyframes cue-ring-machine {
+  0%   { box-shadow: 0 0 0 0 rgba(95, 168, 107, 0.55), var(--shadow); }
+  62%  { box-shadow: 0 0 0 13px rgba(95, 168, 107, 0), var(--shadow); }
+  100% { box-shadow: 0 0 0 0 rgba(95, 168, 107, 0), var(--shadow); }
+}
+
+/* The hand is a row of cards, not one control: ringing ten cards is a fairground.
+   The container gets a soft breathing frame instead, which reads as "in here". */
+.cue-zone {
+  border-radius: var(--radius);
+  outline: 2px dashed rgba(95, 168, 107, 0.75);
+  outline-offset: 5px;
+  animation: cue-zone-breathe 2.1s ease-in-out infinite;
+}
+@keyframes cue-zone-breathe {
+  0%, 100% { outline-color: rgba(95, 168, 107, 0.28); }
+  50%      { outline-color: rgba(95, 168, 107, 0.9); }
+}
+
+/*
+ * Reduced motion still gets the answer to "where do I click?" — it just gets it
+ * as a standing ring rather than a pulse. Removing the affordance entirely would
+ * punish the setting.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .cue, .machine.cue {
+    animation: none;
+    box-shadow: 0 0 0 3px rgba(95, 168, 107, 0.55), var(--shadow-sm);
+  }
+  .cue-zone { animation: none; outline-color: rgba(95, 168, 107, 0.8); }
+}
+
+/* ---------------- a bot's turn, stepped through ----------------
+ * Sits exactly where the turn bar sits, because it answers the same question.
+ */
+.botbar { border-style: dashed; }
+.botbar.running { background: var(--panel-2); }
+/* Capped, and it scrolls. The board is one viewport tall and the floor above
+   loses a washer's drum for every line this grows by, so a long turn scrolls
+   its own log rather than eating the game. */
+.botbar .bot-log {
+  margin-top: 8px; padding: 7px 10px 8px;
+  background: var(--paper-2); border: 2px solid var(--rule-2); border-radius: var(--radius-sm);
+  font-size: var(--fs-small); line-height: 1.4;
+  max-height: 5.6em; overflow-y: auto;
+}
+.botbar .bot-log .zone-label { margin-top: 0; }
+
+/* Three dots, so a turn playing itself out is visibly not a frozen screen. */
+.bot-beat { display: inline-flex; gap: 4px; align-items: center; }
+.bot-beat i {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--dim);
+  animation: bot-beat 1.1s ease-in-out infinite;
+}
+.bot-beat i:nth-child(2) { animation-delay: 0.15s; }
+.bot-beat i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes bot-beat {
+  0%, 100% { opacity: 0.25; transform: translateY(0); }
+  50%      { opacity: 1;    transform: translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bot-beat i { animation: none; opacity: 0.6; }
+}
+
+/* What happened while you were not acting, printed where you are looking. */
+.just-now {
+  margin-top: 14px; padding: 8px 12px 10px;
+  background: var(--paper-2); border: 2px dashed var(--rule-2);
+  border-radius: var(--radius); font-size: var(--fs-small); line-height: 1.4;
+  color: var(--dim);
+  max-height: 5.6em; overflow-y: auto;
+}
+.just-now .zone-label { margin-top: 0; }

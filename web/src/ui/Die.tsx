@@ -67,10 +67,12 @@ export interface DieDockProps {
   face: number | null;
   /** Whether THIS seat may roll right now. */
   canRoll: boolean;
+  /** Ring the button: rolling is the next thing to do. */
+  cue?: boolean;
   onRoll: () => void;
 }
 
-export function DieDock({ face, canRoll, onRoll }: DieDockProps) {
+export function DieDock({ face, canRoll, cue, onRoll }: DieDockProps) {
   const [shown, setShown] = useState<number | null>(face);
   const [rolling, setRolling] = useState(false);
   const prev = useRef<number | null>(face);
@@ -122,7 +124,7 @@ export function DieDock({ face, canRoll, onRoll }: DieDockProps) {
     <div className="die-dock">
       <Die face={shown} rolling={rolling} />
       {canRoll ? (
-        <button className="primary roll-btn" onClick={onRoll}>
+        <button className={`primary roll-btn${cue ? ' cue' : ''}`} onClick={onRoll}>
           Roll the die
         </button>
       ) : (

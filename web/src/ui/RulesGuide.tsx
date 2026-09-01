@@ -52,6 +52,14 @@ import './rules-guide.css';
 function ex(owner: PlayerId, type: ItemType, shade: Shade): ItemCard {
   return { id: `${owner}-${type}-${shade}`, owner, type, shade };
 }
+/*
+ * OWNERS 0..2 ONLY, everywhere in this file. The guide is read at the table it is
+ * about, and the smallest table is three players — an example whose note points
+ * at "P6" is describing somebody who is not in the room. Two owners is enough to
+ * show cross-player tainting and three is enough to show crowding, so nothing
+ * here needs a fourth. It also keeps the card colours off the seats a 3P game
+ * never lights up.
+ */
 
 /** The setup table from the manual. Washer count and capacity are equal at every
  *  player count; that is a coincidence of the current numbers, not a rule, so
@@ -175,12 +183,24 @@ export interface RulesGuideProps {
   className?: string;
 }
 
-/** The six sections, in reading order. Ids match the `Section` ids below. */
+/**
+ * The sections, in reading order. Ids match the `Section` ids below, and the
+ * order here IS the order in the track — the dots read from this array while the
+ * pages come from the JSX, so the two can silently disagree. If you add, remove
+ * or reorder a `Section`, do the same here in the same commit.
+ *
+ * "Who comes out clean" used to be one page and taught two unrelated rules on it:
+ * the type ladder (shoes, underwear, crowding) and the shade rule (dark taints
+ * light, except among your own). They share a diagram shape and nothing else, and
+ * a reader who is still working out what shoes do cannot also be learning what
+ * dark does. They are two pages now.
+ */
 const PAGES = [
   { id: 'rg-about', label: 'About the game' },
   { id: 'rg-days', label: 'The days' },
   { id: 'rg-die', label: 'The die' },
-  { id: 'rg-washers', label: 'Who comes out clean' },
+  { id: 'rg-types', label: 'Shoes and underwear' },
+  { id: 'rg-shades', label: 'Dark and light' },
   { id: 'rg-blankets', label: 'Blankets' },
 ];
 
@@ -292,8 +312,8 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
             cap={cfg.cap}
             load={[
               { item: ex(0, 'shirts', 'D') },
-              { item: ex(2, 'pants', 'D') },
-              { item: ex(4, 'hats', 'D') },
+              { item: ex(1, 'pants', 'D') },
+              { item: ex(2, 'hats', 'D') },
             ]}
             note="Three players' clothes, one drum. Nobody owns a washer."
           />
@@ -354,14 +374,13 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
           reading itself back to you.
         */}
         <p>
-          The game is a run of <b>days</b>. Each day is one lap of the table, and
-          the day ends with every working washer spinning at once — so a day is
-          also the unit of consequence: nothing you load takes effect until the
-          end of the day you loaded it.
+          A <b>day</b> ends with every working washer spinning at once, so nothing
+          you load takes effect until the end of the day you loaded it. Everyone
+          gets to answer it first.
         </p>
         <p>
-          Your <b>turn</b> is a roll and whatever the die says, plus at most{' '}
-          <b>one special item</b> if you hold one.
+          Your <b>turn</b> is the roll, plus at most <b>one special item</b> if you
+          hold one.
         </p>
         <p>
           The <b>key</b> is the interesting part. Whoever holds it flips exactly one
@@ -414,18 +433,27 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
         </p>
       </Section>
 
-      {/* ---------------------------------------------------- washers */}
+      {/* ------------------------------------------------ types (1 of 2) */}
+      {/*
+        Boards on this page are deliberately ALL DARK wherever shade is not the
+        subject. A light shirt in the shoes example invites the reader to credit
+        the shoe rule for something the shade rule did, and they would have no way
+        of telling the difference until the next page.
+
+        Every verdict below was run through machineVerdicts() with the live config
+        (ownItemsDontTaint: true, crowdThreshold: 3) before being drawn.
+      */}
       <Section
-        id="rg-washers"
-        kicker="The washers"
-        title="Who comes out clean"
+        id="rg-types"
+        kicker="The washers, 1 of 2"
+        title="What kind of thing it is"
         stacked
         figure={
           <>
             <div className="rg-ladder">
               <div className="rg-rung dirty">
                 <b>Shoes</b>
-                <span>dirtiest — nothing else in the drum washes</span>
+                <span>dirtiest &mdash; nothing else in the drum washes</span>
               </div>
               <div className="rg-rung">
                 <b>Everything else</b>
@@ -433,7 +461,7 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
               </div>
               <div className="rg-rung delicate">
                 <b>Underwear</b>
-                <span>most delicate — anything else present spoils it</span>
+                <span>most delicate &mdash; anything else present spoils it</span>
               </div>
             </div>
 
@@ -443,68 +471,115 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
                 cap={cfg.cap}
                 load={[
                   { item: ex(0, 'shoes', 'D'), verdict: 'wash' },
-                  { item: ex(1, 'shirts', 'L'), verdict: 'back' },
+                  { item: ex(1, 'shirts', 'D'), verdict: 'back' },
                   { item: ex(2, 'hats', 'D'), verdict: 'back' },
                 ]}
-                note="Shoes wash. Nothing sharing the drum with them does — even their owner's own shirt."
+                note="The shoes wash. Nothing sharing the drum with them does &mdash; not even their owner's own shirt."
               />
+              <Washer
+                name="Underwear, with company"
+                cap={cfg.cap}
+                load={[
+                  { item: ex(1, 'underwear', 'D'), verdict: 'back' },
+                  { item: ex(2, 'socks', 'D'), verdict: 'wash' },
+                ]}
+                note="One sock is enough. The socks wash perfectly well; the underwear does not."
+              />
+              <Washer
+                name="Underwear, alone"
+                cap={cfg.cap}
+                load={[
+                  { item: ex(1, 'underwear', 'D'), verdict: 'wash' },
+                  { item: ex(2, 'underwear', 'D'), verdict: 'wash' },
+                ]}
+                note="Underwear is happy with other underwear, whoever owns it."
+              />
+              <Washer
+                name="Three of a kind"
+                cap={cfg.cap}
+                load={[
+                  { item: ex(0, 'hats', 'D'), verdict: 'back' },
+                  { item: ex(1, 'hats', 'L'), verdict: 'back' },
+                  { item: ex(2, 'hats', 'D'), verdict: 'back' },
+                ]}
+                note="Three of one garment type crowd the drum and all go back, whoever owns them."
+              />
+            </div>
+          </>
+        }
+      >
+        <p>
+          Type is settled before anything else, and it is settled for the whole
+          drum: one pair of shoes decides the washer for everybody in it.
+        </p>
+        <p>
+          So shoes are a weapon and underwear is a request. A third hat is neither
+          &mdash; nobody has to mean it, and all three hats go home dirty anyway.
+        </p>
+      </Section>
+
+      {/* ----------------------------------------------- shades (2 of 2) */}
+      <Section
+        id="rg-shades"
+        kicker="The washers, 2 of 2"
+        title="Dark against light"
+        stacked
+        figure={
+          <>
+            <div className="rg-cases">
               <Washer
                 name="Dark taints light"
                 cap={cfg.cap}
                 load={[
-                  { item: ex(2, 'pants', 'D'), verdict: 'wash' },
-                  { item: ex(5, 'hats', 'L'), verdict: 'back' },
+                  { item: ex(1, 'pants', 'D'), verdict: 'wash' },
+                  { item: ex(2, 'hats', 'L'), verdict: 'back' },
                 ]}
-                note="P3's dark pants bleed onto P6's light hat. The dark item is fine."
+                note="P2's dark pants bleed onto P3's light hat. The dark item is fine."
+              />
+              <Washer
+                name="Nothing dark, nothing lost"
+                cap={cfg.cap}
+                load={[
+                  { item: ex(0, 'shirts', 'L'), verdict: 'wash' },
+                  { item: ex(1, 'socks', 'L'), verdict: 'wash' },
+                ]}
+                note="An all-light drum has nothing to bleed. Everyone gets their item back clean."
               />
               <Washer
                 name="Your own are kinder"
                 cap={cfg.cap}
                 load={[
-                  { item: ex(4, 'pants', 'D'), verdict: 'wash' },
-                  { item: ex(4, 'shirts', 'L'), verdict: 'wash' },
+                  { item: ex(2, 'pants', 'D'), verdict: 'wash' },
+                  { item: ex(2, 'shirts', 'L'), verdict: 'wash' },
                 ]}
-                note="Both P5's. Your own items never taint each other by shade — among your own it is only shoes, then everything else, then underwear."
-              />
-              <Washer
-                name="Too many of a kind"
-                cap={cfg.cap}
-                load={[
-                  { item: ex(0, 'hats', 'D'), verdict: 'back' },
-                  { item: ex(3, 'hats', 'L'), verdict: 'back' },
-                  { item: ex(5, 'hats', 'D'), verdict: 'back' },
-                ]}
-                note="Three or more of one garment type crowd the drum and all go back, whoever owns them."
+                note="Both P3's. Your own dark never bleeds onto your own light."
               />
             </div>
 
             <div className="rg-callout">
-              <b>Shoes beat shade.</b> The shoes / everything-else / underwear ladder
-              is checked before dark-versus-light, so light shoes still taint dark
-              pants.
+              <b>Shoes beat shade.</b> Type is read first, so light shoes still send
+              a dark pair of pants back &mdash; the shade rule never gets a turn.
             </div>
-
           </>
         }
       >
         <p>
-          Shoes are dirtier than everything. Underwear is more delicate than
-          everything. If shoes are in a washer nothing else in it gets washed; if
-          anything at all is in there beside underwear, the underwear does not wash.
+          One dark item is enough. It washes; every light item beside it goes
+          back, and the owner of the dark item pays nothing for that.
         </p>
         <p>
-          Dark items taint light ones — your dark green pants ruin someone's light
-          pink hat. <b>Not your own, though:</b> among the items you own, shade does
-          not matter at all, only the ladder does.
+          Between your own items shade does not exist. A drum holding only your
+          laundry is the safest drum on the floor &mdash; which is exactly why
+          someone will put a shoe in it.
         </p>
       </Section>
 
       {/* -------------------------------------------------- blankets */}
       {/*
-        SPLIT OFF FROM THE WASHERS SLIDE, which carried the ladder, the shade
+        SPLIT OFF FROM THE WASHERS SLIDE, which once carried the ladder, the shade
         rule, four worked examples and the blanket rule on one page — the single
         densest thing in the guide, and the one people most need to get right.
-        Blankets are their own idea and now get their own page.
+        That page is now three: rg-types, rg-shades and this one.
       */}
       <Section
         id="rg-blankets"
@@ -518,7 +593,7 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
                 name="Blanket, tangled"
                 cap={cfg.cap}
                 load={[
-                  { item: ex(3, 'blanket', 'D'), verdict: 'wash' },
+                  { item: ex(0, 'blanket', 'D'), verdict: 'wash' },
                   { item: ex(1, 'socks', 'D'), tangled: true },
                 ]}
                 note="The socks would have washed, so instead they tangle into the blanket and stay in the drum one more round. The blanket washes and leaves."
@@ -527,7 +602,7 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
                 name="Blanket, tainted"
                 cap={cfg.cap}
                 load={[
-                  { item: ex(3, 'blanket', 'D'), verdict: 'wash' },
+                  { item: ex(0, 'blanket', 'D'), verdict: 'wash' },
                   { item: ex(1, 'hats', 'L'), verdict: 'back' },
                 ]}
                 note="The light hat loses to the dark blanket, so it goes home to its owner's hand as normal. Only an item that would have washed gets tangled."

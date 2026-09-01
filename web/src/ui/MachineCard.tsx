@@ -21,6 +21,14 @@ interface Props {
   G: GameState;
   machine: Machine;
   selectable?: boolean;
+  /**
+   * Selectable AND the thing to do next. `selectable` alone can be true of six
+   * washers for the whole load stage; the cue is what the board turns on only
+   * while a click here is the move it is waiting for.
+   */
+  cue?: boolean;
+  /** Ring the DRUM: the next click is on an item in here, not on the washer. */
+  cueItems?: boolean;
   refused?: string | null;
   onSelect?: () => void;
   footer?: React.ReactNode;
@@ -40,6 +48,8 @@ export function MachineCard({
   G,
   machine,
   selectable,
+  cue,
+  cueItems,
   refused,
   onSelect,
   footer,
@@ -72,6 +82,7 @@ export function MachineCard({
       className={[
         'machine',
         selectable ? 'selectable' : '',
+        cue ? 'cue' : '',
         refused ? 'refused' : '',
         machine.dead ? 'dead' : '',
         dropActive ? 'drop-active' : '',
@@ -93,7 +104,7 @@ export function MachineCard({
         </span>
       </div>
 
-      <div className="slots">
+      <div className={`slots${cueItems && onItemClick && machine.items.length > 0 ? ' cue-zone' : ''}`}>
         {machine.items.map((id) => {
           const item = G.items[id];
           const line = t.lines.find((l) => l.item.id === id);

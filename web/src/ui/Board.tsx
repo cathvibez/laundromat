@@ -4,7 +4,8 @@ import type { LaundromatG } from '../game/Laundromat';
 import { MachineCard, Swatch } from './MachineCard';
 import { DieDock } from './Die';
 import { useBots } from '../game/useBots';
-import type { BotSeats } from '../game/useBots';
+import type { BotGate, BotSeats } from '../game/useBots';
+import { BOT_LEVELS } from '../game/bot';
 import { RulesGuide } from './RulesGuide';
 import { LeaveReview, StayInTouch } from './Contact';
 import { EventCard, GarmentCard, SpecialCard } from './Card';
@@ -24,7 +25,7 @@ import {
 } from '../rules/selectors';
 import { hasLegalPlacement, loadableItems, machineAccepts } from '../rules/placement';
 import { ATTACHING } from '../rules/types';
-import type { ItemId, SpecialName } from '../rules/types';
+import type { ItemId, LogEntry, SpecialName } from '../rules/types';
 
 /**
  * The board's own props, plus what the hot-seat wrapper adds. `Client()` decides
@@ -39,6 +40,21 @@ type Props = BoardProps<LaundromatG> & {
   /** Seat -> which of the six printed colours they chose. */
   seatColours?: Record<number, number> | null;
 };
+
+/**
+ * WHERE THE EYE SHOULD GO NEXT, as one token.
+ *
+ * The turn bar has always said the next thing to do in words ("Load 1 more
+ * item."). Words are the second thing a new player reads, and only if they read
+ * at all — so exactly one control on the board also PULSES, and the pulse walks
+ * the turn: roll, then the card row, then your hand, then the washers that will
+ * take what you picked up, then the button that commits it.
+ *
+ * One token rather than a boolean per control, because the invariant that
+ * matters is that at most one place is lit. Two rings competing is the same
+ * failure as no ring at all.
+ */
+type Focus = 'roll' | 'card' | 'hand' | 'machines' | 'items' | 'commit' | 'extra' | 'none';
 
 type Pending =
   | { kind: 'none' }
@@ -83,12 +99,6 @@ export function Board({
   seatNames = null,
   seatColours = null,
 }: Props) {
-  /*
-   * Bot seats play themselves. The hook does nothing when `bots` is null, which
-   * is every online game and every all-human hot-seat, so this line is inert
-   * unless somebody chose "play by myself".
-   */
-  useBots(G, ctx, moves as never, bots);
   const [selectedItem, setSelectedItem] = useState<ItemId | null>(null);
   /** Which washer a dragged card is currently over, for the drop highlight. */
   const [dropOver, setDropOver] = useState<number | null>(null);
@@ -142,6 +152,18 @@ export function Board({
     const row = rows.find((m) => Number(m.id) === i);
     return row?.name?.trim() ? row.name.trim() : `Player ${i + 1}`;
   }
+  /*
+   * The rules log speaks in seat numbers, because rules/ has never heard of a
+   * nickname. Every place the log is SHOWN puts the names back, so the recap of
+   * a bot turn reads "Bot one loaded dark socks" and not "Player 2 loaded dark
+   * socks" three lines under a heading that called them Bot one.
+   */
+  const withNames = (text: string) =>
+    text.replace(/\bPlayer (\d+)\b/g, (whole, n) => {
+      const i = Number(n) - 1;
+      return i >= 0 && i < G.players.length ? nameOf(i) : whole;
+    });
+
   /** Second person for yourself, but only online — hot-seat is read aloud. */
   const youOrName = (i: number) => (online && i === seat ? 'you' : nameOf(i));
 
@@ -197,6 +219,41 @@ export function Board({
   const modalUp =
     showReckoning || showReveal || showResolved || confirm !== null || showRules || showLog || showTouch || showReview;
 
+  /*
+   * Bot seats. The hook does nothing when `bots` is null, which is every online
+   * game and every all-human hot-seat, so this is inert unless somebody chose
+   * "play by myself".
+   *
+   * `modalUp` is passed as the hold: a modal is a thing the human is reading,
+   * and the reckoning review in particular takes as long as it takes. Bots used
+   * to carry on playing underneath it, so you closed the reckoning onto a board
+   * that had moved two turns while you read it.
+   */
+  const botView = useBots(G, ctx, moves as never, bots, modalUp);
+
+  /**
+   * A bot seat is the one to act. Hot-seat has no playerID, so `myTurn` is true
+   * even on a bot's turn — without this the human's own controls stay live and
+   * they can take the bot's turn for it by accident.
+   */
+  const botActing = botView.gate !== null;
+  /** This device may actually touch the board right now. */
+  const iAmActing = myTurn && !botActing;
+  /**
+   * Solo: which seat is the person. App.tsx seats them at 0 and bots at the
+   * rest, but deriving it rather than assuming it means a future two-human,
+   * one-bot table does not silently show the wrong hand.
+   */
+  const humanSeat = bots ? (G.players.find((p) => bots[p.id] === undefined)?.id ?? seat) : null;
+  /*
+   * Whose hand the bottom of the screen shows. Hot-seat normally shows the seat
+   * whose turn it is, which is right when a person is about to play it — but a
+   * bot turn now waits for a click, so that rule would leave a bot's hand face
+   * up on screen for as long as the human cared to study it. Solo shows the
+   * human their own hand throughout instead.
+   */
+  const zoneSeat = botActing && humanSeat !== null ? humanSeat : seat;
+
   /**
    * The board as it WOULD be with the staged loads applied.  Legality for the
    * next staged item has to be judged against this, not against the committed
@@ -240,10 +297,55 @@ export function Board({
     else moves.resolveEvent(machine, jimothyTo);
   }
 
+  /*
+   * The one lit control, recomputed every render. Order matters: it is a
+   * priority list, not a lookup, because "you are holding a sock" and "you owe
+   * two more loads" are true at the same moment and only the first one has an
+   * answer you act on.
+   *
+   * `modalUp` blanks it. A dialog is a control of its own and a ring pulsing
+   * behind the overlay is pointing at something you cannot reach.
+   */
+  const focus: Focus =
+    !iAmActing || ctx.gameover || modalUp
+      ? 'none'
+      : phase === 'key'
+        ? 'machines'
+        : eventChoice
+          ? 'machines'
+          : !turn
+            ? 'none'
+            : turn.stage === 'roll'
+              ? 'roll'
+              : turn.stage === 'card'
+                ? pending.kind === 'card'
+                  ? 'machines' // a card is chosen; now it needs a washer
+                  : 'card'
+                : turn.stage === 'load'
+                  ? pending.kind !== 'none' || selectedItem
+                    ? 'machines'
+                    : loadBlocked(G) && staged.length === 0
+                      ? 'commit' // the substitute move, or the skip: one button
+                      : loadsLeft > 0 && !stagingBlocked
+                        ? 'hand'
+                        : 'commit'
+                  : turn.stage === 'extra'
+                    ? turn.pendingEvent || pending.kind === 'moveTo'
+                      ? 'machines'
+                      : // The roll of 4 asks for an item INSIDE a washer, not the
+                        // washer — the washers themselves are not clickable here,
+                        // so ringing them would point at a dead target.
+                        pending.kind === 'moveFrom'
+                        ? 'items'
+                        : 'extra'
+                    : 'none';
+
   function machineSelectable(mi: number): { ok: boolean; refused: string | null } {
     // Not your turn: the board is a spectator view. The engine would reject the
     // move anyway; offering it and then silently swallowing the tap is worse.
-    if (!myTurn) return { ok: false, refused: null };
+    // A bot's turn counts as somebody else's, even though hot-seat calls every
+    // turn "yours".
+    if (!iAmActing) return { ok: false, refused: null };
     if (ctx.gameover || modalUp) return { ok: false, refused: null };
     const m = G.machines[mi];
 
@@ -274,7 +376,7 @@ export function Board({
   }
 
   function onMachine(mi: number) {
-    if (!myTurn) return;
+    if (!iAmActing) return;
     const m = G.machines[mi];
 
     // ---- key phase: confirm the toggle ------------------------------------
@@ -615,6 +717,8 @@ export function Board({
                       machine={m}
                       ghosts={staged.filter((s) => s.machine === m.id).map((s) => s.item)}
                       selectable={sel.ok}
+                      cue={sel.ok && focus === 'machines'}
+                      cueItems={focus === 'items'}
                       refused={sel.ok ? null : sel.refused}
                       onSelect={() => onMachine(m.id)}
                       /*
@@ -694,7 +798,7 @@ export function Board({
                   Nothing for you to do — the day ends when they have chosen.
                 </div>
               )}
-              {myTurn && (
+              {iAmActing && (
                 <div className="row" style={{ marginTop: 8 }}>
                   <button
                     onClick={() =>
@@ -724,7 +828,31 @@ export function Board({
             />
           )}
 
-          {phase === 'roll' && turn && !ctx.gameover && myTurn && (
+          {/*
+            A bot is up. This takes the turn bar's place rather than sitting
+            beside it, because it answers the same question — "what now?" — and
+            the answer while a bot plays is "watch, then click".
+          */}
+          {botView.gate && !ctx.gameover && (
+            <BotBar
+              gate={botView.gate}
+              name={nameOf(botView.gate.seat)}
+              did={botView.did}
+              since={botView.since}
+              rename={withNames}
+            />
+          )}
+
+          {/*
+            Your turn again, straight after somebody else's. The log is a modal
+            two clicks away and nobody opens it mid-turn, so the handful of
+            lines that happened while you were not acting are printed here once.
+          */}
+          {bots && !botActing && !ctx.gameover && botView.since.length > 0 && (
+            <JustNow lines={botView.since} rename={withNames} />
+          )}
+
+          {phase === 'roll' && turn && !ctx.gameover && iAmActing && (
             <TurnBar
               G={G}
               turn={turn}
@@ -740,6 +868,7 @@ export function Board({
               loadsLeft={loadsLeft}
               stagingBlocked={stagingBlocked}
               commitStaged={commitStaged}
+              focus={focus}
             />
           )}
             </div>
@@ -765,7 +894,8 @@ export function Board({
                    is a full-screen overlay, so it already blocks the click, and
                    adding the term here would make the button vanish and reappear
                    underneath it. */
-                canRoll={myTurn && phase === 'roll' && turn?.stage === 'roll' && !ctx.gameover}
+                canRoll={iAmActing && phase === 'roll' && turn?.stage === 'roll' && !ctx.gameover}
+                cue={focus === 'roll'}
                 onRoll={() => moves.roll()}
               />
             </aside>
@@ -779,19 +909,22 @@ export function Board({
           <Zones
             G={G}
             shadow={shadow}
-            current={seat}
-            label={online ? 'Your' : `Player ${seat + 1} ·`}
+            current={zoneSeat}
+            label={online ? 'Your' : `Player ${zoneSeat + 1} ·`}
             selectedItem={selectedItem}
             setSelectedItem={setSelectedItem}
             onDragItem={setSelectedItem}
             stagedItems={stagedItems}
+            cue={focus === 'hand'}
             canLoad={
-              myTurn && phase === 'roll' && turn?.stage === 'load' && !modalUp && loadsLeft > 0
+              iAmActing && phase === 'roll' && turn?.stage === 'load' && !modalUp && loadsLeft > 0
             }
             asleepReason={
-              !myTurn
-                ? `Your hand is asleep — it is ${nameOf(current)}’s turn. You will be able to load when your turn comes round.`
-                : null
+              botActing
+                ? `Your hand is asleep — ${nameOf(current)} is taking their turn.`
+                : !myTurn
+                  ? `Your hand is asleep — it is ${nameOf(current)}’s turn. You will be able to load when your turn comes round.`
+                  : null
             }
           />
 
@@ -887,7 +1020,7 @@ export function Board({
                 .map((l, i) => (
                   <div key={i} className={i < 3 ? 'recent' : ''}>
                     <span style={{ opacity: 0.5 }}>d{l.day} </span>
-                    {l.text}
+                    {withNames(l.text)}
                   </div>
                 ))}
             </div>
@@ -993,6 +1126,86 @@ export function doingNow(G: LaundromatG, phase: string | null, mine: boolean): s
     default:
       return mine ? 'Your move.' : 'Taking their turn.';
   }
+}
+
+/**
+ * A bot seat, waiting to be let loose or playing itself out.
+ *
+ * The gate is the whole point of the solo mode: an opponent that plays while
+ * you are still reading what it did last time is an opponent you learn nothing
+ * from. One click per bot turn, and the log lines that turn produced printed
+ * where you are already looking.
+ */
+function BotBar({
+  gate,
+  name,
+  did,
+  since,
+  rename,
+}: {
+  gate: BotGate;
+  name: string;
+  did: LogEntry[];
+  since: LogEntry[];
+  /** Seat numbers in the log text -> the names on screen. */
+  rename: (text: string) => string;
+}) {
+  const label = BOT_LEVELS.find((b) => b.id === gate.level)?.label ?? gate.level;
+  // Waiting: show what the LAST turn did, because that is what you have not
+  // read yet. Playing: show what THIS turn is doing, line by line as it lands.
+  const lines = gate.waiting ? since : did;
+  return (
+    <div className={`turnbar botbar${gate.waiting ? '' : ' running'}`} role="status">
+      <div className="turn-who">
+        {name} · {label} bot
+      </div>
+      <div className="do-now">
+        <h2>{gate.waiting ? `${name} is up.` : `${name} is playing…`}</h2>
+      </div>
+      {/* While it plays, the log below says more than this would, and the board
+          is one viewport tall — two lines saying the same thing costs a washer
+          its drum. */}
+      {gate.waiting && <div className="sub">{gate.about}</div>}
+
+      {lines.length > 0 && (
+        <div className="bot-log">
+          <div className="zone-label">{gate.waiting ? 'What just happened' : 'Doing'}</div>
+          {lines.slice(-4).map((l, i) => (
+            <div key={i}>{rename(l.text)}</div>
+          ))}
+        </div>
+      )}
+
+      {gate.waiting ? (
+        <div className="row">
+          <button className="primary cue" onClick={gate.go}>
+            Play {name}&rsquo;s turn
+          </button>
+        </div>
+      ) : (
+        <div className="row">
+          <span className="sub bot-beat" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span className="sub">Nothing on the board is yours to touch until they finish.</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The few lines that happened while it was not your turn. */
+function JustNow({ lines, rename }: { lines: LogEntry[]; rename: (t: string) => string }) {
+  return (
+    <div className="just-now" role="status">
+      <div className="zone-label">While you were waiting</div>
+      {lines.slice(-4).map((l, i) => (
+        <div key={i}>{rename(l.text)}</div>
+      ))}
+    </div>
+  );
 }
 
 /**
@@ -1187,6 +1400,7 @@ function TurnBar({
   loadsLeft,
   stagingBlocked,
   commitStaged,
+  focus,
 }: {
   G: LaundromatG;
   turn: NonNullable<LaundromatG['turn']>;
@@ -1203,6 +1417,8 @@ function TurnBar({
   stagingBlocked: boolean;
   /** `only` commits a single staged entry; omitted, it commits all of them. */
   commitStaged: (only?: number) => void;
+  /** Which control the board wants your eye on. See the Focus type. */
+  focus: Focus;
 }) {
   const stage = turn.stage;
   const [showHow, setShowHow] = useState(false);
@@ -1211,13 +1427,21 @@ function TurnBar({
    * The one thing to do next, as a command. Everything else the turn bar knows
    * is available under the toggle beside it.
    */
-  const outstanding = loadsOutstanding(G);
+  /*
+   * `loadsLeft`, not `loadsOutstanding`: the staged pile has not been committed
+   * but it HAS been decided, and a line reading "Load 2 more items" above two
+   * cards sitting in the staging list is asking for work already done.
+   */
   const doNow = !turn.face
     ? 'Roll the die.'
     : stage === 'load'
       ? selectedItem
         ? `Put ${itemLabel(G.items[selectedItem])} in a washer.`
-        : `Load ${outstanding} more item${outstanding === 1 ? '' : 's'}.`
+        : loadBlocked(G) && staged.length === 0
+          ? 'Nothing you hold will fit — take the offer below.'
+          : loadsLeft === 0 && staged.length > 0
+            ? `Press Load to send ${staged.length === 1 ? 'it' : 'them'} in.`
+            : `Load ${loadsLeft} more item${loadsLeft === 1 ? '' : 's'}.`
       : stage === 'card'
         ? 'Play a card, or pass.'
         : stage === 'extra'
@@ -1292,7 +1516,13 @@ function TurnBar({
                 key={`${name}${i}`}
                 disabled={!playable}
                 title={SPECIAL_TEXT[name]}
-                className={pending.kind === 'card' && pending.name === name ? 'primary' : ''}
+                className={[
+                  pending.kind === 'card' && pending.name === name ? 'primary' : '',
+                  // Only a card you can actually play is worth pointing at.
+                  focus === 'card' && playable ? 'cue' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
                 onClick={() => setPending({ kind: 'card', name })}
               >
                 {cardName(name)}
@@ -1300,7 +1530,14 @@ function TurnBar({
               </button>
             );
           })}
-          <button onClick={() => moves.passCard()}>Play no card</button>
+          <button
+            /* With nothing playable this IS the turn's only move, so it takes
+               the ring instead. */
+            className={focus === 'card' && !ready.some((n) => canPlaySpecial(G, current, n)) ? 'cue' : ''}
+            onClick={() => moves.passCard()}
+          >
+            Play no card
+          </button>
           {pending.kind === 'card' && (
             <div className="card-explainer">
               <b>{cardName(pending.name)}</b> — {SPECIAL_TEXT[pending.name]}
@@ -1342,7 +1579,7 @@ function TurnBar({
                     the item in the washer it is in, then click where you want it.
                   </div>
                   <button
-                    className="primary"
+                    className={`primary${focus === 'commit' ? ' cue' : ''}`}
                     onClick={() =>
                       setConfirm({
                         title: 'Move one of your items instead?',
@@ -1368,7 +1605,7 @@ function TurnBar({
                 </>
               ) : (
                 <button
-                  className="primary"
+                  className={`primary${focus === 'commit' ? ' cue' : ''}`}
                   onClick={() =>
                     setConfirm({
                       title: 'Load nothing this turn?',
@@ -1454,7 +1691,7 @@ function TurnBar({
                   turn simply stays on the load stage until the quota is met.
                 */}
                 <button
-                  className="primary"
+                  className={`primary${focus === 'commit' && staged.length > 0 ? ' cue' : ''}`}
                   disabled={staged.length === 0}
                   title={
                     staged.length === 0
@@ -1513,7 +1750,12 @@ function TurnBar({
                 : `Moving ${itemLabel(G.items[pending.item])}. Click its destination.`}
             </span>
           ) : (
-            <button onClick={() => setPending({ kind: 'moveFrom' })}>Move an item</button>
+            <button
+              className={focus === 'extra' ? 'cue' : ''}
+              onClick={() => setPending({ kind: 'moveFrom' })}
+            >
+              Move an item
+            </button>
           )}
           <button
             onClick={() =>
@@ -1551,7 +1793,10 @@ function TurnBar({
                     Jimothy is not in play, so this would do nothing right now.
                   </div>
                 )}
-                <button className="primary" onClick={() => moves.keepCard(name)}>
+                <button
+                  className={`primary${focus === 'extra' ? ' cue' : ''}`}
+                  onClick={() => moves.keepCard(name)}
+                >
                   Keep {cardName(name)}
                 </button>
               </div>
@@ -1637,6 +1882,7 @@ function Zones({
   onDragItem,
   stagedItems,
   canLoad,
+  cue,
   asleepReason,
 }: {
   G: LaundromatG;
@@ -1649,6 +1895,8 @@ function Zones({
   onDragItem: (id: ItemId | null) => void;
   stagedItems: Set<ItemId>;
   canLoad: boolean;
+  /** Ring the hand: picking a card up is the next thing to do. */
+  cue?: boolean;
   /** Online: why the hand is inert when the reason is not "you have not rolled". */
   asleepReason: string | null;
 }) {
@@ -1696,7 +1944,7 @@ function Zones({
               'Your hand is asleep — you can only pick cards up during the loading part of your turn. Roll the die first.'}
           </div>
         )}
-        <div className="items scroll">
+        <div className={`items scroll${cue ? ' cue-zone' : ''}`}>
           {sortItems(G, p.hand).filter((id) => !stagedItems.has(id)).map((id) => {
             const usable = canLoad && loadable.has(id);
             return (
