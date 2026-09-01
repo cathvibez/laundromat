@@ -6,7 +6,6 @@ import type { LaundromatG } from './game/Laundromat';
 import { Board } from './ui/Board';
 import { Online } from './online/Online';
 import { codeFromUrl, loadSession } from './online/session';
-import { PLACEHOLDER_SPECIAL_DECK, SPECIAL_DECK_IS_PROVISIONAL } from './rules/config';
 import { RulesGuide } from './ui/RulesGuide';
 import { BOT_LEVELS, type BotLevel } from './game/bot';
 import './ui/styles.css';
@@ -134,7 +133,6 @@ function Setup({
   const [names, setNames] = useState<Record<number, string>>({});
   const [colours, setColours] = useState<Record<number, number>>({});
 
-  const deckTotal = Object.values(PLACEHOLDER_SPECIAL_DECK).reduce((a, b) => a + b, 0);
   const seats = players ?? 0;
 
   /** Which of the six printed colours a seat is wearing. */
@@ -312,21 +310,14 @@ function Setup({
 
       <RulesGuide players={players} onPlayersChange={setPlayers} />
 
-      {SPECIAL_DECK_IS_PROVISIONAL && (
-        <div className="banner" style={{ marginTop: 20 }}>
-          <h3>Special item deck is provisional</h3>
-          <div className="note warn">
-            The {deckTotal}-card composition below is a FLAT PLACEHOLDER, not a design decision. Copy
-            counts are still open and are being decided by simulation. Do not form an opinion about
-            card balance from this deck.
-          </div>
-          <div className="note">
-            {Object.entries(PLACEHOLDER_SPECIAL_DECK)
-              .map(([k, v]) => `${k} x${v}`)
-              .join(' · ')}
-          </div>
-        </div>
-      )}
+      {/*
+        The provisional-deck banner used to sit here: a warning that the 20-card
+        composition is a placeholder being settled by simulation, with the copy
+        counts listed. That is a note to the DESIGNER, and it was being shown to
+        every player on the way into a game. SPECIAL_DECK_IS_PROVISIONAL is still
+        true and still lives in config.ts, where the people it concerns will
+        find it.
+      */}
 
     </div>
   );

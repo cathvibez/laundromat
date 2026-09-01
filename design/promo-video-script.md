@@ -34,7 +34,7 @@ second. Every shot is a still or a slow push; nothing needs to be followed.
 | 0:07–0:10 | Same page, cut to the underwear washer. | "Your underwear needs the machine to itself." | |
 | 0:10–0:13 | Guide page 5, **Dark against light** (`split-4.png`). The "Dark taints light" washer: one WASHED, one BACK. | "Your dark clothes dirty someone's light ones." | |
 | 0:13–0:16 | **Jimothy**, full frame, still, on paper (`web/public/art/cards/jimothy.jpg`). Let the printed headline read. | "And sometimes a raccoon moves in." | Hum stops dead. One beat of silence. |
-| 0:16–0:20 | The landing page's three mode cards (`CAPTURE A`), then the wordmark and URL. | "First to get everything washed wins. Play it in a browser." | Hum returns, resolves. |
+| 0:16–0:20 | The landing page's three mode cards — the SAME page the guide is on, just scrolled up. Then the wordmark and URL. | "First to get everything washed wins. Play it in a browser." | Hum returns, resolves. |
 
 The one edit that matters is at 0:13. The machine noise **stops** when Jimothy
 appears and the frame goes still. He is the only living thing in the film and
@@ -73,14 +73,22 @@ should not depend on sound.
 
 ## What needs capturing
 
-Everything except **CAPTURE A** already exists.
+**Nothing new, and the film is simpler than it first looked.**
 
-- **CAPTURE A** — the landing page's three mode cards (Play by myself / Play with
-  friends here / Play online), from https://play-laundromat.fly.dev at 1512×982.
-  Crop above the "How to play" heading.
-- `guide-0.png`, `split-3.png`, `split-4.png` — captured from the live guide. If
-  you recapture, use the deployed site rather than a dev server, and do not
-  include the browser chrome.
+Every frame comes from ONE page. The three mode cards — Play by myself / Play
+with friends here / Play online — sit at the top of the landing page, directly
+above How to play, and the guide pages are the same page scrolled down. So the
+whole 20 seconds can be shot as a single continuous capture of
+https://play-laundromat.fly.dev at 1512×982: open on the mode cards, scroll into
+the guide, page through it, and cut back up at the end.
+
+That is worth doing rather than assembling stills. It shows, without a word,
+that this is one page a person can actually visit — which is the only thing the
+last four seconds needs to say.
+
+- Existing stills if you prefer to cut rather than scroll: `guide-0.png`,
+  `split-3.png`, `split-4.png`. Recapture from the deployed site rather than a
+  dev server, and leave the browser chrome out.
 - `jimothy.jpg` — ships with the game; the higher-resolution original is page 6
   of `assets/LAUNDRY PRINT FILE.pdf`.
 

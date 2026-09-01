@@ -27,11 +27,15 @@ function mountGame(numPlayers = 3) {
 }
 
 describe('UI', () => {
-  test('the setup screen renders and flags the provisional deck', () => {
+  test('the setup screen renders', () => {
     render(<App />);
     expect(screen.getByText('Laundromat')).toBeTruthy();
-    expect(screen.getByText(/Special item deck is provisional/i)).toBeTruthy();
-    expect(screen.getByText(/FLAT PLACEHOLDER/i)).toBeTruthy();
+    // The provisional-deck banner is gone: it warned that the 20-card
+    // composition is a placeholder being settled by simulation, which is a note
+    // to the designer and was being shown to every player on their way into a
+    // game. SPECIAL_DECK_IS_PROVISIONAL still lives in config.ts.
+    expect(screen.queryByText(/Special item deck is provisional/i)).toBeNull();
+    expect(screen.queryByText(/FLAT PLACEHOLDER/i)).toBeNull();
   });
 
   test('the setup screen offers no rule switches — only the seat count', () => {
