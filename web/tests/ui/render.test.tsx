@@ -40,12 +40,13 @@ describe('UI', () => {
     expect(screen.queryByLabelText(/Circuit break/i)).toBeNull();
     expect(screen.queryByLabelText(/Event timing/i)).toBeNull();
     expect(screen.queryByText(/Sensitivity switches/i)).toBeNull();
-    // The seat count is still the only thing the screen asks for; it is a
-    // required button group now rather than a pre-filled <select>.
-    expect(screen.getByLabelText(/Number of players/i)).toBeTruthy();
-    expect(
-      (screen.getByText('Play on this device') as HTMLButtonElement).disabled,
-    ).toBe(true);
+    // The screen asks HOW you want to play first; the seat count lives inside
+    // the local option and is still the only rule-ish thing it asks for.
+    expect(screen.getByText('Play by myself')).toBeTruthy();
+    expect(screen.getByText('Play with friends here')).toBeTruthy();
+    expect(screen.getByText('Play online')).toBeTruthy();
+    fireEvent.click(screen.getByText('Play with friends here'));
+    expect(screen.getByLabelText('4 players')).toBeTruthy();
   });
 
   test('the board renders every machine, the key, the day and the hand', () => {

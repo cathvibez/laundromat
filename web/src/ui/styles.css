@@ -45,13 +45,25 @@
   --good-ink: #3d7a48;
   --bad-ink: #b24e3b;
 
-  /* ---- the six colours, lifted from the printed art ---- */
-  --p0: #6e52a3;
-  --p1: #b0762e;
-  --p2: #3f6f90;
-  --p3: #f0642b;
-  --p4: #3f9c48;
-  --p5: #e63a8b;
+  /* ---- the six colours, lifted from the printed art ----
+     TWO LAYERS, and the split is load-bearing. --pal0..--pal5 are the palette
+     and never change. --p0..--p5 are what SEAT N is wearing, and default to
+     the palette in order. A player who picks a different colour remaps their
+     own --pN on the board root, and every swatch, rail row, drum chip and card
+     dot follows without any of them knowing a choice was made. */
+  --pal0: #6e52a3;
+  --pal1: #b0762e;
+  --pal2: #3f6f90;
+  --pal3: #f0642b;
+  --pal4: #3f9c48;
+  --pal5: #e63a8b;
+
+  --p0: var(--pal0);
+  --p1: var(--pal1);
+  --p2: var(--pal2);
+  --p3: var(--pal3);
+  --p4: var(--pal4);
+  --p5: var(--pal5);
 
   /* ---- cut paper ---- */
   --shadow: 6px 6px 0 rgba(59, 51, 48, 0.16);
@@ -1574,3 +1586,56 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
 .label-why {
   margin-left: 8px; text-transform: none; letter-spacing: 0; font-weight: 600;
 }
+
+/* ==========================================================================
+   THREE WAYS IN
+   ==========================================================================
+ * Solo, everyone round one screen, or a room with a link. They are presented
+ * as a choice rather than as one default with two alternatives, because they
+ * are genuinely different games and the right one depends on who is there.
+ */
+
+.modes { display: grid; gap: 10px; margin: 22px 0 6px; }
+@media (min-width: 620px) { .modes { grid-template-columns: repeat(3, 1fr); } }
+
+.mode-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  text-align: left; padding: 13px 15px 15px; min-height: 0;
+  position: relative;
+}
+.mode-card:nth-child(odd) { transform: rotate(-0.5deg); }
+.mode-card:nth-child(even) { transform: rotate(0.4deg); }
+.mode-card b { font-size: var(--fs-body); font-weight: 700; }
+.mode-card span { font-size: var(--fs-small); color: var(--dim); font-weight: 400; line-height: 1.4; }
+.mode-card.on { background: #ffe9a8; border-color: var(--ink); box-shadow: var(--shadow); }
+.mode-card.on span { color: var(--ink); }
+
+.mode-tag {
+  position: absolute; top: -9px; right: 10px;
+  font-style: normal; font-size: var(--fs-card); font-weight: 700;
+  letter-spacing: var(--track-label); text-transform: uppercase;
+  padding: 2px 9px 3px; border-radius: 999px;
+  background: var(--good); color: #fff; border: 2px solid var(--ink);
+}
+
+.mode-panel {
+  margin-top: 16px; padding: 15px 16px 17px;
+  background: var(--paper-2); border: 2px solid var(--rule-2);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+}
+
+/* The bot levels are wider than a seat count: each carries a sentence. */
+.pick-btn.wide { flex: 1 1 190px; align-items: flex-start; text-align: left; }
+.pick-btn.wide span { font-size: var(--fs-micro); line-height: 1.35; }
+
+/* ---- who is playing ---- */
+.seat-list { display: grid; gap: 8px; }
+.seat-row { display: flex; align-items: center; gap: 10px; }
+.seat-row .contact-input { flex: 1; }
+.seat-swatch {
+  flex: none; width: 34px; height: 34px; min-height: 0; padding: 0;
+  border-radius: 50%; border: 2px solid var(--ink); box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.seat-swatch:hover { transform: scale(1.08); }
+.seat-swatch:focus-visible { outline: 2px solid var(--good); outline-offset: 3px; }

@@ -3,6 +3,8 @@ import type { BoardProps } from 'boardgame.io/react';
 import type { LaundromatG } from '../game/Laundromat';
 import { MachineCard, Swatch } from './MachineCard';
 import { DieDock } from './Die';
+import { useBots } from '../game/useBots';
+import type { BotSeats } from '../game/useBots';
 import { RulesGuide } from './RulesGuide';
 import { LeaveReview, StayInTouch } from './Contact';
 import { EventCard, GarmentCard, SpecialCard } from './Card';
@@ -24,7 +26,19 @@ import { hasLegalPlacement, loadableItems, machineAccepts } from '../rules/place
 import { ATTACHING } from '../rules/types';
 import type { ItemId, SpecialName } from '../rules/types';
 
-type Props = BoardProps<LaundromatG>;
+/**
+ * The board's own props, plus what the hot-seat wrapper adds. `Client()` decides
+ * what a board receives, so anything of ours arrives through App.tsx wrapping
+ * this component rather than through boardgame.io.
+ */
+type Props = BoardProps<LaundromatG> & {
+  /** Seat -> bot difficulty. null in every online game and every all-human one. */
+  bots?: BotSeats | null;
+  /** Seat -> the name that player typed. Absent seats stay "Player N". */
+  seatNames?: Record<number, string> | null;
+  /** Seat -> which of the six printed colours they chose. */
+  seatColours?: Record<number, number> | null;
+};
 
 type Pending =
   | { kind: 'none' }
@@ -58,7 +72,23 @@ function scrollToMachine(index: number): void {
  */
 type MatchRow = { id: number; name?: string; isConnected?: boolean };
 
-export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props) {
+export function Board({
+  G,
+  ctx,
+  moves,
+  playerID,
+  matchData,
+  isConnected,
+  bots = null,
+  seatNames = null,
+  seatColours = null,
+}: Props) {
+  /*
+   * Bot seats play themselves. The hook does nothing when `bots` is null, which
+   * is every online game and every all-human hot-seat, so this line is inert
+   * unless somebody chose "play by myself".
+   */
+  useBots(G, ctx, moves as never, bots);
   const [selectedItem, setSelectedItem] = useState<ItemId | null>(null);
   /** Which washer a dragged card is currently over, for the drop highlight. */
   const [dropOver, setDropOver] = useState<number | null>(null);
@@ -73,8 +103,13 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
   // meaningless for a single operator and blocks automated screenshots.
   const [hideBetweenTurns, setHideBetweenTurns] = useState(
     () =>
-      typeof window === 'undefined' ||
-      !new URLSearchParams(window.location.search).has('autostart'),
+      // Off in a solo game: hiding your hand between turns exists so the device
+      // can be passed, and in solo there is nobody to pass it to. Leaving it on
+      // makes every bot turn start with a screen asking you to hand your phone
+      // to yourself.
+      !bots &&
+      (typeof window === 'undefined' ||
+        !new URLSearchParams(window.location.search).has('autostart')),
   );
   const [revealed, setRevealed] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(false);
@@ -99,6 +134,11 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
   const rows = (matchData ?? []) as MatchRow[];
 
   function nameOf(i: number): string {
+    // Online, the name comes from the lobby. Hot-seat, from whatever people
+    // typed on the setup screen. Neither exists in a solo game's bot seats
+    // until the setup screen names them, so "Player N" stays the last resort.
+    const typed = seatNames?.[i]?.trim();
+    if (typed) return typed;
     const row = rows.find((m) => Number(m.id) === i);
     return row?.name?.trim() ? row.name.trim() : `Player ${i + 1}`;
   }
@@ -143,6 +183,9 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
   const needsPass =
     !online &&
     hideBetweenTurns &&
+    // A bot has no hands to hide and nobody to pass the device to. Asking a
+    // solo player to hand their phone to Bot one would be a dead end.
+    !bots?.[Number(ctx.currentPlayer)] &&
     phase === 'roll' &&
     turn?.stage === 'roll' &&
     revealed !== ctx.currentPlayer &&
@@ -411,7 +454,18 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
         : 'Key phase';
 
   return (
-    <div className="app board">
+    <div
+      className="app board"
+      /* Remap the seat colours here and the whole board follows — see the
+         --pal/--p split in styles.css. */
+      style={
+        seatColours
+          ? (Object.fromEntries(
+              Object.entries(seatColours).map(([seat, pal]) => [`--p${seat}`, `var(--pal${pal})`]),
+            ) as React.CSSProperties)
+          : undefined
+      }
+    >
       {/*
         THE BOARD IS ONE VIEWPORT TALL. Three rows: this head, the main row that
         takes what is left, and the hand. Nothing here scrolls the page — the
@@ -424,7 +478,7 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
         <h1>Laundromat</h1>
         <span className="day">Day {G.day}</span>
         <span className="badge phase">{phaseLabel}</span>
-        <span className="badge key">Key: Player {G.key + 1}</span>
+        <span className="badge key">Key: {nameOf(G.key)}</span>
         {G.revealedEvent && <span className="badge provisional">Event: {G.revealedEvent}</span>}
         <span className="spacer" />
         <button className="top-btn" onClick={() => setShowLog(true)}>
@@ -505,10 +559,10 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
 
       {needsPass ? (
         <div className="pass-screen">
-          <h2>Pass the device to Player {current + 1}</h2>
+          <h2>Pass the device to {nameOf(current)}</h2>
           <p className="note">Hands are the only private information in this game.</p>
           <button className="primary" onClick={() => setRevealed(ctx.currentPlayer)}>
-            I am Player {current + 1}
+            I am {nameOf(current)}
           </button>
         </div>
       ) : (
@@ -633,7 +687,7 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
               <div>
                 {online
                   ? `${youOrName(G.key)} ${G.key === seat ? 'hold' : 'holds'} the key: turn one machine on, turn one off, or pass.`
-                  : `Player ${G.key + 1} holds the key: turn one machine on, turn one off, or pass.`}
+                  : `${nameOf(G.key)} holds the key: turn one machine on, turn one off, or pass.`}
               </div>
               {!myTurn && (
                 <div className="note">
@@ -675,7 +729,7 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
               G={G}
               turn={turn}
               current={seat}
-              heading={online ? 'Your turn' : `Player ${current + 1}, it is your turn`}
+              heading={online ? 'Your turn' : `${nameOf(current)}, it is your turn`}
               moves={moves}
               pending={pending}
               setPending={setPending}
@@ -701,7 +755,7 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
                 G={G}
                 current={current}
                 seat={online ? seat : null}
-                nameOf={online ? nameOf : null}
+                nameOf={nameOf}
                 awayIds={new Set(away.map((m) => Number(m.id)))}
               />
               <DieDock

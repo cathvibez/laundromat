@@ -22,10 +22,10 @@ afterEach(cleanup);
 describe('regression: the hand must be usable after a roll', () => {
   test('a hand card can be picked up and placed by clicking', () => {
     render(<App />);
-    // The seat count is a required choice now — the hot-seat button stays
-    // disabled until one is picked, so choosing is part of starting.
+    // Three ways in now; the count and the names live inside the local one.
+    fireEvent.click(screen.getByText('Play with friends here'));
     fireEvent.click(screen.getByLabelText('4 players'));
-    fireEvent.click(screen.getByText('Play on this device'));
+    fireEvent.click(screen.getByText('Start the day'));
     const pass = screen.queryByText(/^I am Player \d$/);
     if (pass) fireEvent.click(pass);
 
@@ -65,8 +65,9 @@ describe('the hand can also be dragged into a washer', () => {
    */
   function toLoadStage() {
     render(<App />);
+    fireEvent.click(screen.getByText('Play with friends here'));
     fireEvent.click(screen.getByLabelText('4 players'));
-    fireEvent.click(screen.getByText('Play on this device'));
+    fireEvent.click(screen.getByText('Start the day'));
     const pass = screen.queryByText(/^I am Player \d$/);
     if (pass) fireEvent.click(pass);
   }
