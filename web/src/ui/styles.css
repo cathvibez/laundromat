@@ -1548,3 +1548,29 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
   .app.board .machine:has(.fc.open) { overflow-y: auto; }
   .app.board .machine:has(.fc.open) .slots { min-height: 0; }
 }
+
+/* ---------------- the turn bar's one line ----------------
+ * L2 of the hierarchy: a single command, with everything the turn bar used to
+ * say stacked underneath it available on request. `.turn-who` is the eyebrow —
+ * hot-seat has no turn strip, so it is the only thing naming whose turn it is.
+ */
+.turn-who {
+  font-size: var(--fs-micro); letter-spacing: var(--track-label);
+  text-transform: uppercase; color: var(--dim); font-weight: 600;
+  margin-bottom: 3px;
+}
+.do-now { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.do-now h2 { margin: 0; font-size: var(--fs-lead); }
+.do-why { flex: none; }
+.do-detail { max-width: 62ch; }
+.do-detail div + div { margin-top: 5px; }
+
+@media (min-width: 1100px) {
+  .app.board .do-now h2 { font-size: var(--fs-body); }
+}
+
+/* The label's own toggle sits inline with it, so it does not inherit the
+   label's tracking or its uppercase. */
+.label-why {
+  margin-left: 8px; text-transform: none; letter-spacing: 0; font-weight: 600;
+}

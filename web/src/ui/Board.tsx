@@ -1151,6 +1151,24 @@ function TurnBar({
   commitStaged: (only?: number) => void;
 }) {
   const stage = turn.stage;
+  const [showHow, setShowHow] = useState(false);
+
+  /*
+   * The one thing to do next, as a command. Everything else the turn bar knows
+   * is available under the toggle beside it.
+   */
+  const outstanding = loadsOutstanding(G);
+  const doNow = !turn.face
+    ? 'Roll the die.'
+    : stage === 'load'
+      ? selectedItem
+        ? `Put ${itemLabel(G.items[selectedItem])} in a washer.`
+        : `Load ${outstanding} more item${outstanding === 1 ? '' : 's'}.`
+      : stage === 'card'
+        ? 'Play a card, or pass.'
+        : stage === 'extra'
+          ? 'Resolve the die.'
+          : 'Turn complete.';
   /*
    * The move a blocked player takes instead of loading (v11).  The engine picks
    * the same first legal move the bots would, so the button can name it concretely
@@ -1162,26 +1180,50 @@ function TurnBar({
 
   return (
     <div className="turnbar">
-      <h2>{heading}</h2>
+      {/*
+        ONE IMPERATIVE, and the rest behind a toggle.
+        This block used to be four stacked lines: who you are, what the die
+        entitles you to, how much of it is still owed, and a thirty-two word
+        explanation of how to move a card. All four were on screen at once for
+        the whole turn, which is how you end up reading none of them. The line
+        below says the single thing to do next; the die's full wording and the
+        how-to live under "?".
+      */}
+      <div className="turn-who">{heading}</div>
+      <div className="do-now">
+        <h2>{doNow}</h2>
+        <button
+          type="button"
+          className={`fc fc-quiet do-why${showHow ? ' open' : ''}`}
+          aria-expanded={showHow}
+          onClick={() => setShowHow((v) => !v)}
+        >
+          {showHow ? 'Less' : 'What can I do?'}
+          <span className="fc-more" aria-hidden="true">{showHow ? '−' : '?'}</span>
+        </button>
+      </div>
 
-      <div className="row">
-        <div>
+      {showHow && (
+        <div className="fc-detail do-detail">
           {turn.face ? (
             <>
-              <div className="instruction">{DICE_TEXT[turn.face]}</div>
-              <div className="sub">
-                {stage === 'card' && 'You may play one ready card, or pass.'}
-                {stage === 'load' &&
-                  `Loading is mandatory: ${loadsOutstanding(G)} of ${turn.loadsRequired} still to load.`}
-                {stage === 'extra' && 'Resolve the die.'}
-                {stage === 'done' && 'Turn complete.'}
+              <div>
+                <b>You rolled {turn.face}.</b> {DICE_TEXT[turn.face]}
               </div>
+              {stage === 'load' && (
+                <div>
+                  Drag a card onto a washer, or click the card and then the washer. You may
+                  spread them across different washers and load them one at a time or all
+                  together. Loading is mandatory.
+                </div>
+              )}
+              {stage === 'card' && <div>You may play one ready card, or pass.</div>}
             </>
           ) : (
-            <div className="instruction">Roll the die to begin.</div>
+            <div>Roll the die to see what your turn allows.</div>
           )}
         </div>
-      </div>
+      )}
 
       {/* The die and its button live in the right-hand dock now (see Die.tsx).
           Exactly one 'Roll the die' node may exist in the document. */}
@@ -1300,20 +1342,18 @@ function TurnBar({
             </div>
           ) : (
             <>
-              <div className="sub">
-                {/*
-                  The long form is a tutorial and is only worth its height the
-                  FIRST time. Once a card is staged you have plainly understood
-                  it, and every line here comes out of the washers above.
-                */}
-                {selectedItem
-                  ? `${itemLabel(G.items[selectedItem])} is in your hand — drop it on a washer, or click one. Click the card again to put it back.`
-                  : loadsLeft === 0
-                    ? 'Everything is placed. Load them when you are ready.'
-                    : staged.length > 0
-                      ? `${loadsLeft} more to place.`
-                      : `${loadsLeft} to load. Drag a card onto a washer, or click the card and then the washer. You may spread them around and load them one at a time or all together.`}
-              </div>
+              {/*
+                The how-to used to live here in full, on screen for the whole
+                turn. It is under "What can I do?" above now; this is only the
+                state that changes as you work.
+              */}
+              {(selectedItem || loadsLeft === 0) && (
+                <div className="sub">
+                  {selectedItem
+                    ? `Holding ${itemLabel(G.items[selectedItem])} — click it again to put it back.`
+                    : 'Everything is placed.'}
+                </div>
+              )}
 
               {staged.length > 0 && (
                 <div className="staged">
@@ -1568,16 +1608,34 @@ function Zones({
   );
   const pct = Math.round((p.clean.length / Math.max(1, p.mustWash.length)) * 100);
 
+  const [showSort, setShowSort] = useState(false);
+
   /** Every special card you hold, whichever side of the one-day wait. */
   const specials = [...p.ready, ...p.fresh];
 
   return (
     <div className={`zones${specials.length === 0 && !G.revealedEvent ? ' zones-solo' : ''}`}>
       <div className="panel">
-        <div className="zone-label" title={SORT_EXPLAINER}>
+        {/*
+          The sort order used to be printed in full in this label — sixteen
+          words naming every category, on screen for the whole game, explaining
+          an order you can simply see by looking at the cards. It is under the
+          toggle now.
+        */}
+        <div className="zone-label">
           <BasketIcon size={16} className="label-icon" />
-          {label} hand ({p.hand.length}) · sorted {SORT_EXPLAINER}
+          {label} hand ({p.hand.length})
+          <button
+            type="button"
+            className={`fc fc-quiet label-why${showSort ? ' open' : ''}`}
+            aria-expanded={showSort}
+            onClick={() => setShowSort((v) => !v)}
+          >
+            Sorted
+            <span className="fc-more" aria-hidden="true">{showSort ? '−' : '?'}</span>
+          </button>
         </div>
+        {showSort && <div className="fc-detail">Sorted {SORT_EXPLAINER}</div>}
         {!canLoad && p.hand.length > 0 && (
           <div className="hand-hint">
             {asleepReason ??

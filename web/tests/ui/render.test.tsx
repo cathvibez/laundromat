@@ -76,26 +76,41 @@ describe('UI', () => {
     fireEvent.click(screen.getByText('Roll the die'));
 
     // The die face and its entitlement are both on screen.
-    expect(screen.getByText(/Loading is mandatory|You may play one ready card/)).toBeTruthy();
+    expect(screen.getByText(/^(Load \d+ more items?\.|Play a card, or pass\.)$/)).toBeTruthy();
 
     // Pass the card stage if we are in it.
     const pass = screen.queryByText('Play no card');
     if (pass) fireEvent.click(pass);
 
-    expect(screen.getByText(/Loading is mandatory/)).toBeTruthy();
+    // The count is the point, not the phrasing. This used to read "Loading is
+    // mandatory: N of N still to load."; the turn bar states one imperative now
+    // and keeps the rest under "What can I do?".
+    expect(screen.getByText(/^Load \d+ more items?\.$/)).toBeTruthy();
 
     // Pick the first item in hand, then the first machine.
-    // Click to pick up, click a washer to place. Drag was tried and removed:
-    // it did not work in the designer's browser and buys nothing over clicking.
+    // Click to pick up, click a washer to place.
+    //
+    // This comment used to say drag had been tried and removed because it did
+    // not work in the designer's browser. Drag is BACK as of 2026-09-01 and was
+    // confirmed working by the designer; the likely reason it failed the first
+    // time is that cards only become draggable during the load stage, so
+    // dragging before rolling does nothing at all. Clicking stays the route
+    // that works everywhere — it is the only one that works on a phone, and the
+    // only one reachable from a keyboard — which is why this test still uses it.
     const tap = (el: Element) => fireEvent.click(el);
 
     const handButtons = document.querySelectorAll('.panel .gcard.item-btn.clickable');
     expect(handButtons.length).toBeGreaterThan(0);
     tap(handButtons[0]);
-    expect(screen.getByText(/drop it on a washer, or click one/)).toBeTruthy();
+    // Holding a card is stated where the turn's instruction is, not in a
+    // paragraph of how-to: the how-to is under "What can I do?" now.
+    expect(screen.getByText(/^Put .+ in a washer\.$/)).toBeTruthy();
 
     // Deselecting must work: click it again and the prompt reverts.
     tap(handButtons[0]);
+    // The how-to is one tap away rather than always on screen. Open it and it
+    // is there — which is the actual requirement: discoverable, not absent.
+    fireEvent.click(screen.getByText(/What can I do\?/));
     expect(screen.getByText(/Drag a card onto a washer/)).toBeTruthy();
     tap(handButtons[0]);
 

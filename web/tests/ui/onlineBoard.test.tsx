@@ -294,7 +294,10 @@ describe('online: rejoining in the middle of things', () => {
     render(<Board {...propsFor(c, { seat: '0' })} />);
     expect(strip().main).toBe('Your turn');
     expect(strip().sub).toBe('Load the washers.');
-    expect(screen.getByText(/Loading is mandatory/)).toBeTruthy();
+    // The count is the point, not the phrasing: a player returning cold has to
+    // see what they still owe without opening anything. It used to read
+    // "Loading is mandatory: 2 of 2 still to load."; it is now the imperative.
+    expect(screen.getByText(/^Load \d+ more items?\.$/)).toBeTruthy();
   });
 
   test('a cold mount while another seat is mid-turn is a legible spectator view', () => {
