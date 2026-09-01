@@ -1,0 +1,110 @@
+/**
+ * LINE DRAWINGS, in the same hand as everything else.
+ *
+ * The house style is cut paper: a flat fill, a 2px ink outline, no gradients and
+ * no blur. These follow it, and they take their colour from `currentColor` so a
+ * single CSS rule can tint one without a second copy of the file existing.
+ *
+ * They are drawn on a 24x24 grid with a 2px stroke, which is why the numbers are
+ * all halves — a 2px line centred on a whole pixel straddles two of them and
+ * comes out soft at the sizes these are used.
+ *
+ * Deliberately NOT in art.ts: that file maps to the printed art sheets and
+ * returns null where a plate does not exist yet. These are interface furniture
+ * and always render.
+ */
+
+interface IconProps {
+  /** Rendered size in px. Everything scales from the 24-unit grid. */
+  size?: number;
+  className?: string;
+}
+
+/**
+ * A front loader: body, control panel with two dials, and the porthole. The
+ * porthole is the whole point — it is the shape that says "washing machine"
+ * even at 16px, so it stays large relative to the body.
+ */
+export function WasherIcon({ size = 18, className }: IconProps) {
+  return (
+    <svg
+      className={`icon washer-icon${className ? ` ${className}` : ''}`}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="3" y="2.5" width="18" height="19" rx="3" />
+      <line x1="3" y1="8" x2="21" y2="8" />
+      <circle cx="12" cy="15" r="4.2" />
+      <circle cx="6.5" cy="5.25" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="9.75" cy="5.25" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/**
+ * A laundry basket: a tapered body with a weave, and a handle cut into each
+ * side. The taper is what separates it from a box at small sizes.
+ */
+export function BasketIcon({ size = 18, className }: IconProps) {
+  return (
+    <svg
+      className={`icon basket-icon${className ? ` ${className}` : ''}`}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {/* rim, then the tapered body */}
+      <path d="M2.5 7.5 h19" />
+      <path d="M4 7.5 L6 20.5 h12 L20 7.5" />
+      {/* the weave */}
+      <path d="M8.2 7.5 L9.2 20.5" />
+      <path d="M12 7.5 v13" />
+      <path d="M15.8 7.5 L14.8 20.5" />
+      <path d="M5 13.5 h14" />
+      {/* handles */}
+      <path d="M4.6 10.5 h2.2" />
+      <path d="M17.2 10.5 h2.2" />
+    </svg>
+  );
+}
+
+/**
+ * A folded stack, for the clean pile. Three sheets, offset, so it reads as "more
+ * than one" rather than "a card".
+ */
+export function FoldedStackIcon({ size = 18, className }: IconProps) {
+  return (
+    <svg
+      className={`icon stack-icon${className ? ` ${className}` : ''}`}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="4" y="14.5" width="16" height="5.5" rx="1.6" />
+      <rect x="5.5" y="9" width="13" height="5" rx="1.6" />
+      <rect x="7" y="3.5" width="10" height="5" rx="1.6" />
+    </svg>
+  );
+}

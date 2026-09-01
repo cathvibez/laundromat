@@ -1,5 +1,6 @@
 import type { GameState, Machine } from '../rules/types';
 import { cardName, itemLabel, tonight, willTangle } from '../rules/selectors';
+import { WasherIcon } from './Icons';
 import { GarmentCard } from './Card';
 import type { Verdict } from './Card';
 
@@ -81,6 +82,7 @@ export function MachineCard({
       onDrop={onDrop}
     >
       <div className="head">
+        <WasherIcon size={17} className="wname-icon" />
         <span className="name">Washer {machine.id + 1}</span>
         <span className={`power ${t.status}`}>{statusLabel}</span>
         <span className="cap">
@@ -114,6 +116,10 @@ export function MachineCard({
               item={item}
               size="xs"
               verdict={verdict}
+              /* Everything in a washer is a forecast: it is what tonight WOULD
+                 do if the day ended now, and it changes every time anyone
+                 loads. The reckoning screen shows results and stays solid. */
+              provisional
               note={note || undefined}
               ghost={ghost}
               selected={highlightItems?.includes(id)}

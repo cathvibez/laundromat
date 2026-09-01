@@ -1064,12 +1064,12 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
 /* A 13" laptop cannot show seven washers, two rows, full-size cards AND a hand,
    so on a short viewport the drum card shrinks rather than the drum clipping it.
    Above 860px there is room for the real thing and it comes straight back. */
-@media (min-width: 1100px) and (max-height: 859px) {
+@media (min-width: 1100px) and (max-height: 999px) {
   .app.board .machine .gcard.s-xs { width: 42px; height: 62px; }
   .app.board .machine .slot { width: 42px; height: 62px; }
   .app.board .machine .gcard.s-xs .nm { font-size: 9px; padding: 1px 2px 2px; }
 }
-@media (min-width: 1100px) and (min-height: 860px) {
+@media (min-width: 1100px) and (min-height: 1000px) {
   .app.board .machine .gcard.s-xs { width: 62px; height: 100px; }
   .app.board .machine .slot { width: 62px; height: 100px; }
   .app.board .machine .tonight-text { -webkit-line-clamp: 3; }
@@ -1110,7 +1110,7 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
 /* On a short laptop the dock goes side-on: die beside button rather than above
    it. That is ~55px back to the rail, which is the difference between a
    six-player table fitting and scrolling. */
-@media (min-width: 1100px) and (max-height: 859px) {
+@media (min-width: 1100px) and (max-height: 999px) {
   .app.board .die-dock { flex-direction: row; align-items: center; gap: 10px; }
   .app.board .die-dock .roll-btn { width: auto; flex: 1; }
   .app.board .die-dock .die-caption { flex: 1; text-align: left; }
@@ -1292,4 +1292,185 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
 
 @media (prefers-reduced-motion: reduce) {
   .machine.drop-active { box-shadow: var(--shadow); }
+}
+
+/* A forecast is not a result. Tags inside a washer say what tonight WOULD do if
+   the day ended now, and that changes every time anyone loads — so they are
+   drawn with a dotted edge and a lighter plate. The reckoning screen, which
+   reports what actually happened, keeps the solid border. */
+.stamp.provisional {
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* The staging list is the one confirmation the load path has now, so it has to
+   carry what the dialog used to say. */
+.staged-owed { font-weight: 500; color: var(--warn-ink); letter-spacing: 0; text-transform: none; }
+.staged-note { font-size: var(--fs-micro); color: var(--dim); margin: 2px 0 7px; }
+
+/* Today's event sits above your own cards, so it needs a little air under it to
+   read as a separate thing rather than the first item in the Fresh row. */
+.event-row { margin-bottom: 12px; }
+
+/* ---------------- line drawings ----------------
+ * See Icons.tsx. They take their colour from the text they sit with, so a
+ * label's icon dims and darkens with the label rather than needing its own rule.
+ */
+
+.icon { flex: none; vertical-align: -0.18em; }
+
+/* Icons in an uppercase micro-label: the label is tracked, the icon is not, so
+   it needs its own gap rather than inheriting the letter-spacing as a margin. */
+.label-icon { margin-right: 6px; opacity: 0.85; }
+.zone-label { display: flex; align-items: center; }
+
+/* The washer's own glyph. Slightly rotated like everything else on the card, and
+   in the power colour so ON and OFF read at a glance from the icon too. */
+.wname-icon { color: var(--good-ink); transform: rotate(-2deg); }
+.machine.dead .wname-icon,
+.machine .power.off ~ .name + .wname-icon { color: var(--dim); }
+
+/* A washer that is off or dead should not have a green machine on it. */
+.machine:has(.power.off) .wname-icon { color: var(--dim); }
+.machine:has(.power.destroyed) .wname-icon { color: var(--bad-ink); }
+.machine:has(.power.raccoon) .wname-icon { color: var(--warn-ink); }
+
+/* The drum outranks the forecast. `flex: 1` with `min-height: 0` let the text
+   win when it ran long — a washer holding a card would show three lines about
+   what tonight would do and a sliver of drum with the card hidden in it. The
+   drum now has a floor of one card, and the forecast gets what is left. */
+/* NO min-height on the drum. A floor there fought the forecast for the washer's
+   fixed height and won, and .machine is overflow:hidden, so the forecast — the
+   whole point of the card — was silently clipped away. Clamping the text to two
+   lines is enough on its own: the text takes ~32px, the drum takes the rest,
+   and a card fits in what is left. */
+@media (min-width: 1100px) {
+  .app.board .machine .tonight-text { -webkit-line-clamp: 2; }
+}
+
+/* THE WASHERS OUTRANK THE TURN BAR.
+ * The turn bar grows as you stage cards — instructions, the staging list, two
+ * buttons — and in a fixed-height column that growth came straight out of the
+ * washers, crushing the drums to a sliver mid-turn. So the floor gets a floor,
+ * enough for two rows of a washer that can hold a card and still say what
+ * tonight would do, and the left column scrolls if the turn bar outgrows what
+ * is left. The PAGE still never scrolls; this is internal. */
+@media (min-width: 1100px) {
+  .app.board .floor { min-height: 296px; }
+  .app.board .board-floor { overflow-y: auto; }
+}
+@media (min-width: 1100px) and (min-height: 1000px) {
+  .app.board .floor { min-height: 380px; }
+}
+
+/* A sticky commit row was tried here and cannot work: .turnbar carries the
+   house rotation, and a transformed ancestor becomes the containing block, so
+   `position: sticky` pins to the card rather than to the scrolling column. The
+   turn bar earns its height back by saying less once you have started instead
+   — see the instruction text in Board.tsx. */
+
+/* WHAT GIVES WAY WHEN IT DOES NOT ALL FIT.
+ *
+ * At 1440x900 with cards staged, the left column wants ~636px and has ~521. So
+ * the priority has to be explicit rather than emergent: the turn controls are
+ * always fully visible, because they are how you act, and the washers take what
+ * is left and scroll inside themselves if that is not enough. Previously the
+ * column scrolled as a whole, which pushed the commit button off the bottom at
+ * exactly the moment you had the most staged and most wanted it.
+ *
+ * (A sticky button was tried first and cannot work here: .turnbar carries the
+ * house rotation, and a transformed ancestor becomes the containing block.)
+ */
+@media (min-width: 1100px) {
+  .app.board .board-floor {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: visible;
+  }
+  /* No min-height: the floor now takes what is left rather than claiming a
+     share and pushing the controls out. */
+  .app.board .floor { min-height: 0; }
+
+  /* The hand is one row of cards and two labels; it does not need a fifth of
+     the screen. 118px still reads clearly and hands the washers ~34px back. */
+  .app.board .zones .gcard.s-md { width: 76px; height: 118px; }
+}
+@media (min-width: 1100px) and (min-height: 1000px) {
+  .app.board .zones .gcard.s-md { width: 96px; height: 152px; }
+}
+
+/* The turn bar was 308px of a 900px screen, and every pixel of it came out of
+   the washers. Trimmed: the heading repeats the top bar and the turn strip, the
+   staging list is a list and not a document, and none of it needs the leading
+   of running prose. */
+@media (min-width: 1100px) {
+  .app.board .turnbar h2 { font-size: var(--fs-small); margin: 0 0 1px; }
+  .app.board .turnbar .instruction { font-size: var(--fs-small); }
+  .app.board .turnbar .sub { line-height: 1.35; }
+  .app.board .turnbar .row { margin-top: 8px; }
+  .app.board .turnbar button { min-height: 34px; padding: 6px 13px; }
+
+  .app.board .staged { padding: 8px 10px; margin-top: 8px; }
+  .app.board .staged .zone-label { margin-bottom: 2px; }
+  .app.board .staged-note { margin: 0 0 5px; }
+  .app.board .staged-row { padding: 3px 0; }
+  .app.board .staged-row button { min-height: 28px; padding: 4px 10px; font-size: var(--fs-micro); }
+}
+
+/* THE CARD FITS THE DRUM, NOT THE OTHER WAY ROUND.
+ *
+ * The drum's height is whatever is left after the head, the forecast and the
+ * turn bar have taken theirs, and that changes as you stage cards. Pinning the
+ * card to 62x100 or 42x62 meant re-tuning a breakpoint every time anything else
+ * on the board changed size, and getting it wrong clipped the cards.
+ *
+ * So the card takes the drum's height and keeps its proportions from it. The
+ * bounds are the only tuned numbers left: below ~40px the shade dot and the
+ * name stop being readable, and above 100px it is just the printed size. */
+@media (min-width: 1100px) {
+  .app.board .machine .slots { align-items: stretch; }
+  .app.board .machine .slots .gcard.s-xs,
+  .app.board .machine .slot {
+    height: auto;
+    width: auto;
+    aspect-ratio: 31 / 50;
+    min-height: 40px;
+    max-height: 100px;
+    align-self: stretch;
+  }
+}
+
+/* ONE ROW, so the cards can fill the drum's height.
+ * `.slots` wraps by default, and in a wrapping flex container `align-items:
+ * stretch` sizes items to their LINE rather than to the container — which is
+ * why the cards ignored the drum and overflowed it. A single non-wrapping row
+ * is also what a drum actually looks like, and a full one scrolls sideways,
+ * the same idiom the phone floor already uses. */
+@media (min-width: 1100px) {
+  .app.board .machine .slots {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    align-items: stretch;
+  }
+  .app.board .machine .slots .gcard.s-xs,
+  .app.board .machine .slot {
+    height: auto;
+    align-self: stretch;
+    flex: 0 0 auto;
+    aspect-ratio: 31 / 50;
+    width: auto;
+    min-height: 0;
+    max-height: none;
+  }
+}
+
+/* A card has a size below which it is a coloured sliver rather than a garment.
+   Past that the drum scrolls instead of shrinking further — the header's "1/5"
+   still says what is in there, and the reckoning shows it in full. This only
+   bites on a short viewport with a long staging list open. */
+@media (min-width: 1100px) {
+  .app.board .machine .slots .gcard.s-xs,
+  .app.board .machine .slot { min-height: 52px; }
+  .app.board .machine .slots { overflow-y: auto; }
 }

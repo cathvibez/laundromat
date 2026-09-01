@@ -33,6 +33,12 @@ interface GarmentProps {
   item: ItemCard;
   size?: CardSize;
   verdict?: Verdict;
+  /**
+   * True where the verdict is a FORECAST of tonight rather than what happened.
+   * Draws the tag with a dotted edge, so a guess never looks like a result —
+   * the washers are full of predictions that change as people load.
+   */
+  provisional?: boolean;
   /** Extra note under the name — "in the bag", "not committed". */
   note?: string;
   selected?: boolean;
@@ -59,6 +65,7 @@ export function GarmentCard({
   item,
   size = 'sm',
   verdict = null,
+  provisional,
   note,
   selected,
   ghost,
@@ -113,7 +120,7 @@ export function GarmentCard({
       </div>
 
       {verdict && (
-        <span className={`stamp ${stampClass(verdict)}`}>
+        <span className={`stamp ${stampClass(verdict)}${provisional ? ' provisional' : ''}`}>
           {verdict === 'wash' ? 'Washed' : verdict === 'tangled' ? 'Tangled' : 'Back'}
         </span>
       )}

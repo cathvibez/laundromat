@@ -5,7 +5,8 @@ import { MachineCard, Swatch } from './MachineCard';
 import { DieDock } from './Die';
 import { RulesGuide } from './RulesGuide';
 import { LeaveReview, StayInTouch } from './Contact';
-import { GarmentCard, SpecialCard } from './Card';
+import { EventCard, GarmentCard, SpecialCard } from './Card';
+import { BasketIcon, FoldedStackIcon } from './Icons';
 import { DICE_TEXT, canPlaySpecial, loadBlocked, loadsOutstanding } from '../rules/phases';
 import { firstBlockedDisplacement } from '../rules/driver';
 import {
@@ -672,7 +673,6 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
           {phase === 'roll' && turn && !ctx.gameover && myTurn && (
             <TurnBar
               G={G}
-              shadow={shadow}
               turn={turn}
               current={seat}
               heading={online ? 'Your turn' : `Player ${current + 1}, it is your turn`}
@@ -1115,7 +1115,6 @@ function ReckoningReview({ G, onDone }: { G: LaundromatG; onDone: () => void }) 
 
 function TurnBar({
   G,
-  shadow,
   turn,
   current,
   heading,
@@ -1131,7 +1130,6 @@ function TurnBar({
   commitStaged,
 }: {
   G: LaundromatG;
-  shadow: LaundromatG;
   turn: NonNullable<LaundromatG['turn']>;
   current: number;
   heading: string;
@@ -1298,16 +1296,34 @@ function TurnBar({
           ) : (
             <>
               <div className="sub">
+                {/*
+                  The long form is a tutorial and is only worth its height the
+                  FIRST time. Once a card is staged you have plainly understood
+                  it, and every line here comes out of the washers above.
+                */}
                 {selectedItem
-                  ? `${itemLabel(G.items[selectedItem])} is in your hand — now click a washer to put it there. Click the card again to put it back.`
-                  : loadsLeft > 0
-                    ? `${loadsLeft} more to load. Click a card, then click the washer you want it in. You may spread them across different washers, and load them one at a time or all together.`
-                    : 'Everything is placed. Load them when you are ready.'}
+                  ? `${itemLabel(G.items[selectedItem])} is in your hand — drop it on a washer, or click one. Click the card again to put it back.`
+                  : loadsLeft === 0
+                    ? 'Everything is placed. Load them when you are ready.'
+                    : staged.length > 0
+                      ? `${loadsLeft} more to place.`
+                      : `${loadsLeft} to load. Drag a card onto a washer, or click the card and then the washer. You may spread them around and load them one at a time or all together.`}
               </div>
 
               {staged.length > 0 && (
                 <div className="staged">
-                  <div className="zone-label">Not yet committed</div>
+                  <div className="zone-label">
+                    Not yet committed
+                    {loadsLeft > staged.length && (
+                      <span className="staged-owed">
+                        {' '}
+                        · {loadsLeft - staged.length} more still to place
+                      </span>
+                    )}
+                  </div>
+                  <div className="staged-note">
+                    Once loaded, only a roll of 4 can move them.
+                  </div>
                   {staged.map((sg, i) => (
                     <div key={`${sg.item}${i}`} className="staged-row">
                       <Swatch owner={G.items[sg.item].owner} shade={G.items[sg.item].shade} />
@@ -1348,30 +1364,17 @@ function TurnBar({
                         ? `Loads ${staged.length} now. You will still owe ${loadsLeft}.`
                         : undefined
                   }
-                  onClick={() =>
-                    setConfirm({
-                      title:
-                        staged.length === 1
-                          ? 'Load this one?'
-                          : `Load these ${staged.length} together?`,
-                      body: (
-                        <>
-                          <p>Once loaded, only a roll of 4 can move them.</p>
-                          {loadsLeft > 0 && (
-                            <p className="note warn">
-                              You will still owe {loadsLeft} more load
-                              {loadsLeft === 1 ? '' : 's'} this turn.
-                            </p>
-                          )}
-                          {[...new Set(staged.map((sg) => sg.machine))].map((mi) => (
-                            <MachinePreview key={mi} G={shadow} mi={mi} />
-                          ))}
-                        </>
-                      ),
-                      confirmLabel: staged.length === 1 ? 'Load it' : `Load all ${staged.length}`,
-                      act: () => commitStaged(),
-                    })
-                  }
+                  /*
+                    COMMITS DIRECTLY. There used to be a confirm modal here, so
+                    loading a card took two confirmations: placing it in the
+                    staging list below, then agreeing to a dialog that repeated
+                    what the list already said. The list IS the confirmation —
+                    it names every card and its washer and offers Remove — and
+                    the washers themselves now show tonight's forecast in dotted
+                    tags. The per-row "Load just this" never had a dialog, so
+                    this also makes the two buttons behave the same way.
+                  */
+                  onClick={() => commitStaged()}
                 >
                   {staged.length === 0
                     ? 'Load'
@@ -1564,6 +1567,7 @@ function Zones({
     <div className="zones">
       <div className="panel">
         <div className="zone-label" title={SORT_EXPLAINER}>
+          <BasketIcon size={16} className="label-icon" />
           {label} hand ({p.hand.length}) · sorted {SORT_EXPLAINER}
         </div>
         {!canLoad && p.hand.length > 0 && (
@@ -1611,6 +1615,7 @@ function Zones({
         </div>
 
         <div className="zone-label">
+          <FoldedStackIcon size={16} className="label-icon" />
           Clean pile ({p.clean.length} of {p.mustWash.length})
         </div>
         <div className="progress">
@@ -1625,6 +1630,21 @@ function Zones({
       </div>
 
       <div className="panel">
+        {/*
+          Today's event, as a CARD rather than only a badge in the top bar. It
+          is not yours and cannot be played — it is drawn from a shared deck and
+          happens TO everyone — so it sits above your cards with a label saying
+          so, rather than among them where it would read as something you hold.
+          Art is pending for three of the four; EventCard draws the placeholder.
+        */}
+        {G.revealedEvent && (
+          <>
+            <div className="zone-label">Tonight&rsquo;s event · happens to everyone</div>
+            <div className="items event-row">
+              <EventCard name={G.revealedEvent} size="sm" />
+            </div>
+          </>
+        )}
         <div className="zone-label">Fresh · drawn today, unplayable ({p.fresh.length})</div>
         <div className="items scroll">
           {p.fresh.map((n, i) => (

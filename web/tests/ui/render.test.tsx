@@ -89,11 +89,11 @@ describe('UI', () => {
     const handButtons = document.querySelectorAll('.panel .gcard.item-btn.clickable');
     expect(handButtons.length).toBeGreaterThan(0);
     tap(handButtons[0]);
-    expect(screen.getByText(/now click a washer to put it there/)).toBeTruthy();
+    expect(screen.getByText(/drop it on a washer, or click one/)).toBeTruthy();
 
     // Deselecting must work: click it again and the prompt reverts.
     tap(handButtons[0]);
-    expect(screen.getByText(/Click a card, then click the washer/)).toBeTruthy();
+    expect(screen.getByText(/Drag a card onto a washer/)).toBeTruthy();
     tap(handButtons[0]);
 
     const selectable = document.querySelector('.machine.selectable');
@@ -125,7 +125,10 @@ describe('UI', () => {
     expect(loadBtn.disabled).toBe(false);
 
     fireEvent.click(loadBtn);
-    fireEvent.click(screen.getByText('Load it'));
+    // Commits straight away now. There used to be a confirm dialog here, which
+    // made loading a card take two confirmations — the staging list, then a
+    // dialog repeating it. The list is the confirmation.
+    fireEvent.click(loadBtn);
 
     // A one-item load can end the turn outright, which raises the hot-seat
     // pass screen; step through it so the floor is visible again.

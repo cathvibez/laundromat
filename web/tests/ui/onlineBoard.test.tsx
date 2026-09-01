@@ -383,18 +383,34 @@ describe('online: the key phase, rejoined cold', () => {
     const keyholder = String((c.getState()!.G as LaundromatG).key);
     render(<Board {...propsFor(c, { seat: keyholder })} />);
 
+    /*
+     * The footers are suppressed while any modal is up — an event briefing or
+     * the reckoning review can be open on arrival, depending on the roll — and
+     * that is correct behaviour, not a missing button. Asserting they are
+     * always present made this test flaky, so it asks the DOM which case it is
+     * in. A flaky test is worse than no test.
+     */
+    const modalUp = document.querySelectorAll('.overlay').length > 0;
     const buttons = [...document.querySelectorAll('.machine .tonight button')].filter((b) =>
       /^Turn (ON|OFF)$/.test(b.textContent ?? ''),
     );
-    expect(buttons.length).toBeGreaterThan(0);
 
-    for (const b of buttons) {
-      // A sibling of the text box, never a descendant of it.
-      expect(b.closest('.tonight-text')).toBeNull();
-      expect(b.closest('.tonight')).not.toBeNull();
+    if (modalUp) {
+      expect(buttons.length).toBe(0);
+    } else {
+      expect(buttons.length).toBeGreaterThan(0);
+      for (const b of buttons) {
+        // A sibling of the clamped text box, never a descendant of it.
+        expect(b.closest('.tonight-text')).toBeNull();
+        expect(b.closest('.tonight')).not.toBeNull();
+      }
     }
-    // And the box that IS clamped holds only text.
-    for (const t of document.querySelectorAll('.machine .tonight-text')) {
+
+    // THE INVARIANT, which holds either way: the box that gets clamped in the
+    // one-screen board contains text and nothing you can press.
+    const texts = document.querySelectorAll('.machine .tonight-text');
+    expect(texts.length).toBeGreaterThan(0);
+    for (const t of texts) {
       expect(t.querySelector('button')).toBeNull();
     }
   });
