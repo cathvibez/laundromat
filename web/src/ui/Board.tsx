@@ -3,12 +3,13 @@ import type { BoardProps } from 'boardgame.io/react';
 import type { LaundromatG } from '../game/Laundromat';
 import { MachineCard, Swatch } from './MachineCard';
 import { DieDock } from './Die';
+import { RulesGuide } from './RulesGuide';
+import { LeaveReview, StayInTouch } from './Contact';
 import { GarmentCard, SpecialCard } from './Card';
 import { DICE_TEXT, canPlaySpecial, loadBlocked, loadsOutstanding } from '../rules/phases';
 import { firstBlockedDisplacement } from '../rules/driver';
 import {
   EVENT_TEXT,
-  RULES_SUMMARY,
   SORT_EXPLAINER,
   SPECIAL_TEXT,
   cardName,
@@ -75,6 +76,8 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
   const [revealed, setRevealed] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(false);
   const [showLog, setShowLog] = useState(false);
+  const [showTouch, setShowTouch] = useState(false);
+  const [showReview, setShowReview] = useState(false);
 
   const current = Number(ctx.currentPlayer);
   const phase = ctx.phase;
@@ -146,7 +149,7 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
     !ctx.gameover;
 
   const modalUp =
-    showReckoning || showReveal || showResolved || confirm !== null || showRules || showLog;
+    showReckoning || showReveal || showResolved || confirm !== null || showRules || showLog || showTouch || showReview;
 
   /**
    * The board as it WOULD be with the staged loads applied.  Legality for the
@@ -421,11 +424,19 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
         <span className="badge key">Key: Player {G.key + 1}</span>
         {G.revealedEvent && <span className="badge provisional">Event: {G.revealedEvent}</span>}
         <span className="spacer" />
-        <button className="info-btn" title="Show the log" onClick={() => setShowLog(true)}>
-          &#9776;
+        <button className="top-btn" onClick={() => setShowLog(true)}>
+          <span aria-hidden="true">&#9776;</span>
+          <span className="top-btn-label opt">Log</span>
         </button>
-        <button className="info-btn" title="Show the rules" onClick={() => setShowRules(true)}>
-          i
+        <button className="top-btn" onClick={() => setShowRules(true)}>
+          Rulebook
+        </button>
+        <button className="top-btn" onClick={() => setShowTouch(true)}>
+          Stay in touch
+        </button>
+        <button className="top-btn" onClick={() => setShowReview(true)}>
+          <span className="top-stars" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9734;</span>
+          <span className="top-btn-label">Review</span>
         </button>
         {online ? (
           <span
@@ -806,20 +817,16 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
         </div>
       )}
 
+      {showTouch && <StayInTouch onClose={() => setShowTouch(false)} />}
+      {showReview && <LeaveReview onClose={() => setShowReview(false)} />}
+
       {showRules && (
         <div className="overlay" onClick={() => setShowRules(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>How Laundromat works</h2>
-            {RULES_SUMMARY.map((s) => (
-              <div key={s.heading} style={{ marginBottom: 12 }}>
-                <h4 style={{ margin: '10px 0 4px' }}>{s.heading}</h4>
-                {s.lines.map((l, i) => (
-                  <div key={i} className="rules-help" style={{ marginBottom: 2 }}>
-                    {l}
-                  </div>
-                ))}
-              </div>
-            ))}
+          <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" aria-label="Close the rulebook" onClick={() => setShowRules(false)}>
+              &times;
+            </button>
+            <RulesGuide players={G.players.length} />
             <div className="row">
               <button className="primary" onClick={() => setShowRules(false)}>
                 Close

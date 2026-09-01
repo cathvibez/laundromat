@@ -1125,3 +1125,126 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
    Pre-dates the one-screen board — it just showed up while measuring it. */
 .zones .panel { min-width: 0; }
 .zones .items { max-width: 100%; }
+
+/* ==========================================================================
+   TOP-BAR ACTIONS, AND THE TWO THINGS THEY OPEN
+   ========================================================================== */
+
+.top-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 13px; min-height: 0;
+  border-radius: 999px; border: 2px solid var(--rule-2);
+  background: var(--card);
+  font-size: var(--fs-micro); font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+.top-btn:nth-of-type(even) { transform: rotate(0.5deg); }
+.top-btn:nth-of-type(odd) { transform: rotate(-0.4deg); }
+.top-stars { color: var(--warn); letter-spacing: 0.5px; }
+
+/* Under 620px the labels go and the icons carry it; four worded pills do not
+   fit beside the wordmark on a phone. The Rulebook and Stay in touch buttons
+   keep their words because there is no icon for either that anyone reads
+   correctly. */
+@media (max-width: 619px) {
+  .top-btn { padding: 5px 10px; }
+  /* Log keeps its glyph and drops the word; Review does the opposite. Four
+     stars on their own read as a rating being SHOWN to you, not as a button
+     asking for one, so the word is the half worth keeping there. */
+  .top-btn-label.opt { display: none; }
+  .top-stars { display: none; }
+}
+
+.modal-wide { max-width: 940px; }
+
+/* ---------------- the contact and review modals ---------------- */
+
+.contact-modal { max-width: 560px; }
+.contact-modal p { margin: 0 0 12px; }
+
+.contact-label {
+  display: block; margin: 14px 0 5px;
+  font-size: var(--fs-micro); letter-spacing: var(--track-label);
+  text-transform: uppercase; color: var(--dim); font-weight: 600;
+}
+.contact-input {
+  width: 100%; padding: 10px 12px; font: inherit;
+  background: var(--card); color: var(--ink);
+  border: 2px solid var(--rule-2); border-radius: var(--radius-sm);
+  resize: vertical;
+}
+.contact-input:focus-visible { outline: 2px solid var(--good); outline-offset: 1px; }
+
+.contact-line {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 6px;
+}
+.contact-addr {
+  font-family: inherit; font-size: var(--fs-small);
+  padding: 6px 11px; border-radius: var(--radius-sm);
+  background: var(--panel-2); border: 2px dashed var(--rule-2);
+  word-break: break-all;
+}
+.contact-copy {
+  min-height: 0; padding: 6px 12px; font-size: var(--fs-micro);
+}
+
+/* An <a> styled as a button. It has to LOOK like the primary action while
+   staying a link, because only a link can hand a composed message to the mail
+   client — a button would need JavaScript to do the same job worse. */
+.button-link {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 9px 16px; min-height: 42px;
+  font-weight: 600; text-decoration: none; color: var(--ink);
+  background: var(--card); border: 2px solid var(--ink);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.button-link.primary { background: #ffe9a8; }
+.button-link:hover { background: #fffdf7; }
+.button-link.primary:hover { background: #ffe9a8; }
+.button-link:focus-visible { outline: 2px solid var(--good); outline-offset: 2px; }
+.button-link.disabled {
+  opacity: 0.42; cursor: not-allowed; box-shadow: none; background: var(--card);
+}
+
+/* ---------------- the stars ---------------- */
+
+.stars { display: flex; align-items: center; gap: 3px; margin: 4px 0 2px; }
+.star {
+  min-height: 0; padding: 2px 3px;
+  border: none; background: none; box-shadow: none;
+  font-size: 30px; line-height: 1;
+  color: var(--rule-2);
+  transition: transform 0.1s ease, color 0.1s ease;
+}
+.star:hover:not(:disabled) { background: none; }
+.star.on { color: var(--warn); }
+.star:hover { transform: scale(1.14); }
+.star:active:not(:disabled) { transform: scale(1.05); box-shadow: none; }
+.star:focus-visible { outline: 2px solid var(--good); outline-offset: 2px; border-radius: 6px; }
+.star-verdict {
+  margin-left: 10px; font-size: var(--fs-small); font-weight: 600; color: var(--dim);
+}
+@media (prefers-reduced-motion: reduce) {
+  .star { transition: none; }
+  .star:hover { transform: none; }
+}
+
+/* The guide sizes its pages for a full page. Inside a modal the title, a page,
+   the dots and the Close button all have to fit in 88dvh together, so the pages
+   get shorter here — otherwise Close and the dots sit below the fold and the
+   only way out is clicking the backdrop. */
+.modal .rules-guide { margin-top: 0; }
+.modal .rules-guide .rg-track > .rg-sec { min-height: 260px; max-height: 44vh; }
+.modal .rules-guide .rg-title { margin-bottom: 12px; }
+
+/* A wide modal is tall enough that the button at the bottom is a scroll away,
+   so it gets a corner dismiss as well. */
+.modal-wide { position: relative; }
+.modal-close {
+  position: sticky; top: 0; float: right;
+  min-height: 0; width: 34px; height: 34px; padding: 0;
+  border-radius: 50%; font-size: var(--fs-body); line-height: 1;
+  z-index: 1;
+}
