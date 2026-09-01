@@ -4,3 +4,6 @@
 # Browser automation scratch output.
 .playwright-mcp/
 .vercel
+
+# The promo kit zip is a build artefact, rebuilt from design/promo-kit/.
+design/laundromat-promo-kit.zip
