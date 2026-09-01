@@ -6,8 +6,9 @@
  * is `art.ts`'s problem, not this file's; when real card PNGs arrive nothing
  * here changes.
  *
- * Missing art degrades to a typographic card rather than a hole. That path is
- * live today for underwear and blanket.
+ * Missing art degrades to a typographic card rather than a hole. Every card in
+ * the game has an illustration now, so that path is only reached when an image
+ * 404s — which is exactly why it stays.
  */
 
 import type { ItemCard, SpecialName } from '../rules/types';
@@ -107,7 +108,7 @@ export function GarmentCard({
         <div className="pic" style={artStyle(art)} />
       ) : (
         <div className="pic placeholder">
-          <span>{item.type === 'underwear' ? 'Underwear' : 'Blanket'}</span>
+          <span>{label}</span>
           <small>art pending</small>
         </div>
       )}

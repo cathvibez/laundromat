@@ -8,15 +8,28 @@
  *   - a SPRITE: one cell of a print sheet, cropped with background-position, or
  *   - a PLATE:  a standalone image file, drawn whole.
  *
- * Today every garment is a sprite cut out of the three COLOR GROUP print sheets,
- * because that cost nothing to set up. When the designer delivers individual
- * card PNGs, change ONLY this file — swap the sprite lookups for plate lookups
- * pointing at `art/cards/<id>.png` — and every component picks them up unchanged.
+ * The five CLOTHING types are still sprites cut out of the three COLOR GROUP
+ * print sheets. Everything else — underwear, blanket, the seven specials and the
+ * four events — is a plate under `art/cards/`, cut from
+ * `assets/LAUNDRY PRINT FILE.pdf` pages 4-7. That is exactly the swap this
+ * header always anticipated, and it happened in this file alone.
  *
- * Missing art is a first-class case, not a bug. `underwear` and `blanket` have no
- * illustrations yet, and three of the four events do not either. Those return
- * `null` and the Card component falls back to a typographic card. That fallback
- * is permanent infrastructure: it is also what renders if an image 404s.
+ * The plates are cropped to the ILLUSTRATION ONLY. The printed cards carry a
+ * title above and rules text below; the app draws its own name band (`.nm`) and
+ * writes its own rules elsewhere, so lifting the picture out and letting the
+ * card supply the words is the only way the two do not fight. Each plate is
+ * 248x400 on white — the 92:148 card aspect, so `background-size: cover` scales
+ * it without cropping — with the picture placed between 10% and 80% of the
+ * height, clear of the colour dot at the top left and the name band at the foot.
+ *
+ * `reciept.jpg` is cut from the same sheet and deliberately unreferenced. That
+ * card is printed but has no rule in the engine — RECIEPT is the printed
+ * spelling — and giving it one is a design decision, not a line in this file.
+ *
+ * Missing art is a first-class case, not a bug. Nothing returns `null` today,
+ * but the Card component still falls back to a typographic card when something
+ * does. That fallback is permanent infrastructure: it is also what renders if an
+ * image 404s.
  * ===============================================================================
  */
 
@@ -67,7 +80,7 @@ const SHEET_OF_OWNER: Record<number, { url: string; darkRow: number }> = {
   5: { url: 'art/sheet3.jpg', darkRow: 2 }, // pink
 };
 
-/** Column within a sheet row. Underwear and blanket are not drawn yet. */
+/** Column within a sheet row. The two LINEN types are plates, not sprites. */
 const COLUMN_OF_TYPE: Partial<Record<ItemType, number>> = {
   hats: 0,
   shirts: 1,
@@ -76,10 +89,23 @@ const COLUMN_OF_TYPE: Partial<Record<ItemType, number>> = {
   shoes: 4,
 };
 
+/**
+ * Underwear and blanket were drawn later than the rest, one card per colour and
+ * shade rather than gathered onto a sheet, so they are 24 plates named
+ * `<type>-<colour>-<shade>`. The colour comes from `ART_COLOR_NAMES`, which is
+ * the seat order the artwork itself uses.
+ */
+const PLATE_TYPES: ReadonlySet<ItemType> = new Set<ItemType>(['underwear', 'blanket']);
+
 export function garmentArt(owner: PlayerId, type: ItemType, shade: Shade): ArtSource | null {
-  const sheet = SHEET_OF_OWNER[owner % 6];
+  const seat = owner % 6;
+  if (PLATE_TYPES.has(type)) {
+    const colour = ART_COLOR_NAMES[seat].toLowerCase();
+    return { url: `art/cards/${type}-${colour}-${shade === 'L' ? 'l' : 'd'}.jpg` };
+  }
+  const sheet = SHEET_OF_OWNER[seat];
   const col = COLUMN_OF_TYPE[type];
-  if (!sheet || col === undefined) return null; // underwear, blanket — no art yet
+  if (!sheet || col === undefined) return null;
   return {
     url: sheet.url,
     sprite: { cols: 5, rows: 4, c: col, r: sheet.darkRow + (shade === 'L' ? 1 : 0) },
@@ -95,32 +121,44 @@ export function artForItem(item: ItemCard): ArtSource | null {
 // ---------------------------------------------------------------------------
 
 /**
- * `items.png` is a print sheet with a margin, so its cells are addressed in
- * source pixels rather than as an even grid. Kept as a sprite with an explicit
- * grid because the margin is small enough not to show at card size.
+ * The printed names and the engine's names diverged and are not going to be
+ * reconciled — `sim/rules.py`, the fixtures and the save format all speak the
+ * engine's. The file names follow the ENGINE, and the printed wording is
+ * recorded here so the next person can find the card on the sheet.
+ *
+ * These replace the old `art/items.png` sprite sheet, which held rough versions
+ * of the same seven items plus Jimothy on one uneven grid. It is still on disk;
+ * nothing references it.
  */
-const ITEMS_SHEET = 'art/items.png';
-
-const SPECIAL_CELL: Partial<Record<SpecialName, { c: number; r: number }>> = {
-  Bleach: { c: 0, r: 0 },
-  Coloring: { c: 1, r: 0 },
-  Sanitizer: { c: 2, r: 0 },
-  'Wash net': { c: 3, r: 0 }, // displayed as "Mesh bag"
-  'Color catcher': { c: 4, r: 0 },
-  Snacc: { c: 0, r: 1 },
-  Coin: { c: 1, r: 1 }, // drawn as "Laundry Token"
+const SPECIAL_PLATE: Record<SpecialName, string> = {
+  Bleach: 'bleach', // "BLEACH"
+  Coloring: 'coloring', // "DYE"
+  Sanitizer: 'sanitizer', // "SANITIZER"
+  'Wash net': 'wash-net', // "MESHBAG", displayed as "Mesh bag"
+  'Color catcher': 'color-catcher', // "COLOR CATCHER"
+  Snacc: 'snacc', // "SNACC"
+  Coin: 'coin', // "LAUNDRY TOKEN"
+  Coffee: 'coffee', // "COFFEE"
 };
 
 export function specialArt(name: SpecialName): ArtSource | null {
-  const cell = SPECIAL_CELL[name];
-  if (!cell) return null;
-  return { url: ITEMS_SHEET, sprite: { cols: 5, rows: 2, c: cell.c, r: cell.r } };
+  const plate = SPECIAL_PLATE[name];
+  if (!plate) return null;
+  return { url: `art/cards/${plate}.jpg` };
 }
 
-/** Only Jimothy is drawn. Gang, Circuit break and Animal control are pending. */
+const EVENT_PLATE: Record<string, string> = {
+  Jimothy: 'jimothy', // "HERE COMES JIMOTHY!"
+  'Circuit break': 'circuit-break', // "POWER OUTAGE!"
+  Gang: 'gang', // "NEIGHBORHOOD SHOOTOUT!"
+  'Animal control': 'animal-control', // "ANIMAL CONTROL!"
+};
+
+/** Takes a plain string: the log and the banner both hand it raw event names. */
 export function eventArt(name: string): ArtSource | null {
-  if (name !== 'Jimothy') return null;
-  return { url: ITEMS_SHEET, sprite: { cols: 5, rows: 2, c: 2, r: 1 } };
+  const plate = EVENT_PLATE[name];
+  if (!plate) return null;
+  return { url: `art/cards/${plate}.jpg` };
 }
 
 // ---------------------------------------------------------------------------
