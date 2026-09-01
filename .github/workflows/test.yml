@@ -28,7 +28,13 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 24, matching the Dockerfile. server/feedback.ts uses `node:sqlite`,
+          # which is a BUILTIN but only from Node 24 — on 20 the store disables
+          # itself (by design, so a bad Node cannot take the game server down)
+          # and every feedback test then fails against a store that is not there.
+          # If this and the Dockerfile ever disagree, CI passes and production
+          # loses the feature silently, or the reverse. Keep them in step.
+          node-version: 24
           cache: npm
           cache-dependency-path: web/package-lock.json
 
