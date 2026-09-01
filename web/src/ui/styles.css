@@ -163,8 +163,27 @@ header.top .spacer { flex: 1; }
 
 /* ================= THE CARD ================= */
 
+/*
+ * THREE BANDS, TOP TO BOTTOM: picture, owner rule, name.
+ *
+ * The picture used to be `inset: 0` with the name plate lying across its foot.
+ * It is a flex ROW now — `.pic` takes what is left after the name band — so the
+ * illustration is never covered by type. The only thing still drawn over it is
+ * the verdict stamp, which is meant to look stuck on.
+ *
+ * `.pic` therefore no longer has the card's 92:148 aspect, and `artStyle` sizes
+ * a sprite cell to the box it paints in, so sheet garments sit ~13% shorter than
+ * the printed cell. Uniform across every sprite card at every size; the plates
+ * (underwear, blanket, specials, events) use `cover` and are unaffected.
+ */
 .gcard {
   position: relative; flex: none;
+  display: flex; flex-direction: column;
+  /* Every card has its height imposed from outside — a fixed s-* size, or the
+     drum's `aspect-ratio` + `align-self: stretch` — so size containment costs
+     nothing and buys the band below the ability to react to how much room it
+     actually got, which no media query can know. */
+  container-type: size;
   background: var(--card); border: 2px solid var(--ink); border-radius: var(--radius-sm);
   box-shadow: var(--shadow-sm); overflow: hidden;
   transition: transform 0.12s ease, box-shadow 0.12s ease;
@@ -175,7 +194,7 @@ header.top .spacer { flex: 1; }
 .gcard.s-lg { width: 150px; height: 242px; border-radius: 14px; box-shadow: var(--shadow); }
 
 .gcard .pic {
-  position: absolute; inset: 0;
+  flex: 1 1 auto; min-height: 0;
   background-repeat: no-repeat;
 }
 .gcard .pic.placeholder {
@@ -190,34 +209,91 @@ header.top .spacer { flex: 1; }
 .gcard.s-xs .pic.placeholder span { font-size: var(--fs-micro); }
 .gcard.s-xs .pic.placeholder small { display: none; }
 
-.gcard .dot {
-  position: absolute; top: 6px; left: 6px; width: 12px; height: 12px; border-radius: 50%;
+/*
+ * OWNER AND SHADE, TWO MARKS.
+ *
+ * They were one 9px dot — filled for dark, a hollow ring for light, tinted by
+ * owner. At drum size the ring plus the circular illustration behind it read as
+ * two overlapping circles, and two rule-critical variables were riding on one
+ * mark. So:
+ *
+ *   owner  .nm's coloured top rule. Full width, so it survives the -18px the
+ *          drum slots overlap cards by, and a LINE cannot be mistaken for part
+ *          of the picture the way a disc can.
+ *   shade  a square value chip at the head of the band. Solid ink for dark,
+ *          paper for light — value, not hue, and never round. `itemLabel` puts
+ *          the shade word first, so the ellipsis at 62px keeps it too.
+ */
+.gcard.garment .nm { border-top: 3px solid var(--dotc); }
+.gcard.garment.s-lg .nm { border-top-width: 5px; }
+
+.gcard .shd {
+  flex: none; width: 9px; height: 9px; border-radius: 2px;
+  border: 2px solid var(--ink);
 }
-.gcard.s-lg .dot { width: 16px; height: 16px; top: 9px; left: 9px; }
-.gcard.s-xs .dot { width: 9px; height: 9px; top: 4px; left: 4px; }
-.gcard .dot.d { background: var(--dotc); }
-.gcard .dot.l { background: transparent; border: 3px solid var(--dotc); }
-.gcard.s-xs .dot.l { border-width: 2px; }
+.gcard.s-lg .shd { width: 12px; height: 12px; border-radius: 3px; }
+.gcard.s-xs .shd { width: 8px; height: 8px; border-width: 1.5px; }
+.gcard .shd.d { background: var(--ink); }
+.gcard .shd.l { background: var(--paper); }
 
 .gcard .nm {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  padding: 3px 6px 4px; font-size: var(--fs-card); font-weight: 600;
-  letter-spacing: 0.04em; text-transform: uppercase; text-align: center;
-  color: var(--dim); background: rgba(255, 255, 255, 0.92);
+  flex: none;
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px 5px 4px; font-size: var(--fs-card); font-weight: 600;
+  line-height: 1.25; /* body's 1.55 costs the picture 5px per card */
+  text-align: left; color: var(--dim); background: var(--card);
+  /* NOT uppercase, and no tracking. The band is a caption under a picture now
+     rather than a label plate over one, and at 92px "LIGHT UNDERWEAR" set in
+     caps with tracking is 30% wider than the box — the ellipsis ate the noun on
+     every long name. Specials and events were already set this way. */
   border-top: 1px solid var(--line);
+}
+.gcard .nm-t {
+  flex: 1 1 auto; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.gcard.s-lg .nm { font-size: var(--fs-micro); padding: 5px 8px 6px; }
-.gcard.s-xs .nm { font-size: var(--fs-card); padding: 2px 3px 3px; }
+.gcard.s-lg .nm { font-size: var(--fs-micro); padding: 5px 7px 6px; gap: 6px; }
+.gcard.s-xs .nm { font-size: var(--fs-card); padding: 2px 3px 3px; gap: 3px; }
 .gcard .nm em { display: block; font-style: normal; font-weight: 500; }
 .gcard.s-xs .nm em { display: none; }
+
+/* THE DRUM SQUEEZE. A washer's cards take whatever height is left after the
+   header, the forecast and the turn bar, and with a staging list open that
+   bottoms out around 52px. A 22px name band on a 52px card is not a caption,
+   it is half the card — so past that the words go and the two marks that
+   actually decide the reckoning stay: the owner rule and the shade chip. */
+@container (max-height: 78px) {
+  .gcard .nm { padding: 2px 3px 3px; gap: 3px; }
+  .gcard .nm-t { display: none; }
+  .gcard.garment .nm { border-top-width: 2px; }
+}
+
+/* The ⓘ. It is the only discoverable way into the detail view, so it is a real
+   button — and the only place on a card where a plain click means one thing.
+   It sits in the top-right CORNER rather than in the name band: the band is
+   62-150px wide and a 17px control in it costs the name a third of its room,
+   which at `s-sm` is the difference between "light underwear" and "light und…".
+   Top-right is also the edge the drum's -18px overlap covers, and the button is
+   hidden at `s-xs` anyway, so nothing is lost there. */
+.card-i {
+  position: absolute; top: 4px; right: 4px; z-index: 2;
+  width: 15px; height: 15px; min-height: 0; padding: 0;
+  border: 2px solid var(--rule-2); border-radius: 50%; background: var(--paper-2);
+  box-shadow: none; font-size: var(--fs-card); font-weight: 700; line-height: 1;
+  color: var(--dim); cursor: pointer; text-transform: none; opacity: 0.8;
+}
+.gcard.s-lg .card-i { width: 19px; height: 19px; top: 6px; right: 6px; font-size: var(--fs-micro); }
+.card-i:hover:not(:disabled), .card-i:focus-visible {
+  background: var(--warn); border-color: var(--ink); color: var(--ink); opacity: 1;
+}
 
 .gcard.clickable { cursor: pointer; }
 .gcard.clickable:hover { transform: translateY(-4px) rotate(0deg) !important; box-shadow: var(--shadow); }
 .gcard.selected { border-color: var(--good); box-shadow: 0 0 0 3px rgba(95, 168, 107, 0.35), var(--shadow); }
 .gcard.ghost { opacity: 0.75; border-style: dashed; }
 .gcard.fresh { opacity: 0.72; }
-.gcard.special .nm, .gcard.event .nm { text-transform: none; letter-spacing: 0; font-size: var(--fs-micro); }
+.gcard.special .nm, .gcard.event .nm { font-size: var(--fs-micro); }
+.gcard.s-xs.special .nm, .gcard.s-xs.event .nm { font-size: var(--fs-card); }
 
 /* verdict stamps */
 .stamp {
@@ -230,6 +306,60 @@ header.top .spacer { flex: 1; }
 .stamp.back { color: var(--bad); border-color: var(--bad); transform: translate(-50%, -50%) rotate(-8deg); }
 .stamp.damp { color: var(--warn-ink); border-color: var(--damp); transform: translate(-50%, -50%) rotate(-9deg); }
 .gcard.s-xs .stamp { font-size: var(--fs-card); padding: 2px 5px; border-width: 2px; }
+
+/* ---------------- reading a card ----------------
+ *
+ * The detail view. Its classes are ITS OWN and not the board's `.overlay` /
+ * `.modal`, which several UI tests read as "a confirmation is up". Inspecting a
+ * card decides nothing and must not answer to that query.
+ */
+.cardx {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(59, 51, 48, 0.55);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  animation: cardx-in 0.13s ease-out;
+}
+.cardx-box {
+  position: relative;
+  display: flex; gap: 18px; align-items: flex-start;
+  background: var(--paper-2); border: 2px solid var(--ink); border-radius: 20px;
+  box-shadow: var(--shadow-lift); padding: 18px;
+  max-width: 620px; width: 100%; max-height: 86dvh; overflow-y: auto;
+}
+.cardx-art { flex: none; }
+.cardx-art .gcard { transform: rotate(-1.4deg) !important; }
+.cardx-body { flex: 1 1 auto; min-width: 0; }
+.cardx-body h2 { margin: 0 0 2px; font-size: var(--fs-head); font-weight: 600; }
+.cardx-body h3 {
+  margin: 14px 0 3px; font-size: var(--fs-micro); font-weight: 600;
+  letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim);
+}
+.cardx-body p { margin: 6px 0; font-size: var(--fs-small); }
+.cardx-kind {
+  margin: 0 0 4px !important; color: var(--dim); font-weight: 500;
+}
+.cardx-note { color: var(--dim); }
+.cardx-ladder {
+  margin: 4px 0; padding-left: 20px; font-size: var(--fs-small); color: var(--dim);
+}
+.cardx-ladder li { margin: 2px 0; }
+.cardx-close {
+  position: absolute; top: 8px; right: 10px;
+  width: 34px; height: 34px; min-height: 0; padding: 0; border-radius: 50%;
+  font-size: var(--fs-lead); line-height: 1;
+}
+
+/* Below the fold the card sits above the words rather than beside them: at
+   360px a 150px card and a column of prose leave the prose 150px wide. */
+@media (max-width: 520px) {
+  .cardx-box { flex-direction: column; align-items: center; gap: 12px; }
+  .cardx-body { width: 100%; }
+}
+
+@keyframes cardx-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .cardx { animation: none; }
+}
 
 /* ---------------- machines ---------------- */
 
@@ -760,7 +890,10 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
  * row of text buttons and the tests key on it). Neutralise that class's box
  * styling here so it cannot fight the card's own layout.
  */
-.gcard.item-btn { display: block; padding: 0; min-height: 0; gap: 0; }
+.gcard.item-btn {
+  display: flex; flex-direction: column; align-items: stretch;
+  padding: 0; min-height: 0; gap: 0;
+}
 
 /* Live: pick me up. */
 .gcard.clickable { cursor: pointer; }
