@@ -431,12 +431,21 @@ describe('online: the key phase, rejoined cold', () => {
       }
     }
 
-    // THE INVARIANT, which holds either way: the box that gets clamped in the
-    // one-screen board contains text and nothing you can press.
+    /*
+     * THE INVARIANT, which holds either way: the keyholder's control never
+     * lives inside the forecast box. That box is where the board applies
+     * whatever squeezing it needs — it was a two-line clamp, it is now a chip
+     * that can expand — and a control in there is a control that can be
+     * clipped away. The forecast's own `?` button is expected in there; the
+     * ON/OFF control is not.
+     */
     const texts = document.querySelectorAll('.machine .tonight-text');
     expect(texts.length).toBeGreaterThan(0);
     for (const t of texts) {
-      expect(t.querySelector('button')).toBeNull();
+      const controls = [...t.querySelectorAll('button')].filter((b) =>
+        /^Turn (ON|OFF)$/.test(b.textContent ?? ''),
+      );
+      expect(controls.length).toBe(0);
     }
   });
 

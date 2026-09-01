@@ -1,5 +1,6 @@
 import type { GameState, Machine } from '../rules/types';
 import { cardName, itemLabel, tonight, willTangle } from '../rules/selectors';
+import { useState } from 'react';
 import { WasherIcon } from './Icons';
 import { GarmentCard } from './Card';
 import type { Verdict } from './Card';
@@ -52,6 +53,8 @@ export function MachineCard({
   onDrop,
 }: Props) {
   const t = tonight(G, machine);
+  /** L2: the sentence behind the chip, opened per washer. */
+  const [why, setWhy] = useState(false);
   const capacity = G.cfg.capacity;
   const empties = Math.max(0, capacity - machine.items.length);
 
@@ -163,10 +166,39 @@ export function MachineCard({
         in here it disappeared on exactly the washers with the most to say
         about themselves. Clamp text; never clamp a control.
       */}
+      {/*
+        THE FORECAST, TWO WORDS WIDE.
+        This used to print the whole sentence — "Tonight: 2 of 3 wash · 1
+        tangled and staying." plus a tier explanation — on every washer, which
+        across seven of them was most of the reading on the board and got read
+        on none of them. The chip carries the same judgement (both come from
+        `tonight()`, so they cannot disagree) and the sentence is one tap away.
+      */}
       <div className="tonight">
         <div className="tonight-text">
-          <div>{t.headline}</div>
-          {t.tierText && <div className="tier">{t.tierText}</div>}
+          <button
+            type="button"
+            className={`fc fc-${t.chip.tone}${why ? ' open' : ''}`}
+            aria-expanded={why}
+            title={t.headline}
+            onClick={(e) => {
+              // The washer itself is a click target during loading; asking why
+              // must not also load a card into it.
+              e.stopPropagation();
+              setWhy((v) => !v);
+            }}
+          >
+            {t.chip.text}
+            <span className="fc-more" aria-hidden="true">
+              {why ? '−' : '?'}
+            </span>
+          </button>
+          {why && (
+            <div className="fc-detail">
+              <div>{t.headline}</div>
+              {t.tierText && <div className="tier">{t.tierText}</div>}
+            </div>
+          )}
         </div>
         {footer}
       </div>

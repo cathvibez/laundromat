@@ -23,10 +23,27 @@ export interface TonightLine {
   willWash: boolean;
 }
 
+/**
+ * The forecast at a glance: two or three words and a colour, for the board.
+ *
+ * It is computed HERE rather than in the UI because it is the same judgement
+ * the headline makes and they must never disagree — a chip that says "3 wash"
+ * over a sentence that says two is worse than either alone. The UI picks which
+ * one it has room for; both come from this function.
+ */
+export interface TonightChip {
+  /** Two or three words. Never a sentence. */
+  text: string;
+  tone: 'good' | 'bad' | 'warn' | 'quiet';
+}
+
 export interface TonightSummary {
   status: MachineStatus;
+  /** The full sentence. Kept for the reckoning and for the detail popover. */
   headline: string;
   tierText: string | null;
+  /** The same thing, short enough to read without stopping. */
+  chip: TonightChip;
   lines: TonightLine[];
 }
 
@@ -35,7 +52,13 @@ export function tonight(st: GameState, m: Machine): TonightSummary {
   const contents = machineContents(st, m);
 
   if (status === 'destroyed') {
-    return { status, headline: 'Out of the game. The Gang shot it.', tierText: null, lines: [] };
+    return {
+      status,
+      headline: 'Out of the game. The Gang shot it.',
+      tierText: null,
+      chip: { text: 'Shot', tone: 'bad' },
+      lines: [],
+    };
   }
   if (status === 'raccoon') {
     return {
@@ -45,6 +68,7 @@ export function tonight(st: GameState, m: Machine): TonightSummary {
           ? `Jimothy is here. ${contents.length} item(s) held hostage - nothing washes, nothing may be loaded.`
           : 'Jimothy is here. It cannot run and cannot be loaded.',
       tierText: null,
+      chip: { text: 'Jimothy', tone: 'warn' },
       lines: contents.map((item) => ({ item, willWash: false })),
     };
   }
@@ -56,14 +80,30 @@ export function tonight(st: GameState, m: Machine): TonightSummary {
           ? `Switched off. It keeps its ${contents.length} item(s) into tomorrow.`
           : 'Switched off. It will not run tonight.',
       tierText: null,
+      chip: {
+        text: contents.length > 0 ? `Off · keeps ${contents.length}` : 'Off',
+        tone: 'quiet',
+      },
       lines: contents.map((item) => ({ item, willWash: false })),
     };
   }
   if (st.cbBlackout) {
-    return { status, headline: 'The power tripped. Nothing reckons tonight.', tierText: null, lines: contents.map((item) => ({ item, willWash: false })) };
+    return {
+      status,
+      headline: 'The power tripped. Nothing reckons tonight.',
+      tierText: null,
+      chip: { text: 'Power out', tone: 'bad' },
+      lines: contents.map((item) => ({ item, willWash: false })),
+    };
   }
   if (contents.length === 0) {
-    return { status, headline: 'Empty. Nothing to wash.', tierText: null, lines: [] };
+    return {
+      status,
+      headline: 'Empty. Nothing to wash.',
+      tierText: null,
+      chip: { text: 'Empty', tone: 'quiet' },
+      lines: [],
+    };
   }
 
   const verdicts = machineVerdicts(contents, cardsKeyOf(m), opts(st));
@@ -97,7 +137,14 @@ export function tonight(st: GameState, m: Machine): TonightSummary {
       : stayCount > 0
         ? `Tonight: ${washCount} of ${contents.length} wash · ${stayCount} tangled and staying.`
         : `Tonight: ${washCount} of ${contents.length} wash.`;
-  return { status, headline, tierText: tierLabel, lines };
+  const chip: TonightChip =
+    washCount === 0
+      ? { text: stayCount > 0 ? `${stayCount} tangled` : 'None wash', tone: 'bad' }
+      : stayCount > 0
+        ? { text: `${washCount} wash · ${stayCount} tangled`, tone: 'warn' }
+        : { text: `${washCount} of ${contents.length} wash`, tone: 'good' };
+
+  return { status, headline, tierText: tierLabel, chip, lines };
 }
 
 /**

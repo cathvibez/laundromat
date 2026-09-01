@@ -1030,16 +1030,9 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
      both are trimmed and the forecast is clamped to one line — it is a summary,
      and the full reckoning is a modal away. */
   .app.board .machine .tonight { font-size: var(--fs-micro); line-height: 1.3; }
-  /* The CLAMP GOES ON THE TEXT, never on .tonight itself — .tonight also holds
-     the keyholder's Turn ON/OFF button, and a clamp is a height plus
-     overflow:hidden, so clamping the parent hid the button on any washer whose
-     forecast ran past two lines. */
-  .app.board .machine .tonight-text {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
+  /* NO CLAMP any more. It existed to cut a paragraph of forecast down to two
+     lines; the forecast is a three-word chip now, so there is nothing to clamp
+     and nothing that can clip a control by accident. */
   .app.board .machine .tonight .tier { display: none; }
   .app.board .machine .head { margin-bottom: 4px; gap: 6px; }
   .app.board .machine .head .name { font-size: var(--fs-small); }
@@ -1072,7 +1065,6 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
 @media (min-width: 1100px) and (min-height: 1000px) {
   .app.board .machine .gcard.s-xs { width: 62px; height: 100px; }
   .app.board .machine .slot { width: 62px; height: 100px; }
-  .app.board .machine .tonight-text { -webkit-line-clamp: 3; }
   .app.board .machine .tonight .tier { display: block; }
 }
 
@@ -1345,7 +1337,6 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
    lines is enough on its own: the text takes ~32px, the drum takes the rest,
    and a card fits in what is left. */
 @media (min-width: 1100px) {
-  .app.board .machine .tonight-text { -webkit-line-clamp: 2; }
 }
 
 /* THE WASHERS OUTRANK THE TURN BAR.
@@ -1513,3 +1504,47 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
 }
 
 .result-machine h4 { display: flex; align-items: center; gap: 8px; }
+
+/* ---------------- the forecast chip ----------------
+ * L1 of the board's information: state as a shape and a colour, readable
+ * without stopping. The sentence it replaces is behind the `?`, per washer, so
+ * the detail is available on the washer you are actually thinking about rather
+ * than on all seven at once.
+ *
+ * It is a BUTTON, not a hover target: the online client is a phone and hover
+ * does not exist there. Hover is a bonus on the desktop, never the only route.
+ */
+.fc {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px 4px; min-height: 0;
+  border-radius: 999px; border: 2px solid var(--rule-2);
+  background: var(--card);
+  font-size: var(--fs-micro); font-weight: 600;
+  box-shadow: none;
+  max-width: 100%;
+}
+.fc .fc-more {
+  display: inline-grid; place-items: center;
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 1.5px solid currentColor; opacity: 0.55;
+  font-size: 10px; font-weight: 700; line-height: 1;
+}
+.fc:hover .fc-more, .fc.open .fc-more { opacity: 1; }
+.fc:focus-visible { outline: 2px solid var(--good); outline-offset: 2px; }
+
+.fc-good  { border-color: var(--good); color: var(--good-ink); background: #eef7f0; }
+.fc-bad   { border-color: var(--bad);  color: var(--bad-ink);  background: #fbece8; }
+.fc-warn  { border-color: var(--warn); color: var(--warn-ink); background: #fdf4de; }
+.fc-quiet { border-color: var(--rule-2); color: var(--dim); }
+
+.fc-detail {
+  margin-top: 6px; font-size: var(--fs-micro); line-height: 1.4; color: var(--dim);
+}
+.fc-detail .tier { margin-top: 3px; }
+
+/* Open detail is worth more than the drum for as long as it is open, so the
+   clamp comes off and the washer scrolls instead. */
+@media (min-width: 1100px) {
+  .app.board .machine:has(.fc.open) { overflow-y: auto; }
+  .app.board .machine:has(.fc.open) .slots { min-height: 0; }
+}
