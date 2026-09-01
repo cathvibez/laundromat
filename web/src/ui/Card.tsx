@@ -40,6 +40,11 @@ interface GarmentProps {
   onClick?: (e: React.MouseEvent) => void;
   title?: string;
   className?: string;
+  /** Dragging is an ADDITION to clicking, never a replacement: HTML5 drag does
+   *  nothing at all on touch, and this game's online client is a phone. */
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragEnd?: (e: React.DragEvent) => void;
 }
 
 /** Deterministic small rotation, so a row of cards never looks machine-set. */
@@ -60,6 +65,9 @@ export function GarmentCard({
   onClick,
   title,
   className,
+  draggable,
+  onDragStart,
+  onDragEnd,
 }: GarmentProps) {
   const art = artForItem(item);
   const hex = ART_COLOR_HEX[item.owner % 6];
@@ -80,6 +88,9 @@ export function GarmentCard({
   return (
     <div
       className={cls}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       style={{ transform: tiltOf(item.id), ['--dotc' as string]: hex.dark }}
       onClick={onClick}
       title={title ?? label}

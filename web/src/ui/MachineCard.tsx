@@ -26,6 +26,12 @@ interface Props {
   onItemClick?: (id: string) => void;
   /** Staged but uncommitted loads, drawn differently so they read as pending. */
   ghosts?: string[];
+  /** True while a draggable item is hovering this washer. */
+  dropActive?: boolean;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDragEnter?: (e: React.DragEvent) => void;
+  onDragLeave?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
 }
 
 export function MachineCard({
@@ -38,6 +44,11 @@ export function MachineCard({
   highlightItems,
   onItemClick,
   ghosts,
+  dropActive,
+  onDragOver,
+  onDragEnter,
+  onDragLeave,
+  onDrop,
 }: Props) {
   const t = tonight(G, machine);
   const capacity = G.cfg.capacity;
@@ -59,10 +70,15 @@ export function MachineCard({
         selectable ? 'selectable' : '',
         refused ? 'refused' : '',
         machine.dead ? 'dead' : '',
+        dropActive ? 'drop-active' : '',
       ]
         .filter(Boolean)
         .join(' ')}
       onClick={selectable && onSelect ? onSelect : undefined}
+      onDragOver={onDragOver}
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
     >
       <div className="head">
         <span className="name">Washer {machine.id + 1}</span>

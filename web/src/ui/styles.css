@@ -1260,3 +1260,36 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
   border-radius: 50%; font-size: var(--fs-body); line-height: 1;
   z-index: 1;
 }
+
+/* ---------------- dragging a card into a washer ----------------
+ *
+ * An ADDITION to clicking, never a replacement. HTML5 drag does nothing at all
+ * on touch, and this game's online client is a phone — so click-to-pick-up
+ * stays the path that works everywhere, and this is the shortcut for a mouse.
+ * Both routes run the same code: dragstart sets the same `selectedItem` a click
+ * sets, so there is one set of loading rules rather than two.
+ */
+
+.gcard[draggable='true'] { cursor: grab; }
+.gcard[draggable='true']:active { cursor: grabbing; }
+
+/* The washer under the cursor. Deeper than .selectable's hover so the one you
+   would actually drop into is unambiguous when several are legal. */
+.machine.drop-active {
+  border-color: var(--good);
+  background: #f2faf3;
+  box-shadow: var(--shadow-lift);
+}
+.machine.drop-active .slots {
+  border-color: var(--good);
+  border-style: solid;
+  background: #eaf5ec;
+}
+
+/* The browser paints its own drag image; this keeps the ORIGINAL visibly
+   "lifted" rather than looking like it never moved. */
+.gcard.selected[draggable='true'] { opacity: 0.55; }
+
+@media (prefers-reduced-motion: reduce) {
+  .machine.drop-active { box-shadow: var(--shadow); }
+}

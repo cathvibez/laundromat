@@ -59,6 +59,8 @@ type MatchRow = { id: number; name?: string; isConnected?: boolean };
 
 export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props) {
   const [selectedItem, setSelectedItem] = useState<ItemId | null>(null);
+  /** Which washer a dragged card is currently over, for the drop highlight. */
+  const [dropOver, setDropOver] = useState<number | null>(null);
   /** Loads chosen but NOT yet committed. Confirm sends them all; deselect removes one. */
   const [staged, setStaged] = useState<{ item: ItemId; machine: number }[]>([]);
   const [pending, setPending] = useState<Pending>({ kind: 'none' });
@@ -560,6 +562,30 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
                       selectable={sel.ok}
                       refused={sel.ok ? null : sel.refused}
                       onSelect={() => onMachine(m.id)}
+                      /*
+                       * DRAG REUSES THE CLICK PATH ENTIRELY. dragstart sets
+                       * selectedItem, which is the same state a click sets — so
+                       * the washers light up, refusals are computed and the drop
+                       * is staged by exactly the code that already validated a
+                       * click. There is one set of loading rules, not two.
+                       */
+                      dropActive={dropOver === m.id && sel.ok}
+                      onDragOver={(e) => {
+                        if (!sel.ok) return;
+                        e.preventDefault(); // without this the drop never fires
+                        e.dataTransfer.dropEffect = 'move';
+                      }}
+                      onDragEnter={() => sel.ok && setDropOver(m.id)}
+                      onDragLeave={(e) => {
+                        // Leaving for a CHILD of this washer is not leaving it.
+                        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                        setDropOver((cur) => (cur === m.id ? null : cur));
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDropOver(null);
+                        if (sel.ok) onMachine(m.id);
+                      }}
                       onItemClick={
                         turn?.stage === 'extra' &&
                         pending.kind === 'moveFrom' &&
@@ -703,6 +729,7 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
             label={online ? 'Your' : `Player ${seat + 1} ·`}
             selectedItem={selectedItem}
             setSelectedItem={setSelectedItem}
+            onDragItem={setSelectedItem}
             stagedItems={stagedItems}
             canLoad={
               myTurn && phase === 'roll' && turn?.stage === 'load' && !modalUp && loadsLeft > 0
@@ -1505,6 +1532,7 @@ function Zones({
   label,
   selectedItem,
   setSelectedItem,
+  onDragItem,
   stagedItems,
   canLoad,
   asleepReason,
@@ -1515,6 +1543,8 @@ function Zones({
   label: string;
   selectedItem: ItemId | null;
   setSelectedItem: (id: ItemId | null) => void;
+  /** Called on dragstart. Same setter a click uses — see the note on the floor. */
+  onDragItem: (id: ItemId | null) => void;
   stagedItems: Set<ItemId>;
   canLoad: boolean;
   /** Online: why the hand is inert when the reason is not "you have not rolled". */
@@ -1560,6 +1590,20 @@ function Zones({
                       : `${itemLabel(G.items[id])} — no washer will take this right now`
                 }
                 onClick={usable ? () => setSelectedItem(selectedItem === id ? null : id) : undefined}
+                draggable={usable}
+                onDragStart={
+                  usable
+                    ? (e) => {
+                        // Picking the card up IS selecting it, so a drag that is
+                        // abandoned halfway leaves the card held rather than
+                        // silently dropped — the same place a click leaves it.
+                        onDragItem(id);
+                        e.dataTransfer.effectAllowed = 'move';
+                        // Firefox refuses to start a drag with no payload set.
+                        e.dataTransfer.setData('text/plain', id);
+                      }
+                    : undefined
+                }
               />
             );
           })}
