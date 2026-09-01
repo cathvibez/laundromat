@@ -178,11 +178,10 @@ export interface RulesGuideProps {
 /** The six sections, in reading order. Ids match the `Section` ids below. */
 const PAGES = [
   { id: 'rg-about', label: 'About the game' },
-  { id: 'rg-setup', label: 'Setup' },
   { id: 'rg-days', label: 'The days' },
   { id: 'rg-die', label: 'The die' },
-  { id: 'rg-washers', label: 'The washers' },
-  { id: 'rg-win', label: 'To win' },
+  { id: 'rg-washers', label: 'Who comes out clean' },
+  { id: 'rg-blankets', label: 'Blankets' },
 ];
 
 export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGuideProps) {
@@ -193,7 +192,7 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
    * other, and the guide could illustrate a four-player table for a game about
    * to start with six.
    */
-  const [ownN, setOwnN] = useState<number>(players && TABLE[players] ? players : 4);
+  const ownN = players && TABLE[players] ? players : 4;
   const controlled = onPlayersChange !== undefined;
   /*
    * Two different numbers, and conflating them is a lie on screen. `n` is what
@@ -202,9 +201,14 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
    * the guide illustrates a four-player table without any of the 3P/4P/5P/6P
    * buttons claiming to be selected.
    */
+  /*
+   * The guide no longer OWNS a player-count control — the setup section that
+   * held the 3P/4P/5P/6P buttons has gone, because it described laying out a
+   * physical table. `players` still comes in, because the diagrams below draw a
+   * washer at the right capacity for the table you are about to play.
+   */
   const picked = controlled ? (players ?? null) : ownN;
   const n = (picked && TABLE[picked] ? picked : 4) as number;
-  const setN = controlled ? onPlayersChange : setOwnN;
   const cfg = TABLE[n];
 
   /* ---- the pager ---------------------------------------------------------
@@ -296,82 +300,28 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
         }
       >
         <p>
-          You and your people all use the same laundromat. The neighbourhood is not
-          always safe, the washers are limited, and good things happen anyway.
+          You and your people all use the same laundromat, and what you put in a
+          washer lands on everyone else&rsquo;s laundry as well as your own.
         </p>
         <p>
-          Rush to get your laundry done before your friends. Sabotage or collaborate
-          — your choice. Special items give you power, special events bring chaos.
-          The first person to get all their stuff washed wins.
+          Your dirty shoes can send someone&rsquo;s pants back for another wash. Your
+          underwear is delicate and needs the machine to itself. Your dark clothes
+          can dirty someone&rsquo;s light ones.
+        </p>
+        <p>
+          {/* The old "To win" slide said only this, so it lives here instead of
+              costing a page of its own. */}
+          <b>First to get everything on their list washed wins.</b> Sabotage or
+          collaborate — your choice.
         </p>
       </Section>
 
-      {/* ------------------------------------------------------ setup */}
-      <Section
-        id="rg-setup"
-        kicker="Setup"
-        title="Lay out the table"
-        stacked
-        figure={
-          <>
-            <div className="rg-pcount" role="group" aria-label="player count">
-              {[3, 4, 5, 6].map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  className={p === picked ? 'on' : ''}
-                  aria-pressed={p === picked}
-                  onClick={() => setN(p)}
-                >
-                  {p}P
-                </button>
-              ))}
-            </div>
-            <div className="rg-facts">
-              <div>
-                <b>{cfg.washers}</b>
-                <span>washers</span>
-              </div>
-              <div>
-                <b>{cfg.cap}</b>
-                <span>fit in each</span>
-              </div>
-              <div>
-                <b>{cfg.items}</b>
-                <span>items each</span>
-              </div>
-            </div>
-            <Washer
-              name="Washer 1"
-              cap={cfg.cap}
-              showEmpty
-              note={
-                <>
-                  At {n} players a washer holds <b>{cfg.cap}</b> items. The drum
-                  grows with the table — never assume four.
-                </>
-              }
-            />
-          </>
-        }
-      >
-        <ol className="rg-steps">
-          <li>
-            Lay out <b>{cfg.washers}</b> washers and put the ON token on each.
-          </li>
-          <li>
-            Everyone picks a colour and draws <b>{cfg.items}</b> items at random from
-            their own colour deck. Those are your laundry for this game; the rest of
-            the colour goes back in the box.
-          </li>
-          <li>Give the key to whoever did their laundry most recently.</li>
-        </ol>
-        <p className="rg-small">
-          3–4 players wash 10 items each, 5–6 players wash 8. Fewer items at a
-          bigger table, because a bigger table means more hands fighting over the
-          same drums.
-        </p>
-      </Section>
+      {/*
+        THE SETUP SECTION IS GONE. It told you to lay out N washers, deal ten
+        items each and hand somebody the key — all of which the digital game has
+        already done by the time anyone reads this. It belongs in the printed
+        rulebook, which is where design/rulebook/ keeps it.
+      */}
 
       {/* ------------------------------------------------------- days */}
       <Section
@@ -398,22 +348,27 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
           </div>
         }
       >
+        {/*
+          THE DIAGRAM LISTS THE STEPS; this says what they MEAN. The two used to
+          say the same four things in the same order, so half the slide was
+          reading itself back to you.
+        */}
         <p>
-          A day is one lap of the table. Starting from the key holder, each player
-          rolls the die and does what it says. You may use at most{' '}
-          <b>one special item</b> per turn, at any point during it.
+          The game is a run of <b>days</b>. Each day is one lap of the table, and
+          the day ends with every working washer spinning at once — so a day is
+          also the unit of consequence: nothing you load takes effect until the
+          end of the day you loaded it.
         </p>
         <p>
-          When the lap is done the key holder must flip exactly one machine — on or
-          off, their choice — and then every washer that is on and working spins.
-          Some clothes come out clean, some go back to their owner, some are stuck
-          there another round. Then the key moves on.
+          Your <b>turn</b> is a roll and whatever the die says, plus at most{' '}
+          <b>one special item</b> if you hold one.
         </p>
-        <div className="rg-callout">
-          <b>Events do not wait for the spin.</b> A drawn event resolves the moment
-          it is turned over, in the middle of that player's turn. Where an event
-          needs a washer chosen — the Gang, Jimothy — the player who drew it chooses.
-        </div>
+        <p>
+          The <b>key</b> is the interesting part. Whoever holds it flips exactly one
+          washer on or off after everyone has loaded — so the last word on what
+          runs tonight belongs to one person, and it is not usually you. Then it
+          passes left.
+        </p>
       </Section>
 
       {/* -------------------------------------------------------- die */}
@@ -440,16 +395,22 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
           </div>
         }
       >
+        {/*
+          The faces are printed beside this; repeating them here was the slide
+          reading its own diagram aloud. What is left is the two things the
+          diagram cannot say.
+        */}
         <p>
-          Every face loads laundry. Four, five and six load one item and then do
-          something else on top — the high faces are not alternatives to loading,
-          they are loading plus a favour.
+          <b>Every face loads.</b> Four, five and six are not alternatives to
+          loading — they are loading, plus a favour on top.
+        </p>
+        <p>
+          <b>Only the first 6 of the day draws an event.</b> Later sixes that day
+          just load and move on.
         </p>
         <p className="rg-small">
-          Only one event happens per day: the first 6 rolled draws one, and every 6
-          after it that day just loads its item and moves the game along. If you
-          have nothing left in hand to load, move one of your own items from one
-          washer to another instead.
+          Nothing left in hand to load? Move one of your own items between washers
+          instead.
         </p>
       </Section>
 
@@ -523,8 +484,36 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
               pants.
             </div>
 
-            <h4 className="rg-subhead">Blankets are big</h4>
-            <div className="rg-cases">
+          </>
+        }
+      >
+        <p>
+          Shoes are dirtier than everything. Underwear is more delicate than
+          everything. If shoes are in a washer nothing else in it gets washed; if
+          anything at all is in there beside underwear, the underwear does not wash.
+        </p>
+        <p>
+          Dark items taint light ones — your dark green pants ruin someone's light
+          pink hat. <b>Not your own, though:</b> among the items you own, shade does
+          not matter at all, only the ladder does.
+        </p>
+      </Section>
+
+      {/* -------------------------------------------------- blankets */}
+      {/*
+        SPLIT OFF FROM THE WASHERS SLIDE, which carried the ladder, the shade
+        rule, four worked examples and the blanket rule on one page — the single
+        densest thing in the guide, and the one people most need to get right.
+        Blankets are their own idea and now get their own page.
+      */}
+      <Section
+        id="rg-blankets"
+        kicker="Blankets"
+        title="A blanket takes the whole drum"
+        stacked
+        figure={
+          <div className="rg-cases">
+
               <Washer
                 name="Blanket, tangled"
                 cap={cfg.cap}
@@ -543,53 +532,29 @@ export function RulesGuide({ players = 4, onPlayersChange, className }: RulesGui
                 ]}
                 note="The light hat loses to the dark blanket, so it goes home to its owner's hand as normal. Only an item that would have washed gets tangled."
               />
-            </div>
-          </>
-        }
-      >
-        <p>
-          Shoes are dirtier than everything. Underwear is more delicate than
-          everything. If shoes are in a washer nothing else in it gets washed; if
-          anything at all is in there beside underwear, the underwear does not wash.
-        </p>
-        <p>
-          Dark items taint light ones — your dark green pants ruin someone's light
-          pink hat. <b>Not your own, though:</b> among the items you own, shade does
-          not matter at all, only the ladder does.
-        </p>
-        <p>
-          A washer holding a blanket takes <b>at most one other item</b>, of any type
-          except a second blanket. That companion, if it would otherwise have come
-          out clean, gets <b>tangled</b> instead: it stays in the washer for one more
-          round while the blanket washes and leaves.
-        </p>
-      </Section>
-
-      {/* ------------------------------------------------------ to win */}
-      <Section
-        id="rg-win"
-        kicker="To win"
-        title="Everything clean"
-        figure={
-          <div className="rg-pile">
-            <div className="rg-pilecards">
-              <GarmentCard item={ex(2, 'hats', 'L')} size="xs" verdict="wash" />
-              <GarmentCard item={ex(2, 'socks', 'D')} size="xs" verdict="wash" />
-              <GarmentCard item={ex(2, 'shirts', 'D')} size="xs" verdict="wash" />
-            </div>
-            <span className="rg-pilelabel">P3's clean pile</span>
           </div>
         }
       >
         <p>
-          The first player to get every one of their items into their clean pile
-          wins. Nothing else scores.
+          A washer holding a blanket takes <b>at most one other item</b> — anything
+          except a second blanket.
         </p>
-        <div className="rg-callout bad">
-          <b>A tie is not a win.</b> If two players finish on the same day, nobody
-          wins. Watch what the person to your right has left.
-        </div>
+        <p>
+          That companion does not wash even when it deserves to. If it would
+          otherwise have come out clean it gets <b>tangled</b> instead: it stays in
+          the drum one more round while the blanket washes and leaves.
+        </p>
+        <p className="rg-small">
+          An item that was going back anyway just goes back. Only a winner gets
+          tangled.
+        </p>
       </Section>
+
+      {/*
+        "TO WIN" IS GONE as a page of its own. It said one sentence — first to
+        wash everything on their list — which is now the last line of the first
+        slide, where somebody deciding whether to play can actually see it.
+      */}
         </div>
 
         <button
