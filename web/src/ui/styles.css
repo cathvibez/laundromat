@@ -1487,3 +1487,29 @@ button.big { width: 100%; font-size: var(--fs-lead); padding: 15px 18px; min-hei
   }
   .app.board .zones.zones-solo > .panel:last-child .zone-label { margin: 0 10px 0 0; }
 }
+
+/* ---------------- the wash cycle ----------------
+ * The drum turns and the body rocks on DIFFERENT periods: two motions sharing
+ * one beat read as a looping GIF, two that drift read as a machine. Both stop
+ * the moment the machine has finished being read out — a washer still spinning
+ * under a verdict would be saying the result is not final.
+ */
+.spinner-washer { color: var(--ink); flex: none; vertical-align: -0.35em; }
+.spinner-washer .drum { transform-origin: 12px 15px; }
+.spinner-washer.spinning .drum { animation: drum-turn 1.15s linear infinite; }
+.spinner-washer.spinning .washer-body { animation: washer-rock 0.42s ease-in-out infinite; transform-origin: 12px 21px; }
+
+@keyframes drum-turn { to { transform: rotate(360deg); } }
+@keyframes washer-rock {
+  0%, 100% { transform: rotate(-0.9deg); }
+  50%      { transform: rotate(0.9deg); }
+}
+
+/* Reduced motion keeps the picture and drops the movement — the drum still
+   shows whose clothes are in there, which is the informative part. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner-washer.spinning .drum,
+  .spinner-washer.spinning .washer-body { animation: none; }
+}
+
+.result-machine h4 { display: flex; align-items: center; gap: 8px; }

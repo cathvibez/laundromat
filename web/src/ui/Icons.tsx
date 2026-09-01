@@ -108,3 +108,83 @@ export function FoldedStackIcon({ size = 18, className }: IconProps) {
     </svg>
   );
 }
+
+/**
+ * A washer mid-cycle, for the reckoning.
+ *
+ * The clothes are a group rotating inside a clipped porthole, so they tumble
+ * behind the glass rather than sliding out from under it — the clip is what
+ * makes it read as a drum instead of a spinning sticker. The body rocks a
+ * degree either way on a slightly different period from the drum, because two
+ * motions that do not share a beat look mechanical and one shared beat looks
+ * like a GIF.
+ *
+ * Colours come from the players whose clothes are actually in the machine, so
+ * the animation is showing you your own laundry, not decoration.
+ */
+export function SpinningWasher({
+  size = 96,
+  colours = [],
+  spinning = true,
+  className,
+}: {
+  size?: number;
+  /** CSS colours for the tumbling items, in load order. Up to five are drawn. */
+  colours?: string[];
+  spinning?: boolean;
+  className?: string;
+}) {
+  const items = colours.slice(0, 5);
+  // Spread whatever is in there evenly around the drum.
+  const placed = items.map((c, i) => {
+    const angle = (i / Math.max(items.length, 1)) * Math.PI * 2;
+    return { c, x: 12 + Math.cos(angle) * 4.6, y: 15 + Math.sin(angle) * 4.6 };
+  });
+
+  return (
+    <svg
+      className={`spinner-washer${spinning ? ' spinning' : ''}${className ? ` ${className}` : ''}`}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <defs>
+        <clipPath id="drum-clip">
+          <circle cx="12" cy="15" r="4.6" />
+        </clipPath>
+      </defs>
+
+      <g className="washer-body" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
+        <rect x="3" y="2.5" width="18" height="19" rx="3" fill="var(--card)" />
+        <line x1="3" y1="8" x2="21" y2="8" />
+        <circle cx="6.5" cy="5.25" r="0.8" fill="currentColor" stroke="none" />
+        <circle cx="9.75" cy="5.25" r="0.8" fill="currentColor" stroke="none" />
+
+        {/* the glass */}
+        <circle cx="12" cy="15" r="5.6" fill="var(--paper-2)" />
+
+        <g clipPath="url(#drum-clip)">
+          <circle cx="12" cy="15" r="4.6" fill="#eef4f7" stroke="none" />
+          <g className="drum">
+            {placed.map((p, i) => (
+              <rect
+                key={i}
+                x={p.x - 1.5}
+                y={p.y - 1.1}
+                width="3"
+                height="2.2"
+                rx="0.8"
+                fill={p.c}
+                stroke="none"
+              />
+            ))}
+          </g>
+        </g>
+
+        <circle cx="12" cy="15" r="4.6" />
+      </g>
+    </svg>
+  );
+}

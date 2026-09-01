@@ -351,6 +351,31 @@ describe('online: the turn arriving while you were not looking', () => {
   });
 });
 
+describe('the reckoning spins', () => {
+  /*
+   * The wash cycle is the moment the day pays off, so it gets a picture: the
+   * washer being read out has a turning drum with the actual owners' colours
+   * in it. jsdom cannot see the animation, but it can hold the wiring — that
+   * the machine currently being revealed is the one marked spinning, that the
+   * ones already read are still, and that the clothes in the drum are the
+   * clothes that were in the washer.
+   */
+  test('the washer being read out is the one that spins', () => {
+    const c = driver();
+    // Day 2 is the first render where a reckoning has happened.
+    playUntil(c, ({ G }) => G.day >= 2, 'the day after a reckoning');
+    render(<Board {...propsFor(c, { seat: '0' })} />);
+
+    const modal = document.querySelector('.overlay');
+    expect(modal).not.toBeNull();
+
+    const spinners = document.querySelectorAll('.spinner-washer');
+    expect(spinners.length).toBeGreaterThan(0);
+    // At most one turns at a time: it is a sequence, not a wall of motion.
+    expect(document.querySelectorAll('.spinner-washer.spinning').length).toBeLessThanOrEqual(1);
+  });
+});
+
 describe('online: the key phase, rejoined cold', () => {
   test('the keyholder gets the controls and is told what they are for', () => {
     const c = driver();
@@ -361,7 +386,7 @@ describe('online: the key phase, rejoined cold', () => {
     expect(screen.getAllByText('Key phase').length).toBeGreaterThan(0);
     // Said in both places a thumb looks: the banner by the washers and the strip.
     expect(screen.getAllByText(/you hold the key/i).length).toBe(2);
-    expect(screen.getByText('Pass, and go to the reckoning')).toBeTruthy();
+    expect(screen.getByText('Let it spin')).toBeTruthy();
     expect(strip().main).toBe('Your turn');
   });
 

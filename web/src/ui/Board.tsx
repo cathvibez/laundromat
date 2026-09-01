@@ -6,7 +6,7 @@ import { DieDock } from './Die';
 import { RulesGuide } from './RulesGuide';
 import { LeaveReview, StayInTouch } from './Contact';
 import { EventCard, GarmentCard, SpecialCard } from './Card';
-import { BasketIcon, FoldedStackIcon } from './Icons';
+import { BasketIcon, FoldedStackIcon, SpinningWasher } from './Icons';
 import { DICE_TEXT, canPlaySpecial, loadBlocked, loadsOutstanding } from '../rules/phases';
 import { firstBlockedDisplacement } from '../rules/driver';
 import {
@@ -654,7 +654,7 @@ export function Board({ G, ctx, moves, playerID, matchData, isConnected }: Props
                       })
                     }
                   >
-                    Pass, and go to the reckoning
+                    Let it spin
                   </button>
                 </div>
               )}
@@ -1051,6 +1051,11 @@ function ReckoningReview({ G, onDone }: { G: LaundromatG; onDone: () => void }) 
             className={`result-machine${idx === shown - 1 && !done ? ' active' : ''}`}
           >
             <h4>
+              <SpinningWasher
+                size={30}
+                spinning={idx === shown - 1 && !done && !r.skipped}
+                colours={r.outcomes.map((o) => `var(--p${G.items[o.item].owner})`)}
+              />
               Washer {r.machine + 1}
               {r.skipped ? ` — skipped: ${SKIP_TEXT[r.skipped]}` : r.tier ? ` — tier ${r.tier}` : ''}
             </h4>
