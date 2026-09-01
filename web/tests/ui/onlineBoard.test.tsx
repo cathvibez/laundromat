@@ -365,6 +365,40 @@ describe('online: the key phase, rejoined cold', () => {
     expect(strip().main).toBe('Your turn');
   });
 
+  /*
+   * REGRESSION. The Turn ON/OFF buttons sit in `.tonight`, the same box as the
+   * washer's forecast, and the one-screen board clamps that forecast to a
+   * couple of lines to buy the drum its height. A clamp is a height plus
+   * overflow:hidden, so while the button shared a box with the text it was
+   * silently eaten on exactly the washers with the most to say — the bug read
+   * as "the buttons sometimes don't show up".
+   *
+   * jsdom has no layout, so it cannot see the clipping. What it CAN hold is the
+   * structural rule that prevents it: the clamped element is `.tonight-text`
+   * and no control may live inside one. That is what is asserted here.
+   */
+  test('the ON/OFF buttons are outside the clamped forecast text', () => {
+    const c = driver();
+    playUntil(c, ({ ctx }) => ctx.phase === 'key', 'the key phase');
+    const keyholder = String((c.getState()!.G as LaundromatG).key);
+    render(<Board {...propsFor(c, { seat: keyholder })} />);
+
+    const buttons = [...document.querySelectorAll('.machine .tonight button')].filter((b) =>
+      /^Turn (ON|OFF)$/.test(b.textContent ?? ''),
+    );
+    expect(buttons.length).toBeGreaterThan(0);
+
+    for (const b of buttons) {
+      // A sibling of the text box, never a descendant of it.
+      expect(b.closest('.tonight-text')).toBeNull();
+      expect(b.closest('.tonight')).not.toBeNull();
+    }
+    // And the box that IS clamped holds only text.
+    for (const t of document.querySelectorAll('.machine .tonight-text')) {
+      expect(t.querySelector('button')).toBeNull();
+    }
+  });
+
   test('everyone else is told there is nothing for them to do, and why', () => {
     const c = driver();
     playUntil(c, ({ ctx }) => ctx.phase === 'key', 'the key phase');

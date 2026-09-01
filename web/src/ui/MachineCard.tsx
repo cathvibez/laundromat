@@ -132,9 +132,20 @@ export function MachineCard({
 
       {refused && <div className="refusal">{refused}</div>}
 
+      {/*
+        The forecast text and the footer are SEPARATE boxes, and they have to
+        stay that way. The board clamps this text to a couple of lines to buy
+        the drum its height, and a clamp is `overflow: hidden` plus a height —
+        so anything sharing that box with the text gets eaten when the text runs
+        long. `footer` is the keyholder's Turn ON/OFF button, so when it lived
+        in here it disappeared on exactly the washers with the most to say
+        about themselves. Clamp text; never clamp a control.
+      */}
       <div className="tonight">
-        <div>{t.headline}</div>
-        {t.tierText && <div className="tier">{t.tierText}</div>}
+        <div className="tonight-text">
+          <div>{t.headline}</div>
+          {t.tierText && <div className="tier">{t.tierText}</div>}
+        </div>
         {footer}
       </div>
     </div>
