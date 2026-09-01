@@ -36,6 +36,7 @@ import {
   DICE,
   rollDie,
 } from './phases';
+import { coffeeTargets } from './phases';
 import type { SpecialTarget } from './phases';
 import type { Rng } from './rng';
 import { actingOrder } from './setup';
@@ -221,6 +222,18 @@ export const GreedyPolicy: Policy = {
     const ready = st.players[pid].ready.filter((n) => canPlaySpecial(st, pid, n));
     if (ready.length === 0) return null;
     const name = ready[0];
+    /*
+     * COFFEE FIRST, because it is the one card whose target is not a machine.
+     * Every branch below assumes a machine id, so a card with a different
+     * target shape reaches applySpecial as `{player: undefined}` and takes the
+     * whole game down — which is exactly what adding Coffee did to the
+     * integrity suite before this branch existed.
+     */
+    if (name === 'Coffee') {
+      const victim = coffeeTargets(st, pid).find((t) => t.items.length > 0);
+      if (!victim) return null;
+      return { name, target: { player: victim.player, item: victim.items[0] } };
+    }
     const live = st.machines.filter((m) => !m.dead);
     if (live.length === 0) return null;
     if (name === 'Coin') return { name, target: { machine: live[0].id, on: true } };

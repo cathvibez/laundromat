@@ -48,6 +48,7 @@
  },
  "handSize": 10,
  "immediate": [
+  "Coffee",
   "Coin",
   "Snacc"
  ],
@@ -64,7 +65,8 @@
   "Wash net",
   "Snacc",
   "Sanitizer",
-  "Coin"
+  "Coin",
+  "Coffee"
  ],
  "typeNames": [
   "shoes",

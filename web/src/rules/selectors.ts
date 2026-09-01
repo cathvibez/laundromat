@@ -202,7 +202,9 @@ export const SPECIAL_DISPLAY: Record<SpecialName, string> = {
   'Wash net': 'Mesh bag',
   Snacc: 'Snacc',
   Sanitizer: 'Sanitizer',
+  // The printed card says LAUNDRY TOKEN; the code has always called it Coin.
   Coin: 'Coin',
+  Coffee: 'Coffee',
 };
 
 export function cardName(n: SpecialName): string {
@@ -210,6 +212,8 @@ export function cardName(n: SpecialName): string {
 }
 
 export const SPECIAL_TEXT: Record<string, string> = {
+  Coffee:
+    'Play on another player’s washed item. It leaves their clean pile and goes back to their hand, dirty.',
   Coloring: 'Play on a machine. Every other player’s items there are ruined and sent back.',
   'Color catcher': 'Play on a machine. Your items there ignore Coloring.',
   Bleach: 'Play on a machine. This wash runs backwards: light washes, dark is sent back.',

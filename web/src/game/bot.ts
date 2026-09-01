@@ -33,7 +33,7 @@ import type {
 } from '../rules/types';
 import type { SpecialTarget } from '../rules/phases';
 import type { Policy } from '../rules/driver';
-import { canDisplace, canPlaySpecial } from '../rules/phases';
+import { canDisplace, canPlaySpecial, coffeeTargets } from '../rules/phases';
 import { machineAccepts } from '../rules/placement';
 import { machineStatus, willTangle } from '../rules/selectors';
 import { machineVerdicts } from '../rules/reckoning';
@@ -250,6 +250,23 @@ export function botPolicy(level: BotLevel): Policy {
       // can, aimed by chooseMachine.
       if (level === 'dumbdumb') return null;
       const name = ready[0];
+      /*
+       * COFFEE FIRST: it is the only card whose target is not a machine id, so
+       * it has to be handled before the machine-shaped path below. Falling
+       * through would hand applySpecial `{player: undefined}` and take the game
+       * down — the same trap the driver's GreedyPolicy fell into.
+       * A hell-mode bot spills on whoever is furthest along; the others take
+       * the first available.
+       */
+      if (name === 'Coffee') {
+        const victims = coffeeTargets(st, pid).filter((t) => t.items.length > 0);
+        if (victims.length === 0) return null;
+        const worst =
+          level === 'hell'
+            ? victims.reduce((a, b) => (b.items.length > a.items.length ? b : a))
+            : victims[0];
+        return { name, target: { player: worst.player, item: worst.items[0] } };
+      }
       const live = st.machines.filter((m) => !m.dead).map((m) => m.id);
       if (live.length === 0) return null;
       const target = chooseMachine(st, pid, level, live) ?? live[0];

@@ -10,7 +10,7 @@ import { Client } from 'boardgame.io/client';
 import { makeLaundromat } from '../../src/game/Laundromat';
 import type { LaundromatG } from '../../src/game/Laundromat';
 import { anyLegalLoad, firstBlockedDisplacement } from '../../src/rules/driver';
-import { canPlaySpecial } from '../../src/rules/phases';
+import { coffeeTargets, canPlaySpecial } from '../../src/rules/phases';
 import { assertInvariants } from '../../src/rules/phases';
 import type { LaundromatConfig } from '../../src/rules/types';
 
@@ -94,7 +94,14 @@ function playThrough(
       const live = G.machines.filter((x) => !x.dead);
       if (playable.length > 0 && live.length > 0 && steps % 3 === 0) {
         const name = playable[0];
-        if (name === 'Coin') m.playCard(name, { machine: live[0].id, on: !live[0].on });
+        // Coffee's target is a player and one of their washed items, not a
+        // machine — the only card in the deck shaped that way, so it has to be
+        // handled before the machine-shaped branches below.
+        if (name === 'Coffee') {
+          const victim = coffeeTargets(G, pid).find((v) => v.items.length > 0);
+          if (victim) m.playCard(name, { player: victim.player, item: victim.items[0] });
+          else m.passCard();
+        } else if (name === 'Coin') m.playCard(name, { machine: live[0].id, on: !live[0].on });
         else if (name === 'Snacc') {
           const dest = live.find((x) => x.id !== G.jimothyAt);
           if (dest) m.playCard(name, dest.id);

@@ -101,11 +101,16 @@ LINEN = frozenset((UNDERWEAR, BLANKET))
 ALL_TYPES = tuple(range(7))
 
 SPECIALS = ("Coloring", "Color catcher", "Bleach", "Wash net",
-            "Snacc", "Sanitizer", "Coin")
+            "Snacc", "Sanitizer", "Coin", "Coffee")
 # Cards that attach to a machine and are read by the reckoning.
 ATTACHING = frozenset(("Coloring", "Color catcher", "Bleach", "Wash net", "Sanitizer"))
 # Cards that resolve immediately on play and never attach.
-IMMEDIATE = frozenset(("Snacc", "Coin"))
+# Coffee resolves on play like Snacc and Coin, but it is the only card that
+# touches a CLEAN PILE rather than a machine: it takes one washed item off
+# another player and returns it to their hand dirty.  It is declared here so
+# the TypeScript and Python card lists stay in step; it cannot reach the
+# reckoning, so no fixture changes because of it.
+IMMEDIATE = frozenset(("Snacc", "Coin", "Coffee"))
 
 EVENTS = ("Gang", "Circuit break", "Jimothy", "Animal control")
 FIXED_EVENT_DECK = {"Gang": 1, "Circuit break": 1, "Jimothy": 1, "Animal control": 1}

@@ -681,7 +681,16 @@ describe('DeckAndTurn', () => {
 
   test('D13 a deck that is not 20 cards is rejected at setup', () => {
     const cfg = defaultConfig(4, {
-      specialDeck: { Coloring: 1, 'Color catcher': 1, Bleach: 1, 'Wash net': 1, Snacc: 1, Sanitizer: 1, Coin: 1 },
+      specialDeck: {
+        Coloring: 1,
+        'Color catcher': 1,
+        Bleach: 1,
+        'Wash net': 1,
+        Snacc: 1,
+        Sanitizer: 1,
+        Coin: 1,
+        Coffee: 1,
+      },
     });
     expect(() => newGame(cfg, seededRng(1))).toThrow(/exactly 20/);
   });

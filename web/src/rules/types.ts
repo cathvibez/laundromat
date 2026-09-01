@@ -88,7 +88,13 @@ export type SpecialName =
   | 'Wash net'
   | 'Snacc'
   | 'Sanitizer'
-  | 'Coin';
+  | 'Coin'
+  /**
+   * COFFEE, from the printed deck. The only card that reaches into a pile that
+   * was already won: it takes one washed item off another player and hands it
+   * back dirty. Everything else in this game acts on a machine.
+   */
+  | 'Coffee';
 
 export const SPECIALS: readonly SpecialName[] = [
   'Coloring',
@@ -98,6 +104,7 @@ export const SPECIALS: readonly SpecialName[] = [
   'Snacc',
   'Sanitizer',
   'Coin',
+  'Coffee',
 ] as const;
 
 /** Cards that attach to a machine and are read by the reckoning. */
@@ -110,7 +117,14 @@ export const ATTACHING: ReadonlySet<SpecialName> = new Set<SpecialName>([
 ]);
 
 /** Cards that resolve immediately on play and never attach. */
-export const IMMEDIATE: ReadonlySet<SpecialName> = new Set<SpecialName>(['Snacc', 'Coin']);
+export const IMMEDIATE: ReadonlySet<SpecialName> = new Set<SpecialName>([
+  'Snacc',
+  'Coin',
+  // Coffee resolves on play like the other two, but it is the only card that
+  // acts on a CLEAN PILE rather than a machine — which is why it never appears
+  // in ATTACHING and cannot reach the reckoning.
+  'Coffee',
+]);
 
 export type EventName = 'Gang' | 'Circuit break' | 'Jimothy' | 'Animal control';
 

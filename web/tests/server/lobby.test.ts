@@ -355,8 +355,8 @@ describe('PATCH /api/rooms/:code/settings', () => {
         credentials: admin.credentials,
         body: {
           specialDeck: {
-            Coloring: 4, 'Color catcher': 3, Bleach: 3, 'Wash net': 3,
-            Snacc: 3, Sanitizer: 3, Coin: 1,
+            Coloring: 3, 'Color catcher': 3, Bleach: 3, 'Wash net': 3,
+            Snacc: 3, Sanitizer: 3, Coin: 1, Coffee: 1,
           },
         },
       });

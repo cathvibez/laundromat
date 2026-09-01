@@ -290,10 +290,31 @@ export function canPlaySpecial(st: GameState, pid: PlayerId, name: SpecialName):
   if (t.cardPlayed) return false;
   if (!st.players[pid].ready.includes(name)) return false;
   if (name === 'Snacc' && st.jimothyAt === null) return false;
+  // Coffee needs somebody ELSE to have washed something. Offering it with no
+  // legal target is a card that cannot be put down and cannot be discarded.
+  if (name === 'Coffee' && !coffeeTargets(st, pid).some((t) => t.items.length > 0)) return false;
   return true;
 }
 
-export type SpecialTarget = number | { machine: number; on: boolean };
+/**
+ * Every washed item Coffee could be spilled on: other players only, and only
+ * things already in a clean pile. Your own laundry is safe from your own
+ * coffee, which is both funnier and the only reading that makes it an attack.
+ */
+export function coffeeTargets(
+  st: GameState,
+  pid: PlayerId,
+): { player: PlayerId; items: ItemId[] }[] {
+  return st.players
+    .map((p, i) => ({ player: i as PlayerId, items: i === pid ? [] : [...p.clean] }))
+    .filter((t) => t.player !== pid);
+}
+
+export type SpecialTarget =
+  | number
+  | { machine: number; on: boolean }
+  /** Coffee: whose clean pile, and which item out of it. */
+  | { player: PlayerId; item: ItemId };
 
 export function playSpecial(
   st: GameState,
@@ -334,6 +355,29 @@ export function applySpecial(
     moveJimothy(st, mi, rng);
     recycleSpecial(st, name, rng);
     log(st, `Player ${pid + 1} played Snacc: Jimothy is lured to Washer ${mi + 1}.`);
+    return;
+  }
+  if (name === 'Coffee') {
+    const { player, item } = target as { player: PlayerId; item: ItemId };
+    const victim = st.players[player];
+    const at = victim.clean.indexOf(item);
+    if (at === -1) throw new Error(`${item} is not in player ${player}'s clean pile`);
+    /*
+     * OUT OF THE CLEAN PILE AND BACK INTO THE HAND. This is the only place in
+     * the game where `clean` shrinks, so it is also the only way a player's
+     * progress can go backwards — worth knowing when reading a rail that has
+     * gone down rather than up.
+     *
+     * It returns to the HAND, not to a machine: the card says "one more wash",
+     * which means they have to load it again themselves.
+     */
+    victim.clean.splice(at, 1);
+    victim.hand.push(item);
+    recycleSpecial(st, name, rng);
+    log(
+      st,
+      `Player ${pid + 1} spilled Coffee on Player ${player + 1}'s ${describe(st.items[item])}. It needs washing again.`,
+    );
     return;
   }
   if (name === 'Coin') {

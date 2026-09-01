@@ -29,13 +29,18 @@ export const MACHINES_BY_PLAYERS: Readonly<Record<number, number>> = {
  * =====================================================================
  */
 export const PLACEHOLDER_SPECIAL_DECK: Readonly<Record<SpecialName, number>> = {
-  Coloring: 3,
+  // Coffee arrived from the printed deck at 2 copies, and the total must stay
+  // at exactly 20 — see SPECIAL_DECK_TOTAL, which is a manufacturing fact and
+  // is asserted at setup. The two copies came off Coloring and Bleach, the
+  // commonest cards, so nothing left the deck entirely.
+  Coloring: 2,
   'Color catcher': 3,
-  Bleach: 3,
+  Bleach: 2,
   'Wash net': 3,
   Snacc: 3,
   Sanitizer: 3,
   Coin: 2,
+  Coffee: 2,
 };
 
 /** Manufacturing constraint.  Asserted at setup; see assertDeckSize(). */
