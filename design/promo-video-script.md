@@ -1,154 +1,100 @@
-# Promo video script — Laundromat (digital version)
+# Promo video script — Laundromat
 
-Designer: Kailin Zheng. Subject: the browser version at <https://play-laundromat.fly.dev>.
-Everything below is checked against `web/src/ui/RulesGuide.tsx`, `web/src/rules/selectors.ts`
-and `web/src/rules/reckoning.ts`. If a line here is not in the code, it is not in the video.
+**20 seconds. No gameplay footage.** The whole film is the game's own How to Play
+guide, which already contains hand-drawn washers with real cards in them and
+verdict stamps on those cards. That artwork explains the game better than a
+screen recording does, and it does not require the viewer to follow a live board.
 
----
-
-## 1. Length and platform
-
-**One cut: 60 seconds, screen-capture led, 16:9 with a 9:16 safe crop.**
-
-The reason is arithmetic, not taste. The hook is the premise's second paragraph —
-shoes, underwear, dark on light — and each of those three is a *demonstration*: a drum
-with items in it and the verdict stamps showing who loses. Four to five seconds each,
-and they do not work as a montage, because the joke is reading whose clothes went back.
-That is 20 seconds before anything else happens. The day structure (everyone loads, the
-keyholder flips one washer, everything runs at once) is another 10, Jimothy is 12, and
-the three ways to play plus the URL is 8. Cutting below 45 means dropping either a
-betrayal or the raccoon, and both are load-bearing.
-
-**A 90-second store-page cut is not recommended.** There is no third act. The extra 30
-seconds would go on the rest of the special deck — Bleach, Coloring, Mesh bag, Color
-catcher, Coffee — which are variations on "somebody did something to your washer", and
-the middle sags exactly where a store-page viewer leaves.
-
-**Short cut, 20 seconds, for feeds that punish length:** keep 0:00–0:22 (the cold open
-and the three betrayals) and 0:52–1:00 (modes and URL) verbatim; drop the day structure,
-the reckoning and Jimothy entirely. Do not try to keep a compressed Jimothy — half a
-raccoon is worse than none, and the beat is the only laugh in the piece.
-
-Aspect: shoot 16:9 from a 1512×982 browser window (matches the existing captures). For
-9:16, the safe crop is one washer plus the turn bar plus the hand rail; the seven-washer
-floor does not survive a vertical crop and should be replaced there by a 2-washer close-up.
+The earlier 60-second screen-capture cut is preserved in git history at commit
+`86a5b2f` if a longer version is ever wanted.
 
 ---
 
-## 2. Shot list
+## Why 20 seconds works here and 60 did not
 
-Assets named as `scratchpad/…` live in the session scratchpad
-(`/private/tmp/claude-501/-Users-kld-Projects-laundromat/2f8f544b-a0d7-4322-988c-947b3778eac3/scratchpad/`).
-Assets named as `web/public/art/…` are in the repo. **CAPTURE** marks a shot that does not
-exist yet; §4 says how to get each one.
+The long cut spent 20 of its 60 seconds *demonstrating* the three betrayals —
+a drum, cards in it, stamps you have to read. Demonstrations are slow.
 
-| Time | On screen | VO / on-screen text | Audio |
+Naming them is fast. "Your dirty shoes send someone's pants back" is a complete
+idea in one breath, and the guide's diagram sits under it as evidence rather
+than as something to be studied. That trade is what buys the whole film down to
+20 seconds without losing the hook.
+
+**Budget:** ~50 words of voiceover. Read flat, unhurried — roughly 2.5 words a
+second. Every shot is a still or a slow push; nothing needs to be followed.
+
+---
+
+## Shot list
+
+| Time | On screen | Voiceover | Audio |
 |---|---|---|---|
-| 0:00–0:04 | `scratchpad/clip-1512-6.png` — the six-player floor, Day 1, seven empty washers, every drum reading `0/7`. Slow push in from the whole floor to Washer 2. | VO: "One laundromat. Everybody's washing." | Room tone: fluorescent hum, a dryer turning somewhere off screen. One door thunk on the cut. |
-| 0:04–0:09 | **CAPTURE A** — three different players' cards dropping into Washer 2 in sequence: a purple dark shirt, an orange dark pair of pants, a blue dark hat. Held on the full drum, `3/7`. | VO: "What you put in a washer lands on everyone else's laundry, not just yours." | Three soft card-drop ticks, on the beat of each drop. |
-| 0:09–0:14 | **CAPTURE B** — a drum holding dark shoes plus two other players' garments, forecast stamps visible: WASHED on the shoes, BACK, BACK. Fallback if capture slips: the "Shoes spoil it" washer in `scratchpad/guide-3.png`. | VO: "Your dirty shoes send someone's pants back for another wash." | A stamp thump on each BACK. Nothing else. |
-| 0:14–0:18 | **CAPTURE C** — a drum with one player's dark underwear and one other player's dark socks. Stamps: BACK on the underwear, WASHED on the socks. Fallback: "Underwear, with company" in `scratchpad/guide-3.png`. | VO: "Your underwear is delicate. It needs the machine to itself." | Same stamp thump. |
-| 0:18–0:22 | The "Dark taints light" washer from `scratchpad/guide-4.png` — dark pants WASHED, light hat BACK — or **CAPTURE D**, the same pair live on the board. | VO: "Your dark clothes dirty someone's light ones." On-screen text, small, bottom left: "and the owner of the dark item pays nothing for that" | Stamp thump, then the room tone drops out for a beat. |
-| 0:22–0:27 | **CAPTURE E** — the turn bar: die rolls a 5, one card goes in, turn passes. Then the header chip `Key: Player 1`, and Washer 3 flipping `ON` → `OFF` with two items already inside it. | VO: "Everyone loads first. Then whoever holds the key flips one washer on or off — and that's the last word on what runs tonight." | Die rattle. A hard switch clack on the ON→OFF flip. |
-| 0:27–0:33 | The reckoning modal stepping machine by machine — shape of `scratchpad/solo-07-reckoning.png`, but **CAPTURE F** with a loaded floor so the counts are not zero. Cut to a hand rail where two items return dirty and one lands in the clean pile. | VO: "Then every washer that's still on runs at once. The board tells you what tonight will do to your clothes before it happens — and it tells everyone else too." | Wash cycle swell, then a single machine-finished chime. |
-| 0:33–0:37 | `web/public/art/cards/jimothy.jpg` full frame — the raccoon in a blue cap with a bindle and a stolen sock, walking left to right. Hold it. This is the only still in the video that is allowed to sit. | VO: "And sometimes a raccoon moves into a washer." On-screen text: "HERE COMES JIMOTHY!" (the card's own headline, from `scratchpad/pdf-page6.png`) | Everything stops. One banjo-ish pluck, or nothing at all — the silence is funnier. |
-| 0:37–0:42 | **CAPTURE G** — a washer's power chip reading `JIMOTHY` instead of `ON`, with two of your items visible inside it. Camera does not move. | VO: "That machine is out of service until he leaves. Anything inside is stuck with him." | Room tone returns, quieter. |
-| 0:42–0:47 | **CAPTURE H** — the Snacc card (`web/public/art/cards/snacc.jpg`, the bitten green apple) played, and Jimothy relocating into a washer that already holds three of somebody else's items. | VO: "You can lure him somewhere else with an apple core. Somewhere with four of your friend's shirts in it." | A small comic scurry. One card flick. |
-| 0:47–0:52 | **CAPTURE I** — the RACE TO 8 rail on the right of the board, one player's bar filling to full while the others sit behind, and the win state. | VO: "First to get everything on their list washed wins. Sabotage or collaborate — your choice." | Room tone up, dryer buzzer. |
-| 0:52–1:00 | The landing page at the top of `scratchpad/guide-3.png`: the three mode cards — "Play by myself", "Play with friends here", "Play online" — then **CAPTURE J**, the lobby with a live four-character room code (recapture; `scratchpad/online-lobby.png` still shows a localhost link). End card: wordmark on the game's paper background. | VO: "Play it against bots, pass one screen around the table, or send a room code. It runs in a browser." On-screen text, end card: **Laundromat** / play-laundromat.fly.dev | Buzzer tail, cut to silence on the end card. |
+| 0:00–0:04 | Guide page 1, **About the game** (`guide-0.png`). Slow push on the washer diagram — three players' clothes in one drum. | "One laundromat. Everybody's washing." | A washer starting up. Nothing else. |
+| 0:04–0:07 | Guide page 4, **Shoes and underwear** (`split-3.png`). Hold on the washer where the shoes spoil the load — the BACK stamps are already drawn. | "Your dirty shoes send someone's pants back." | Machine hum under. |
+| 0:07–0:10 | Same page, cut to the underwear washer. | "Your underwear needs the machine to itself." | |
+| 0:10–0:13 | Guide page 5, **Dark against light** (`split-4.png`). The "Dark taints light" washer: one WASHED, one BACK. | "Your dark clothes dirty someone's light ones." | |
+| 0:13–0:16 | **Jimothy**, full frame, still, on paper (`web/public/art/cards/jimothy.jpg`). Let the printed headline read. | "And sometimes a raccoon moves in." | Hum stops dead. One beat of silence. |
+| 0:16–0:20 | The landing page's three mode cards (`CAPTURE A`), then the wordmark and URL. | "First to get everything washed wins. Play it in a browser." | Hum returns, resolves. |
+
+The one edit that matters is at 0:13. The machine noise **stops** when Jimothy
+appears and the frame goes still. He is the only living thing in the film and
+the only cut with silence under it, which is what makes him the joke rather than
+another rule.
 
 ---
 
-## 3. Voiceover, clean
+## Voiceover, clean
 
-Read flat and slightly bored, like someone explaining a house rule they have explained
-before. No emphasis on "raccoon" — the picture does that.
+Read flat and slightly bored, like someone explaining a house rule they have
+explained before. No emphasis on "raccoon" — the picture does that.
 
 > One laundromat. Everybody's washing.
 >
-> What you put in a washer lands on everyone else's laundry, not just yours.
+> Your dirty shoes send someone's pants back.
 >
-> Your dirty shoes send someone's pants back for another wash.
->
-> Your underwear is delicate. It needs the machine to itself.
+> Your underwear needs the machine to itself.
 >
 > Your dark clothes dirty someone's light ones.
 >
-> Everyone loads first. Then whoever holds the key flips one washer on or off — and
-> that's the last word on what runs tonight.
+> And sometimes a raccoon moves in.
 >
-> Then every washer that's still on runs at once. The board tells you what tonight will
-> do to your clothes before it happens — and it tells everyone else too.
->
-> And sometimes a raccoon moves into a washer.
->
-> That machine is out of service until he leaves. Anything inside is stuck with him.
->
-> You can lure him somewhere else with an apple core. Somewhere with four of your
-> friend's shirts in it.
->
-> First to get everything on their list washed wins. Sabotage or collaborate — your choice.
->
-> Play it against bots, pass one screen around the table, or send a room code. It runs
-> in a browser.
+> First to get everything washed wins. Play it in a browser.
 
-**Alternate closing line**, if the bots need selling harder — it is verbatim from
-`BOT_LEVELS` in `web/src/game/bot.ts` and it is the best sentence in the codebase:
+**42 words** — 17 seconds of speech at an unhurried 2.5 words a second, 19 at
+2.2, which leaves room for the beat of silence on Jimothy inside 20 seconds. If it runs long, the line to cut is "Your underwear needs the
+machine to itself" — two betrayals carry the idea as well as three, and it buys
+back three seconds.
 
-> Play it against bots. There is a hell mode: it loads where its own laundry washes and
-> yours does not.
+**Silent version.** The same six lines work as on-screen text over the same
+stills, set in Fredoka to match the game. Social autoplays muted; this cut
+should not depend on sound.
 
 ---
 
-## 4. Notes
+## What needs capturing
 
-### Shots that do not exist yet
+Everything except **CAPTURE A** already exists.
 
-All of these are one browser session. `npm run dev` in `web/`, then
-`http://localhost:5173/?autostart&players=6` for a populated board; capture at 1512×982
-to match the existing stills. Hide the header's "Stay in touch" and "Review" buttons in
-post, or crop above them — they are feedback chrome and read as beta furniture.
+- **CAPTURE A** — the landing page's three mode cards (Play by myself / Play with
+  friends here / Play online), from https://play-laundromat.fly.dev at 1512×982.
+  Crop above the "How to play" heading.
+- `guide-0.png`, `split-3.png`, `split-4.png` — captured from the live guide. If
+  you recapture, use the deployed site rather than a dev server, and do not
+  include the browser chrome.
+- `jimothy.jpg` — ships with the game; the higher-resolution original is page 6
+  of `assets/LAUNDRY PRINT FILE.pdf`.
 
-- **A** — three players' cards entering one drum. Easiest hot-seat: load one item per
-  player into Washer 2 over three turns, then cut the three loads together.
-- **B, C, D** — the three betrayals, live rather than from the rules guide. Live is worth
-  the trouble: the guide diagrams are drawn small and shade-flattened, and the stamps
-  land harder at full card size with the real garment art behind them.
-- **E** — the key flip. Needs a keyholder with a loaded washer to switch off; the switch
-  is the shot, so frame the chip, not the floor.
-- **F** — reckoning with a loaded floor. `solo-07-reckoning.png` exists but reads
-  "nothing inside", which undercuts the line.
-- **G, H** — Jimothy occupying a washer and being lured. The event only arrives on the
-  first 6 of a day, so this needs either a patient session or a seeded one; the Snacc
-  card then has to be drawn on a 5. Budget an afternoon or drive it from a script.
-- **I** — a win. Three players against two hell-mode bots is the fastest route.
-- **J** — the lobby against the live deploy, so the share link reads
-  `play-laundromat.fly.dev/join/XXXX` rather than localhost.
+---
 
-Two art cautions: some older captures (`scratchpad/specials.png`) show cards reading
-"art pending" for blankets and underwear — use recent six-player captures, where the
-garment art is complete. And the printed card sheets (`scratchpad/pdf-page6.png`,
-`pdf-page7.png`, `pdf-page4.png`, `pdf-page5.png`, `web/public/art/sheet*.jpg`) are the
-strongest-looking assets in the project; if a shot is failing on screen, cut to the card.
+## Deliberately left out
 
-### Deliberately left out
+**The board.** Requested, and correct: a populated six-player board is a lot to
+take in and reads as work rather than as an invitation.
 
-- **The rest of the special deck.** Bleach, Coloring, Color catcher, Mesh bag, Coffee,
-  the Laundry Token. Each needs a sentence of setup to be funny and the video has room
-  for one such object. Jimothy earns it; Color catcher does not.
-- **Blankets and tangling.** True, good, and ten seconds of explanation: a blanket takes
-  the whole drum bar one item, and that companion gets *tangled* rather than washed. It
-  is a second-viewing rule.
-- **Crowding** (three of one garment type and all three go back). Same reason — it is the
-  rule with no villain in it, so it cannot carry a beat in a sabotage-led cut.
-- **Neighborhood Shootout / the Gang event**, which permanently destroys a washer. Funny
-  at the table, but in 60 seconds a permanently dead machine reads as the game breaking.
-- **Hidden hands and the pass-the-device interstitial.** Correct and unglamorous.
-- **Any specific number of items to wash.** It varies with player count — ten each at
-  three and four players, eight at five and six — so the VO says "everything on their
-  list", which is true at every count and is the designer's own phrasing.
-- **Anything about the physical edition.** This is the digital cut; the box does not
-  exist yet and the name is still a placeholder.
-- **Balance claims of any kind.** The simulation figures in `sim/out/` describe a ruleset
-  the app has moved past — see `design/implementation-status.md`. Nothing in this script
-  quotes a win rate, an average game length, or a "plays in N minutes".
+**The die, the days, the key, blankets, the special deck.** All real and all
+interesting, and none of them survive a 20-second cut. The key in particular —
+one player deciding what runs — is the best strategic idea in the game and
+deserves better than three seconds.
+
+**Any number.** No player count, no playtime, no balance figures. `sim/out/` is
+stale per `design/implementation-status.md`, and none of it earns its place here.
