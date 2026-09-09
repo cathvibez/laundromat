@@ -200,7 +200,7 @@ export function playGame(st: GameState, policy: Policy, rng: Rng): GameState {
  * player at a table would face the same choice.  Returns null only when the Gang
  * has destroyed every washer, which is the one board where passing stays legal.
  */
-function forcedPowerChange(st: GameState): { machine: number; on: boolean } | null {
+export function forcedPowerChange(st: GameState): { machine: number; on: boolean } | null {
   const off = st.machines.find((m) => !m.dead && !m.on);
   if (off) return { machine: off.id, on: true };
   const live = st.machines.filter((m) => !m.dead);

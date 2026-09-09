@@ -24,6 +24,7 @@ import { makeLaundromat } from '../../src/game/Laundromat';
 import type { LaundromatG } from '../../src/game/Laundromat';
 import { Board } from '../../src/ui/Board';
 import { loadableItems, machineAccepts } from '../../src/rules/placement';
+import { anyPowerChangePossible } from '../../src/rules/phases';
 
 afterEach(cleanup);
 
@@ -389,8 +390,34 @@ describe('online: the key phase, rejoined cold', () => {
     expect(screen.getAllByText('Key phase').length).toBeGreaterThan(0);
     // Said in both places a thumb looks: the banner by the washers and the strip.
     expect(screen.getAllByText(/you hold the key/i).length).toBe(2);
-    expect(screen.getByText('Let it spin')).toBeTruthy();
     expect(strip().main).toBe('Your turn');
+
+    /*
+     * "Let it spin" is passKey, and passing is legal ONLY when no washer can be
+     * switched — flipping is compulsory since v11. This used to assert the
+     * button was always present, which is precisely the bug: offered while a
+     * flip was possible, it took the click, showed a confirm, and did nothing.
+     */
+    const canPass = !anyPowerChangePossible(c.getState()!.G as LaundromatG);
+    const spin = screen.queryByText('Let it spin');
+    if (canPass) {
+      expect(spin).not.toBeNull();
+    } else {
+      expect(spin).toBeNull();
+      // ...and the banner says so, rather than offering a pass that would be
+      // refused.
+      expect(screen.getAllByText(/it is not optional/i).length).toBeGreaterThan(0);
+      // The ON/OFF controls are suppressed while a dialog is open — a cold
+      // mount can land with the reckoning review up — so only assert them when
+      // the board is actually reachable.
+      if (document.querySelectorAll('.overlay').length === 0) {
+        expect(
+          [...document.querySelectorAll('.machine .tonight button')].filter((b) =>
+            /^Turn (ON|OFF)$/.test(b.textContent ?? ''),
+          ).length,
+        ).toBeGreaterThan(0);
+      }
+    }
   });
 
   /*

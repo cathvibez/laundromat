@@ -10,7 +10,7 @@ import { RulesGuide } from './RulesGuide';
 import { LeaveReview, StayInTouch } from './Contact';
 import { EventCard, GarmentCard, SpecialCard } from './Card';
 import { BasketIcon, FoldedStackIcon, SpinningWasher } from './Icons';
-import { DICE_TEXT, canPlaySpecial, loadBlocked, loadsOutstanding } from '../rules/phases';
+import { DICE_TEXT, canPlaySpecial, loadBlocked, loadsOutstanding, anyPowerChangePossible } from '../rules/phases';
 import { firstBlockedDisplacement } from '../rules/driver';
 import {
   EVENT_TEXT,
@@ -215,6 +215,14 @@ export function Board({
     !showReveal &&
     !showResolved &&
     !ctx.gameover;
+
+  /**
+   * Passing the key is legal ONLY when no washer can be switched at all — the
+   * keyholder's action is compulsory otherwise. The engine enforces it by
+   * refusing passKey; the UI has to agree, or it offers a button that does
+   * nothing.
+   */
+  const canPass = !anyPowerChangePossible(G);
 
   const modalUp =
     showReckoning || showReveal || showResolved || confirm !== null || showRules || showLog || showTouch || showReview;
@@ -788,26 +796,44 @@ export function Board({
           {phase === 'key' && (
             <div className="banner">
               <h3>Key phase</h3>
+              {/*
+                Passing is only legal when NOTHING can be switched — flipping is
+                compulsory since v11. Saying "or pass" when it is not on offer
+                sends the keyholder looking for a button that will refuse them.
+              */}
               <div>
-                {online
-                  ? `${youOrName(G.key)} ${G.key === seat ? 'hold' : 'holds'} the key: turn one machine on, turn one off, or pass.`
-                  : `${nameOf(G.key)} holds the key: turn one machine on, turn one off, or pass.`}
+                {(() => {
+                  const who = online
+                    ? `${youOrName(G.key)} ${G.key === seat ? 'hold' : 'holds'}`
+                    : `${nameOf(G.key)} ${G.key === seat ? 'hold' : 'holds'}`;
+                  return canPass
+                    ? `${who} the key, and nothing can be switched today — let it spin.`
+                    : `${who} the key: turn one washer on, or turn one off. One of them, and it is not optional.`;
+                })()}
               </div>
               {!myTurn && (
                 <div className="note">
                   Nothing for you to do — the day ends when they have chosen.
                 </div>
               )}
-              {iAmActing && (
+              {/*
+                ONLY WHEN PASSING IS LEGAL. `passKey` is INVALID_MOVE while any
+                washer can still be switched, so offering this button then gave
+                the keyholder a confirm dialog, an accepted click, and no effect
+                whatsoever — the game simply sat in the key phase. The button's
+                own confirm text already stated the precondition; nothing
+                checked it.
+              */}
+              {iAmActing && canPass && (
                 <div className="row" style={{ marginTop: 8 }}>
                   <button
                     onClick={() =>
                       setConfirm({
-                        title: 'Pass the key phase?',
+                        title: 'Let it spin?',
                         body: (
-                          <p>No machine changes power today. The reckoning follows immediately.</p>
+                          <p>No washer can be switched today. The reckoning follows immediately.</p>
                         ),
-                        confirmLabel: 'Pass',
+                        confirmLabel: 'Let it spin',
                         act: () => moves.passKey(),
                       })
                     }

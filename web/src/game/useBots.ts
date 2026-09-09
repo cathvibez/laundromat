@@ -31,7 +31,7 @@ import type { Ctx } from 'boardgame.io';
 import type { LaundromatG } from './Laundromat';
 import { botPolicy, type BotLevel } from './bot';
 import { DICE, gangTargets, loadBlocked, mustStillLoad } from '../rules/phases';
-import { anyLegalLoad, firstBlockedDisplacement } from '../rules/driver';
+import { anyLegalLoad, firstBlockedDisplacement, forcedPowerChange } from '../rules/driver';
 import type { LogEntry } from '../rules/types';
 
 /** How long a bot appears to think between two of its own moves. */
@@ -202,9 +202,22 @@ function step(
 
   // ---- the keyholder decides what runs ----------------------------------
   if (ctx.phase === 'key') {
-    const k = p.chooseKey?.(G, seat) ?? null;
+    /*
+     * FLIPPING IS COMPULSORY, and this is where the bots used to stop dead.
+     *
+     * v11 made the keyholder's action mandatory: `passKey` is INVALID_MOVE
+     * whenever any washer could still be switched. A hell-mode bot declines the
+     * key whenever no flip helps it — which is a sensible preference and an
+     * illegal move — so it called passKey, the engine refused, nothing changed,
+     * and the game sat in the key phase forever with no way out for anybody.
+     *
+     * rules/driver.ts already had the answer: when a policy declines, the
+     * caller picks. `forcedPowerChange` is that pick, and it is shared rather
+     * than reimplemented so the two cannot drift.
+     */
+    const k = p.chooseKey?.(G, seat) ?? forcedPowerChange(G);
     if (k) call('setMachinePower', k.machine, k.on);
-    else call('passKey');
+    else call('passKey'); // only reachable when the Gang has destroyed every washer
     return;
   }
 
