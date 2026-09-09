@@ -7,3 +7,7 @@
 
 # The promo kit zip is a build artefact, rebuilt from design/promo-kit/.
 design/laundromat-promo-kit.zip
+
+# Rendered promo video. Generated output, several MB, and regenerable from
+# design/promo-kit/ — the script and frames are what's worth versioning.
+/*.mp4
