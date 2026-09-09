@@ -19,13 +19,38 @@ import { makeLaundromat } from '../../src/game/Laundromat';
 import type { LaundromatG } from '../../src/game/Laundromat';
 import { Board } from '../../src/ui/Board';
 import { loadableItems, machineAccepts } from '../../src/rules/placement';
+import { botPolicy, type BotLevel } from '../../src/game/bot';
 
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
 });
 
-const game = makeLaundromat();
+/*
+ * A PINNED SEED, because this file is a regression test and not a fuzzer.
+ *
+ * Without one boardgame.io picks a fresh seed per run, so every assertion below
+ * is made against a different game — and this test duly went green on the runs
+ * that proved the fix and red on the deploy. What it is pinning is a specific
+ * dead end (a bot keyholder with nothing it wants to flip), which needs a
+ * reproducible board, not a random one. The bots' own randomness is unaffected;
+ * `normal` still picks at random, which is what makes the loop below tolerant
+ * of whichever legal move it takes.
+ */
+const game = { ...makeLaundromat(), seed: 's4' };
+
+/** The policy under test, used here to RECOGNISE the situation being pinned. */
+const hell = botPolicy('hell');
+
+/**
+ * The exact reported situation: a bot holds the key, and its policy declines to
+ * flip anything. `chooseKey` returns null only at 'hell', and only when every
+ * available flip scores <= 0 — that null is what used to become an illegal
+ * `passKey` and stop the game dead.
+ */
+function isTheReportedSituation(G: LaundromatG, phase: string | null): boolean {
+  return phase === 'key' && G.day >= 2 && G.key !== 0 && hell.chooseKey!(G, G.key) === null;
+}
 
 function driver(numPlayers = 3) {
   const c = PlainClient({ game, numPlayers, debug: false });
@@ -96,7 +121,7 @@ function playUntil(
   );
 }
 
-function propsFor(c: ReturnType<typeof driver>, bots: Record<number, 'normal'>) {
+function propsFor(c: ReturnType<typeof driver>, bots: Record<number, BotLevel>) {
   const st = c.getState()!;
   return {
     G: st.G as LaundromatG,
@@ -116,7 +141,7 @@ describe('a bot holding the key', () => {
   test('the key phase reaches a bot seat at all', () => {
     const c = driver();
     // Seat 0 starts with the key; it passes left each day, so day 2 is seat 1.
-    playUntil(c, ({ ctx, G }) => ctx.phase === 'key' && G.day >= 2, 'a later key phase');
+    playUntil(c, ({ ctx, G }) => isTheReportedSituation(G, ctx.phase), 'a declining bot keyholder');
     const G = c.getState()!.G as LaundromatG;
     const ctx = c.getState()!.ctx as unknown as { currentPlayer: string };
 
@@ -128,13 +153,30 @@ describe('a bot holding the key', () => {
   test('a bot keyholder is offered a gate, and taking it makes the bot act', () => {
     vi.useFakeTimers();
     const c = driver();
-    playUntil(c, ({ ctx, G }) => ctx.phase === 'key' && G.day >= 2, 'a later key phase');
+    /*
+     * Stop on the SITUATION, not on "day 2". The predicate asks the real policy
+     * whether it declines here, so the test cannot quietly come to rest in a
+     * game where the bot happily flips a washer — which is what an earlier
+     * "day >= 2" version did, passing against the very bug it was written for.
+     */
+    playUntil(c, ({ ctx, G }) => isTheReportedSituation(G, ctx.phase), 'a declining bot keyholder');
 
     const keyholder = (c.getState()!.G as LaundromatG).key;
-    const bots = { 1: 'normal', 2: 'normal' } as Record<number, 'normal'>;
+    /*
+     * HELL BOTS, and that is the whole point of the test.
+     *
+     * `chooseKey` in bot.ts returns null only at 'hell' — the level scores its
+     * options and declines outright when the best one does not help it
+     * ("passing beats a move that does not help", bot.ts). Every other level
+     * always names a flip, so the fallback this file exists to cover is never
+     * reached and the test passes against the bug. An earlier version used
+     * 'normal' and did exactly that.
+     */
+    const bots = { 1: 'hell', 2: 'hell' } as Record<number, BotLevel>;
     expect(bots[keyholder]).toBeDefined(); // the keyholder really is a bot
 
     const before = c.getState()!.ctx.phase;
+    const powerBefore = (c.getState()!.G as LaundromatG).machines.map((m) => m.on).join('');
     const { rerender } = render(<Board {...propsFor(c, bots)} />);
 
     /*
@@ -161,12 +203,20 @@ describe('a bot holding the key', () => {
      * Bots move on a timer and are held while a modal is open, so the loop does
      * what a player does: clear whatever dialog is up, let time pass, re-render.
      */
-    for (let i = 0; i < 12; i++) {
-      const dismiss = [...document.querySelectorAll('.overlay button')].find((b) =>
-        /Continue to day|Close|Got it|OK/i.test(b.textContent ?? ''),
-      );
-      if (dismiss) {
-        fireEvent.click(dismiss);
+    for (let i = 0; i < 40; i++) {
+      /*
+       * CLICK THE LAST BUTTON, DO NOT MATCH ITS LABEL. The reckoning review is
+       * a sequence — "Skip" to jump to the end, then "Continue to day N" — and
+       * an earlier version of this loop matched on a list of labels that
+       * happened to omit "Skip". It therefore sat on the first screen of the
+       * overlay forever, bots frozen behind it (they are held while a modal is
+       * open, by design), and reported the bug it was written to disprove.
+       * The advancing control is the last button in the row in every one of
+       * these dialogs; that is the thing to press.
+       */
+      const buttons = [...document.querySelectorAll<HTMLElement>('.overlay button')];
+      if (buttons.length > 0) {
+        fireEvent.click(buttons[buttons.length - 1]);
         rerender(<Board {...propsFor(c, bots)} />);
         continue;
       }
@@ -178,8 +228,20 @@ describe('a bot holding the key', () => {
 
     const after = c.getState()!.ctx.phase;
     const G = c.getState()!.G as LaundromatG;
-    // Either the key phase resolved and the day moved on, or the bot at least
-    // flipped a washer. Sitting in the key phase unchanged is the failure.
-    expect(after !== before || G.day > 2).toBe(true);
+    const powerAfter = G.machines.map((m) => m.on).join('');
+
+    /*
+     * THE FAILURE IS "NOTHING HAPPENED", so assert on the two things that can
+     * happen rather than on the day. The bot flips a washer (power changes) and
+     * the key phase ends (the phase moves on); either one proves it acted. The
+     * previous version of this test checked `G.day > 2`, which is a CONSEQUENCE
+     * of acting and needs the reckoning and the next day's setup to run inside
+     * the loop's budget — so it could fail on a game where the bot had plainly
+     * moved. Sitting in the key phase with every washer as it was is the bug.
+     */
+    expect(
+      powerAfter !== powerBefore || after !== before,
+      `bot keyholder never acted: phase ${before} -> ${after}, power ${powerBefore} -> ${powerAfter}`,
+    ).toBe(true);
   });
 });
